@@ -24,7 +24,7 @@ export default function AddExpenseScreen({ navigation }) {
   const [amount, setAmount] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('alimentacao');
+  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]?.id || 'outros');
   const [selectedCard, setSelectedCard] = useState(null);
   const [expenseType, setExpenseType] = useState('card'); // 'card' or 'standalone'
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -86,7 +86,7 @@ export default function AddExpenseScreen({ navigation }) {
           setAmount('');
           setAmountDisplay('');
           setDescription('');
-          setSelectedCategory('alimentacao');
+          setSelectedCategory(CATEGORIES[0]?.id || 'outros');
           setSelectedCard(null);
           setExpenseType('card');
           setDate(new Date().toISOString().split('T')[0]);
