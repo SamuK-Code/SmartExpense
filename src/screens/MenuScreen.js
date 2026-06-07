@@ -18,7 +18,7 @@ import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComp
 import AppHeader from '../components/AppHeader';
 
 export default function MenuScreen({ navigation }) {
-  const { expenses, cards, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
+  const { expenses, cards, deleteExpense, deleteCard, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
   const { colors, isDark, toggleTheme } = useTheme();
   const { cashBalance, updateCashBalance } = usePlanning();
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
@@ -75,8 +75,10 @@ export default function MenuScreen({ navigation }) {
                   style: 'destructive',
                   onPress: () => {
                     // Clear all data
-                    expenses.forEach(e => deleteExpense(e.id));
-                    cards.forEach(c => deleteCard(c.id));
+                    const expenseIds = expenses.map(e => e.id);
+                    const cardIds = cards.map(c => c.id);
+                    expenseIds.forEach(id => deleteExpense(id));
+                    cardIds.forEach(id => deleteCard(id));
                     updateCashBalance(0);
                     Alert.alert('Concluído', 'Todos os dados foram removidos');
                   }
@@ -257,9 +259,8 @@ export default function MenuScreen({ navigation }) {
               <Text style={[styles.aboutTitle, { color: colors.text }]}>Controle de Gastos</Text>
               <Text style={[styles.aboutVersion, { color: colors.textSecondary }]}>Versão 2.0.0</Text>
               <Text style={[styles.aboutText, { color: colors.textSecondary }]}>
-                Aplicativo para controle financeiro pessoal. {'
-'}
-                Gerencie cartões, boletos e acompanhe seus gastos de forma simples.
+                {`Aplicativo para controle financeiro pessoal.
+                Gerencie cartões, boletos e acompanhe seus gastos de forma simples.`}
               </Text>
               <TouchableOpacity
                 style={[styles.modalButton, { backgroundColor: colors.primary }]}
