@@ -30,7 +30,7 @@ export default function PlanningScreen() {
   const [editingGoal, setEditingGoal] = useState(null);
   const [goalName, setGoalName] = useState('');
   const [goalAmount, setGoalAmount] = useState('');
-  const [goalCategory, setGoalCategory] = useState('outros');
+  const [goalCategory, setGoalCategory] = useState(CATEGORIES[0]?.id || 'outros');
 
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -55,7 +55,7 @@ export default function PlanningScreen() {
     setEditingGoal(null);
     setGoalName('');
     setGoalAmount('');
-    setGoalCategory('outros');
+    setGoalCategory(CATEGORIES[0]?.id || 'outros');
     setGoalModalVisible(true);
   };
 
@@ -63,7 +63,7 @@ export default function PlanningScreen() {
     setEditingGoal(goal);
     setGoalName(goal.name);
     setGoalAmount(goal.amount.toString());
-    setGoalCategory(goal.category || 'outros');
+    setGoalCategory(goal.category || (CATEGORIES[0]?.id || 'outros'));
     setGoalModalVisible(true);
   };
 
