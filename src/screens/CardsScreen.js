@@ -24,16 +24,34 @@ export default function CardsScreen() {
   const [editingCard, setEditingCard] = useState(null);
   const [selectedBank, setSelectedBank] = useState(null);
   const [cardLimit, setCardLimit] = useState('');
+  const [cardLimitDisplay, setCardLimitDisplay] = useState('');
   const [customName, setCustomName] = useState('');
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  // Formata o input de moeda enquanto digita
+  const handleLimitChange = (text) => {
+    // Remove tudo que não é número
+    const numeric = text.replace(/\D/g, '');
+    setCardLimit(numeric);
+
+    // Formata para display
+    const number = parseInt(numeric) / 100;
+    setCardLimitDisplay(
+      new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }).format(number || 0)
+    );
+  };
+
   const openAddModal = () => {
     setEditingCard(null);
     setSelectedBank(null);
     setCardLimit('');
+    setCardLimitDisplay('');
     setCustomName('');
     setModalVisible(true);
   };
@@ -42,7 +60,8 @@ export default function CardsScreen() {
     setEditingCard(card);
     const bank = getBankById(card.bankId);
     setSelectedBank(bank);
-    setCardLimit(card.limit.toString());
+    setCardLimit((card.limit * 100).toString());
+    setCardLimitDisplay(formatCurrency(card.limit));
     setCustomName(card.customName || '');
     setModalVisible(true);
   };
@@ -57,12 +76,12 @@ export default function CardsScreen() {
       Alert.alert('Erro', 'Selecione um banco');
       return;
     }
-    if (!cardLimit) {
-      Alert.alert('Erro', 'Preencha o limite');
-      return;
-    }
-    const limit = parseFloat(cardLimit.replace(',', '.'));
-    if (isNaN(limit) || limit <= 0) {
+
+    // Pega o valor numérico puro (sem formatação)
+    const numericValue = cardLimit.replace(/\D/g, '');
+    const limit = parseInt(numericValue) / 100;
+
+    if (!numericValue || limit <= 0) {
       Alert.alert('Erro', 'Digite um limite válido');
       return;
     }
@@ -81,7 +100,13 @@ export default function CardsScreen() {
     } else {
       addCard(cardData);
     }
+
     setModalVisible(false);
+    // Limpar estados
+    setSelectedBank(null);
+    setCardLimit('');
+    setCardLimitDisplay('');
+    setCustomName('');
   };
 
   const handleDelete = (card) => {
@@ -117,7 +142,7 @@ Os gastos associados não serão excluídos.`,
                 <View style={styles.cardHeader}>
                   <View style={styles.cardTitleRow}>
                     <View style={[styles.cardIcon, { backgroundColor: card.color + '20' }]}>
-                      <Ionicons name={card.icon || 'card'} size={22} color={card.color} />
+                      <Ionicons name={card.icon || 'card-outline'} size={22} color={card.color} />
                     </View>
                     <View>
                       <Text style={[styles.cardName, { color: colors.text }]}>{card.customName || card.name}</Text>
@@ -165,7 +190,7 @@ Os gastos associados não serão excluídos.`,
 
                 {pct >= 100 && (
                   <View style={[styles.alertBadge, { backgroundColor: colors.danger + '20' }]}>
-                    <Ionicons name="warning" size={14} color={colors.danger} />
+                    <Ionicons name="warning-outline" size={14} color={colors.danger} />
                     <Text style={[styles.alertText, { color: colors.danger }]}>Limite excedido!</Text>
                   </View>
                 )}
@@ -238,19 +263,25 @@ Os gastos associados não serão excluídos.`,
                 placeholderTextColor={colors.textLight}
               />
 
-              {/* Limit */}
+              {/* Limit - COM FORMATAÇÃO DE MOEDA */}
               <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Limite do cartão</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
-                placeholder="R$ 5.000,00"
-                keyboardType="decimal-pad"
-                value={cardLimit}
-                onChangeText={setCardLimit}
+                placeholder="R$ 0,00"
+                keyboardType="numeric"
+                value={cardLimitDisplay}
+                onChangeText={handleLimitChange}
                 placeholderTextColor={colors.textLight}
               />
 
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)}>
+                <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.border }]} onPress={() => {
+                  setModalVisible(false);
+                  setSelectedBank(null);
+                  setCardLimit('');
+                  setCardLimitDisplay('');
+                  setCustomName('');
+                }}>
                   <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
