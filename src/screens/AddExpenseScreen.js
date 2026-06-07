@@ -32,6 +32,11 @@ export default function AddExpenseScreen({ navigation }) {
   const [filterCard, setFilterCard] = useState('all');
   const [filterType, setFilterType] = useState('all'); // 'all', 'card', 'standalone'
 
+  const getTodayDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
   // FAB menu states
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [showCashForm, setShowCashForm] = useState(false);
@@ -39,10 +44,6 @@ export default function AddExpenseScreen({ navigation }) {
   const [cashAmountDisplay, setCashAmountDisplay] = useState('');
   const [cashDate, setCashDate] = useState(getTodayDate());
   const [cashDescription, setCashDescription] = useState('');
-  const getTodayDate = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  };
   const [date, setDate] = useState(getTodayDate());
 
   const formatCurrency = (value) => {
