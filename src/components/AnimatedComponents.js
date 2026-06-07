@@ -1,10 +1,11 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
 
 export function FadeInView({ children, duration = 500, delay = 0, style }) {
-  const fadeAnim = new Animated.Value(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    fadeAnim.setValue(0);  // Reset antes de animar
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration,
@@ -12,7 +13,7 @@ export function FadeInView({ children, duration = 500, delay = 0, style }) {
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [duration, delay]);  // ✅ Dependências corretas
 
   return (
     <Animated.View style={[{ opacity: fadeAnim }, style]}>
@@ -22,10 +23,14 @@ export function FadeInView({ children, duration = 500, delay = 0, style }) {
 }
 
 export function SlideInView({ children, duration = 500, delay = 0, from = 'bottom', style }) {
-  const translateY = new Animated.Value(from === 'bottom' ? 50 : -50);
-  const fadeAnim = new Animated.Value(0);
+  const translateY = useRef(new Animated.Value(from === 'bottom' ? 50 : -50)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    const initialValue = from === 'bottom' ? 50 : -50;
+    translateY.setValue(initialValue);
+    fadeAnim.setValue(0);
+
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: 0,
@@ -41,7 +46,7 @@ export function SlideInView({ children, duration = 500, delay = 0, from = 'botto
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [duration, delay, from]);
 
   return (
     <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY }] }, style]}>
@@ -51,10 +56,13 @@ export function SlideInView({ children, duration = 500, delay = 0, from = 'botto
 }
 
 export function ScaleInView({ children, duration = 400, delay = 0, style }) {
-  const scaleAnim = new Animated.Value(0.8);
-  const fadeAnim = new Animated.Value(0);
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    scaleAnim.setValue(0.8);
+    fadeAnim.setValue(0);
+
     Animated.parallel([
       Animated.timing(scaleAnim, {
         toValue: 1,
@@ -70,7 +78,7 @@ export function ScaleInView({ children, duration = 400, delay = 0, style }) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [duration, delay]);
 
   return (
     <Animated.View style={[{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }, style]}>
@@ -92,10 +100,10 @@ export function StaggeredList({ children, staggerDelay = 100, baseDelay = 0 }) {
 }
 
 export function PulseView({ children, style }) {
-  const pulseAnim = new Animated.Value(1);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.05,
@@ -111,6 +119,8 @@ export function PulseView({ children, style }) {
         }),
       ])
     ).start();
+
+    return () => animation.stop();  // ✅ Cleanup ao desmontar
   }, []);
 
   return (
