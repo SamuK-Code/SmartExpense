@@ -108,14 +108,23 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    const numericAmount = parseInt(cashAmount) / 100;
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    // Parse amount - remove non-numeric chars and convert
+    const numericValue = parseFloat(cashAmount);
+    if (isNaN(numericValue) || numericValue <= 0) {
       Alert.alert('Erro', 'Digite um valor válido');
       return;
     }
 
+    // Convert to actual value (cashAmount is in cents)
+    const finalAmount = numericValue / 100;
+
     try {
-      addCashTransaction(numericAmount, cashDescription.trim());
+      const result = addCashTransaction(finalAmount, cashDescription.trim());
+
+      if (result === null) {
+        Alert.alert('Erro', 'Não foi possível adicionar ao caixa');
+        return;
+      }
 
       Alert.alert('Sucesso', 'Dinheiro adicionado ao caixa!', [
         { text: 'OK', onPress: () => {
