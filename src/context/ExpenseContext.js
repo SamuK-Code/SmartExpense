@@ -5,14 +5,14 @@ import { v4 as uuidv4 } from 'uuid';
 const ExpenseContext = createContext();
 
 export const CATEGORIES = [
-  { id: 'alimentacao', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant', limit: 800 },
-  { id: 'transporte', name: 'Transporte', color: '#4ECDC4', icon: 'car', limit: 500 },
-  { id: 'lazer', name: 'Lazer', color: '#45B7D1', icon: 'game-controller', limit: 400 },
-  { id: 'saude', name: 'Saúde', color: '#96CEB4', icon: 'medical', limit: 300 },
-  { id: 'moradia', name: 'Moradia', color: '#FFEAA7', icon: 'home', limit: 1500 },
-  { id: 'educacao', name: 'Educação', color: '#DDA0DD', icon: 'school', limit: 300 },
-  { id: 'compras', name: 'Compras', color: '#FDCB6E', icon: 'cart', limit: 600 },
-  { id: 'outros', name: 'Outros', color: '#B2BEC3', icon: 'ellipsis-horizontal', limit: 200 },
+  { id: 'alimentacao', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant-outline', limit: 800 },
+  { id: 'transporte', name: 'Transporte', color: '#4ECDC4', icon: 'car-outline', limit: 500 },
+  { id: 'lazer', name: 'Lazer', color: '#45B7D1', icon: 'game-controller-outline', limit: 400 },
+  { id: 'saude', name: 'Saúde', color: '#96CEB4', icon: 'medical-outline', limit: 300 },
+  { id: 'moradia', name: 'Moradia', color: '#FFEAA7', icon: 'home-outline', limit: 1500 },
+  { id: 'educacao', name: 'Educação', color: '#DDA0DD', icon: 'school-outline', limit: 300 },
+  { id: 'compras', name: 'Compras', color: '#FDCB6E', icon: 'cart-outline', limit: 600 },
+  { id: 'outros', name: 'Outros', color: '#B2BEC3', icon: 'ellipsis-horizontal-outline', limit: 200 },
 ];
 
 export function ExpenseProvider({ children }) {
