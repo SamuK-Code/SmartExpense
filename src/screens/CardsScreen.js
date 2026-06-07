@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView, ScaleInView, StaggeredList } from '../components/AnimatedComponents';
+import AppHeader from '../components/AppHeader';
+import SimpleList from '../components/SimpleList';
 import BankSelectorModal from '../components/BankSelectorModal';
 import { getBankById } from '../utils/BanksData';
 
@@ -31,13 +33,9 @@ export default function CardsScreen() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  // Formata o input de moeda enquanto digita
   const handleLimitChange = (text) => {
-    // Remove tudo que não é número
     const numeric = text.replace(/\D/g, '');
     setCardLimit(numeric);
-
-    // Formata para display
     const number = parseInt(numeric) / 100;
     setCardLimitDisplay(
       new Intl.NumberFormat('pt-BR', {
@@ -60,7 +58,6 @@ export default function CardsScreen() {
     setEditingCard(card);
     const bank = getBankById(card.bankId);
     setSelectedBank(bank);
-    // Converte o limite para centavos para o input
     const limitInCents = Math.round(card.limit * 100);
     setCardLimit(limitInCents.toString());
     setCardLimitDisplay(formatCurrency(card.limit));
@@ -74,29 +71,24 @@ export default function CardsScreen() {
   };
 
   const handleSave = () => {
-    // Validação 1: Banco selecionado
     if (!selectedBank) {
       Alert.alert('Erro', 'Selecione um banco');
       return;
     }
 
-    // Validação 2: Limite preenchido
     if (!cardLimit || cardLimit === '0') {
       Alert.alert('Erro', 'Preencha o limite do cartão');
       return;
     }
 
-    // Converte o valor de centavos para reais
     const numericValue = parseInt(cardLimit);
     const limit = numericValue / 100;
 
-    // Validação 3: Limite válido
     if (isNaN(limit) || limit <= 0) {
       Alert.alert('Erro', 'Digite um limite válido');
       return;
     }
 
-    // Dados do cartão
     const cardData = {
       bankId: selectedBank.id,
       name: selectedBank.name,
@@ -106,7 +98,6 @@ export default function CardsScreen() {
       icon: selectedBank.icon,
     };
 
-    // Salva (adiciona ou atualiza)
     if (editingCard) {
       updateCard(editingCard.id, cardData);
       Alert.alert('Sucesso', 'Cartão atualizado!');
@@ -115,7 +106,6 @@ export default function CardsScreen() {
       Alert.alert('Sucesso', 'Cartão adicionado!');
     }
 
-    // Fecha modal e limpa estados
     setModalVisible(false);
     setEditingCard(null);
     setSelectedBank(null);
@@ -137,101 +127,103 @@ Os gastos associados não serão excluídos.`,
     );
   };
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Meus Cartões</Text>
-          <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={openAddModal}>
-            <Ionicons name="add-outline" size={24} color="#fff" />
+  const renderCardItem = (card) => {
+    const usage = getCardUsage(card.id);
+    const pct = card.limit > 0 ? (usage / card.limit) * 100 : 0;
+    const remaining = card.limit - usage;
+
+    return (
+      <TouchableOpacity
+        style={[styles.cardItem, { backgroundColor: colors.card, borderLeftColor: card.color }]}
+        onPress={() => openEditModal(card)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleRow}>
+            <View style={[styles.cardIcon, { backgroundColor: card.color + '20' }]}>
+              <Ionicons name={card.icon || 'card-outline'} size={22} color={card.color} />
+            </View>
+            <View style={styles.cardTitleInfo}>
+              <Text style={[styles.cardName, { color: colors.text }]}>{card.customName || card.name}</Text>
+              <Text style={[styles.cardLimit, { color: colors.textSecondary }]}>
+                Limite: {formatCurrency(card.limit)}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity onPress={() => handleDelete(card)} style={styles.deleteButton}>
+            <Ionicons name="trash-outline" size={20} color={colors.danger} />
           </TouchableOpacity>
         </View>
 
-        <StaggeredList staggerDelay={100}>
-          {cards.map(card => {
-            const usage = getCardUsage(card.id);
-            const pct = card.limit > 0 ? (usage / card.limit) * 100 : 0;
-            const remaining = card.limit - usage;
-            return (
-              <View key={card.id} style={[styles.cardItem, { backgroundColor: colors.card, borderLeftColor: card.color }]}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardTitleRow}>
-                    <View style={[styles.cardIcon, { backgroundColor: card.color + '20' }]}>
-                      <Ionicons name={card.icon || 'card-outline'} size={22} color={card.color} />
-                    </View>
-                    <View>
-                      <Text style={[styles.cardName, { color: colors.text }]}>{card.customName || card.name}</Text>
-                      <Text style={[styles.cardLimit, { color: colors.textSecondary }]}>
-                        Limite: {formatCurrency(card.limit)}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity onPress={() => openEditModal(card)}>
-                      <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDelete(card)}>
-                      <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+        <View style={styles.usageSection}>
+          <View style={styles.usageRow}>
+            <Text style={[styles.usageLabel, { color: colors.textSecondary }]}>Usado</Text>
+            <Text style={[styles.usageValue, { color: colors.text }]}>{formatCurrency(usage)}</Text>
+          </View>
+          <View style={styles.usageRow}>
+            <Text style={[styles.usageLabel, { color: colors.textSecondary }]}>Disponível</Text>
+            <Text style={[styles.usageValue, { color: remaining < 0 ? colors.danger : colors.primary }]}>
+              {formatCurrency(remaining)}
+            </Text>
+          </View>
+        </View>
 
-                <View style={styles.usageSection}>
-                  <View style={styles.usageRow}>
-                    <Text style={[styles.usageLabel, { color: colors.textSecondary }]}>Usado</Text>
-                    <Text style={[styles.usageValue, { color: colors.text }]}>{formatCurrency(usage)}</Text>
-                  </View>
-                  <View style={styles.usageRow}>
-                    <Text style={[styles.usageLabel, { color: colors.textSecondary }]}>Disponível</Text>
-                    <Text style={[styles.usageValue, { color: remaining < 0 ? colors.danger : colors.primary }]}>
-                      {formatCurrency(remaining)}
-                    </Text>
-                  </View>
-                </View>
+        <View style={styles.progressSection}>
+          <View style={[styles.progressBar, { backgroundColor: isDark ? '#333' : '#e0e0e0' }]}>
+            <View style={[styles.progressFill, {
+              width: `${Math.min(pct, 100)}%`,
+              backgroundColor: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary,
+            }]} />
+          </View>
+          <Text style={[styles.progressText, {
+            color: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary,
+          }]}>
+            {pct.toFixed(1)}% utilizado
+          </Text>
+        </View>
 
-                <View style={styles.progressSection}>
-                  <View style={[styles.progressBar, { backgroundColor: isDark ? '#333' : '#e0e0e0' }]}>
-                    <View style={[styles.progressFill, {
-                      width: `${Math.min(pct, 100)}%`,
-                      backgroundColor: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary,
-                    }]} />
-                  </View>
-                  <Text style={[styles.progressText, {
-                    color: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary,
-                  }]}>
-                    {pct.toFixed(1)}% utilizado
-                  </Text>
-                </View>
-
-                {pct >= 100 && (
-                  <View style={[styles.alertBadge, { backgroundColor: colors.danger + '20' }]}>
-                    <Ionicons name="warning-outline" size={14} color={colors.danger} />
-                    <Text style={[styles.alertText, { color: colors.danger }]}>Limite excedido!</Text>
-                  </View>
-                )}
-                {pct >= 80 && pct < 100 && (
-                  <View style={[styles.alertBadge, { backgroundColor: colors.warning + '20' }]}>
-                    <Ionicons name="alert-circle-outline" size={14} color={colors.warning} />
-                    <Text style={[styles.alertText, { color: colors.warning }]}>Quase no limite</Text>
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </StaggeredList>
-
-        {cards.length === 0 && (
-          <FadeInView>
-            <View style={styles.emptyState}>
-              <Ionicons name="card-outline" size={48} color={colors.textLight} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Nenhum cartão cadastrado</Text>
-              <TouchableOpacity style={[styles.emptyButton, { backgroundColor: colors.primary }]} onPress={openAddModal}>
-                <Text style={styles.emptyButtonText}>Adicionar primeiro cartão</Text>
-              </TouchableOpacity>
-            </View>
-          </FadeInView>
+        {pct >= 100 && (
+          <View style={[styles.alertBadge, { backgroundColor: colors.danger + '20' }]}>
+            <Ionicons name="warning-outline" size={14} color={colors.danger} />
+            <Text style={[styles.alertText, { color: colors.danger }]}>Limite excedido!</Text>
+          </View>
         )}
-      </ScrollView>
+        {pct >= 80 && pct < 100 && (
+          <View style={[styles.alertBadge, { backgroundColor: colors.warning + '20' }]}>
+            <Ionicons name="alert-circle-outline" size={14} color={colors.warning} />
+            <Text style={[styles.alertText, { color: colors.warning }]}>Quase no limite</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <AppHeader title="Meus Cartões" />
+
+      <View style={styles.content}>
+        <SimpleList
+          data={cards}
+          renderItem={renderCardItem}
+          keyExtractor={(item) => item.id}
+          emptyTitle="Nenhum cartão cadastrado"
+          emptySubtitle="Adicione seu primeiro cartão para começar a controlar os gastos"
+          emptyIcon="card-outline"
+          onAddPress={openAddModal}
+          addButtonText="Adicionar Cartão"
+        />
+      </View>
+
+      {/* Botão flutuante para adicionar (quando tem cartões) */}
+      {cards.length > 0 && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.primary }]}
+          onPress={openAddModal}
+        >
+          <Ionicons name="add-outline" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
 
       {/* Add/Edit Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -242,7 +234,6 @@ Os gastos associados não serão excluídos.`,
                 {editingCard ? 'Editar Cartão' : 'Novo Cartão'}
               </Text>
 
-              {/* Bank Selector */}
               <TouchableOpacity
                 style={[styles.bankSelector, { backgroundColor: colors.inputBg }]}
                 onPress={() => setBankSelectorVisible(true)}
@@ -268,7 +259,6 @@ Os gastos associados não serão excluídos.`,
                 <Ionicons name="chevron-forward-outline" size={20} color={colors.textLight} />
               </TouchableOpacity>
 
-              {/* Custom Name */}
               <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Apelido (opcional)</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
@@ -278,7 +268,6 @@ Os gastos associados não serão excluídos.`,
                 placeholderTextColor={colors.textLight}
               />
 
-              {/* Limit - COM FORMATAÇÃO DE MOEDA */}
               <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Limite do cartão</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
@@ -309,7 +298,6 @@ Os gastos associados não serão excluídos.`,
         </View>
       </Modal>
 
-      {/* Bank Selector Modal */}
       <BankSelectorModal
         visible={bankSelectorVisible}
         onSelect={handleSelectBank}
@@ -322,87 +310,198 @@ Os gastos associados não serão excluídos.`,
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, paddingTop: 50,
-  },
-  headerTitle: { fontSize: 24, fontWeight: 'bold' },
-  addButton: {
-    width: 44, height: 44, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
+  content: {
+    flex: 1,
   },
   cardItem: {
-    marginHorizontal: 16, marginBottom: 12, padding: 16,
-    borderRadius: 18, borderLeftWidth: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 18,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cardHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   cardIcon: {
-    width: 44, height: 44, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  cardName: { fontSize: 16, fontWeight: 'bold' },
-  cardLimit: { fontSize: 12, marginTop: 2 },
-  cardActions: { flexDirection: 'row', gap: 12 },
-  usageSection: { marginBottom: 10 },
-  usageRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  usageLabel: { fontSize: 13 },
-  usageValue: { fontSize: 13, fontWeight: '600' },
-  progressSection: { marginTop: 4 },
+  cardTitleInfo: {
+    flex: 1,
+  },
+  cardName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cardLimit: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  deleteButton: {
+    padding: 4,
+  },
+  usageSection: {
+    marginBottom: 10,
+  },
+  usageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  usageLabel: {
+    fontSize: 13,
+  },
+  usageValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  progressSection: {
+    marginTop: 4,
+  },
   progressBar: {
-    height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 6,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 6,
   },
-  progressFill: { height: '100%', borderRadius: 4 },
-  progressText: { fontSize: 12, fontWeight: '600', textAlign: 'right' },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
   alertBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 8, marginTop: 10, alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 10,
+    alignSelf: 'flex-start',
   },
-  alertText: { fontSize: 12, fontWeight: '600', marginLeft: 6 },
-  emptyState: { alignItems: 'center', padding: 40 },
-  emptyText: { fontSize: 14, marginTop: 12 },
-  emptyButton: {
-    marginTop: 16, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 4, elevation: 2,
+  alertText: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
   },
-  emptyButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
   modalOverlay: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
-    width: '100%', maxWidth: 340, borderRadius: 20, padding: 24,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2, shadowRadius: 16, elevation: 10,
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
   bankSelector: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 14, borderRadius: 14, marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 16,
   },
-  selectedBankRow: { flexDirection: 'row', alignItems: 'center' },
+  selectedBankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   selectedBankIcon: {
-    width: 44, height: 44, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  selectedBankName: { fontSize: 15, fontWeight: '600' },
-  selectedBankType: { fontSize: 12, marginTop: 2 },
-  selectBankPlaceholder: { flexDirection: 'row', alignItems: 'center' },
-  selectBankText: { marginLeft: 10, fontSize: 15 },
-  modalLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  selectedBankName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  selectedBankType: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  selectBankPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectBankText: {
+    marginLeft: 10,
+    fontSize: 15,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   modalInput: {
-    borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    marginBottom: 16,
   },
-  modalButtons: { flexDirection: 'row', gap: 10 },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   modalButton: {
-    flex: 1, padding: 14, borderRadius: 12, alignItems: 'center',
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  modalButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
