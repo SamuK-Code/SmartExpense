@@ -272,6 +272,7 @@ export function ExpenseProvider({ children }) {
   const [categoryLimits, setCategoryLimits] = useState({});
   const [customCategories, setCustomCategories] = useState([]);
   const [completedExpenses, setCompletedExpenses] = useState([]);
+  const [cashTransactions, setCashTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState([]);
 
@@ -283,12 +284,13 @@ export function ExpenseProvider({ children }) {
 
   const loadData = async () => {
     try {
-      const [storedExpenses, storedCards, storedLimits, storedCustomCategories, storedCompleted] = await Promise.all([
+      const [storedExpenses, storedCards, storedLimits, storedCustomCategories, storedCompleted, storedCashTx] = await Promise.all([
         safeGetItem(STORAGE_KEYS.EXPENSES, []),
         safeGetItem(STORAGE_KEYS.CARDS, []),
         safeGetItem(STORAGE_KEYS.CATEGORY_LIMITS, {}),
         safeGetItem(STORAGE_KEYS.CUSTOM_CATEGORIES, []),
         safeGetItem(STORAGE_KEYS.COMPLETED_EXPENSES, []),
+        safeGetItem(STORAGE_KEYS.CASH_TRANSACTIONS, []),
       ]);
 
       // Validate loaded data
@@ -297,6 +299,7 @@ export function ExpenseProvider({ children }) {
       if (storedLimits && typeof storedLimits === 'object') setCategoryLimits(storedLimits);
       if (Array.isArray(storedCustomCategories)) setCustomCategories(storedCustomCategories);
       if (Array.isArray(storedCompleted)) setCompletedExpenses(storedCompleted);
+      if (Array.isArray(storedCashTx)) setCashTransactions(storedCashTx);
     } catch (error) { 
       console.error('Erro ao carregar:', error); 
     }
@@ -311,6 +314,7 @@ export function ExpenseProvider({ children }) {
         safeSetItem(STORAGE_KEYS.CATEGORY_LIMITS, categoryLimits),
         safeSetItem(STORAGE_KEYS.CUSTOM_CATEGORIES, customCategories),
         safeSetItem(STORAGE_KEYS.COMPLETED_EXPENSES, completedExpenses),
+        safeSetItem(STORAGE_KEYS.CASH_TRANSACTIONS, cashTransactions),
       ]);
     } catch (error) { console.error('Erro ao salvar:', error); }
   };
@@ -374,6 +378,26 @@ export function ExpenseProvider({ children }) {
   const getExpiredCompletedExpenses = () => {
     const now = new Date().toISOString();
     return completedExpenses.filter(e => e.expiresAt <= now);
+  };
+
+  const addCashTransaction = (amount, description = 'Entrada de caixa') => {
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      console.error('Invalid cash transaction amount');
+      return null;
+    }
+
+    const transaction = {
+      id: generateUUID(),
+      amount: numAmount,
+      description,
+      date: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+      type: 'cash_in',
+    };
+
+    setCashTransactions(prev => [transaction, ...prev]);
+    return transaction;
   };
 
   const addExpense = (expense) => {
@@ -496,6 +520,7 @@ export function ExpenseProvider({ children }) {
     getFilteredExpenses, getTotalByCategory, getTotalByCard,
     getMonthlyTotal, getExpensesByMonth, getCardUsage, getCategoryUsage,
     completeExpense, getActiveCompletedExpenses, getExpiredCompletedExpenses,
+    addCashTransaction, cashTransactions,
     CATEGORIES, DEFAULT_CATEGORIES, AVAILABLE_ICONS, AVAILABLE_COLORS,
   };
 
