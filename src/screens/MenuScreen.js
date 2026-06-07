@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
+import { safeGetItem, safeSetItem, STORAGE_KEYS } from '../utils/SafeStorage';
+import { playClick, toggleSound, isSoundEnabled } from '../utils/SoundManager';
 import { useTheme } from '../context/ThemeContext';
 import { usePlanning } from '../context/PlanningContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
@@ -23,6 +25,19 @@ export default function MenuScreen({ navigation }) {
   const { cashBalance, updateCashBalance } = usePlanning();
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
   const [statsModalVisible, setStatsModalVisible] = useState(false);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const alerts = await safeGetItem(STORAGE_KEYS.ALERTS_ENABLED, true);
+      const sound = await safeGetItem(STORAGE_KEYS.SOUND_ENABLED, true);
+      setAlertsEnabled(alerts);
+      setSoundEnabled(sound);
+      toggleSound(sound);
+    };
+    loadSettings();
+  }, []);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -35,6 +50,20 @@ export default function MenuScreen({ navigation }) {
   const avgExpense = totalExpenses > 0 ? totalAmount / totalExpenses : 0;
   const standaloneCount = expenses.filter(e => !e.cardId).length;
   const cardExpensesCount = expenses.filter(e => e.cardId).length;
+
+  const toggleSoundSetting = async () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    toggleSound(newValue);
+    await safeSetItem(STORAGE_KEYS.SOUND_ENABLED, newValue);
+    if (newValue) playClick();
+  };
+
+  const toggleAlerts = async () => {
+    const newValue = !alertsEnabled;
+    setAlertsEnabled(newValue);
+    await safeSetItem(STORAGE_KEYS.ALERTS_ENABLED, newValue);
+  };
 
   const handleShare = async () => {
     try {
@@ -92,6 +121,22 @@ export default function MenuScreen({ navigation }) {
   };
 
   const menuItems = [
+    {
+      id: 'sound',
+      icon: soundEnabled ? 'volume-high' : 'volume-mute',
+      title: 'Sons',
+      subtitle: soundEnabled ? 'Ativados' : 'Desativados',
+      action: 'toggleSound',
+      color: colors.secondary,
+    },
+    {
+      id: 'alerts',
+      icon: alertsEnabled ? 'notifications' : 'notifications-off',
+      title: 'Alertas',
+      subtitle: alertsEnabled ? 'Ativados' : 'Desativados',
+      action: 'toggleAlerts',
+      color: colors.info,
+    },
     {
       id: 'theme',
       icon: isDark ? 'moon' : 'sunny',
@@ -154,6 +199,12 @@ export default function MenuScreen({ navigation }) {
 
   const handleMenuPress = (item) => {
     switch (item.action) {
+      case 'toggleSound':
+        toggleSoundSetting();
+        break;
+      case 'toggleAlerts':
+        toggleAlerts();
+        break;
       case 'toggle':
         toggleTheme();
         break;
