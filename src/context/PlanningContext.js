@@ -4,6 +4,24 @@ import * as Crypto from 'expo-crypto';
 
 const PlanningContext = createContext();
 
+// Função segura para gerar UUID com fallback
+const generateUUID = () => {
+  try {
+    if (Crypto && Crypto.randomUUID) {
+      return Crypto.randomUUID();
+    }
+  } catch (e) {
+    console.log('expo-crypto não disponível, usando fallback');
+  }
+
+  // Fallback manual (UUID v4)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export function PlanningProvider({ children }) {
   const [cashBalance, setCashBalance] = useState(0);  // Valor em caixa
   const [goals, setGoals] = useState([]);
@@ -33,17 +51,10 @@ export function PlanningProvider({ children }) {
     } catch (e) { console.error(e); }
   };
 
-  const updateCashBalance = (amount) => {
-  const parsed = parseFloat(amount);
-    if (isNaN(parsed)) {
-      console.warn('Valor inválido para saldo em caixa');
-      return;
-    }
-    setCashBalance(parsed);
-  };
+  const updateCashBalance = (amount) => setCashBalance(parseFloat(amount) || 0);
 
   const addGoal = (goal) => {
-    const newGoal = { id: Crypto.randomUUID()(), ...goal, createdAt: new Date().toISOString() };
+    const newGoal = { id: generateUUID(), ...goal, createdAt: new Date().toISOString() };
     setGoals(prev => [newGoal, ...prev]);
   };
 
