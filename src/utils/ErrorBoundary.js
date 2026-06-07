@@ -29,9 +29,8 @@ class ErrorBoundary extends Component {
           <Ionicons name="alert-circle-outline" size={64} color="#e74c3c" />
           <Text style={styles.title}>Ops! Algo deu errado</Text>
           <Text style={styles.subtitle}>
-            O aplicativo encontrou um erro inesperado.{'
-'}
-            Tente reiniciar ou entre em contato.
+            {`O aplicativo encontrou um erro inesperado.
+Tente reiniciar ou entre em contato.`}
           </Text>
           {this.state.error && (
             <Text style={styles.errorText}>
