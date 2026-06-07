@@ -17,7 +17,6 @@ import { usePlanning } from '../context/PlanningContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView, ScaleInView, StaggeredList } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
-import SimpleList from '../components/SimpleList';
 import { getBankById } from '../utils/BanksData';
 
 export default function PlanningScreen() {
@@ -280,16 +279,28 @@ export default function PlanningScreen() {
             </TouchableOpacity>
           </View>
 
-          <SimpleList
-            data={goals}
-            renderItem={renderGoalItem}
-            keyExtractor={(item) => item.id}
-            emptyTitle="Nenhuma meta cadastrada"
-            emptySubtitle="Adicione sua primeira meta de compra ou economia"
-            emptyIcon="flag-outline"
-            onAddPress={openAddGoal}
-            addButtonText="Adicionar Meta"
-          />
+          {goals.length === 0 ? (
+            <View style={styles.emptyGoals}>
+              <Ionicons name="flag-outline" size={48} color={colors.textLight} />
+              <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Nenhuma meta cadastrada</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>Adicione sua primeira meta de compra ou economia</Text>
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: colors.primary }]}
+                onPress={openAddGoal}
+              >
+                <Ionicons name="add-outline" size={20} color="#fff" />
+                <Text style={styles.addButtonText}>Adicionar Meta</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View>
+              {goals.map((goal, index) => (
+                <SlideInView key={goal.id} delay={index * 50}>
+                  {renderGoalItem(goal)}
+                </SlideInView>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -516,4 +527,33 @@ const styles = StyleSheet.create({
     flex: 1, padding: 14, borderRadius: 12, alignItems: 'center',
   },
   modalButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  emptyGoals: {
+    alignItems: 'center',
+    padding: 40,
+    paddingTop: 20,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 12,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+    marginLeft: 6,
+  },
 });
