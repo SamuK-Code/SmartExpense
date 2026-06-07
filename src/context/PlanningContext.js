@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 
 const PlanningContext = createContext();
 
@@ -43,7 +43,7 @@ export function PlanningProvider({ children }) {
   };
 
   const addGoal = (goal) => {
-    const newGoal = { id: uuidv4(), ...goal, createdAt: new Date().toISOString() };
+    const newGoal = { id: Crypto.randomUUID()(), ...goal, createdAt: new Date().toISOString() };
     setGoals(prev => [newGoal, ...prev]);
   };
 
