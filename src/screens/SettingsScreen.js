@@ -23,7 +23,7 @@ export default function SettingsScreen() {
   const { CATEGORIES, categoryLimits, setCategoryLimit, expenses, cards } = useExpenses();
   const { colors, isDark, toggleTheme } = useTheme();
   const [limitModalVisible, setLimitModalVisible] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
   const [limitValue, setLimitValue] = useState('');
 
   const formatCurrency = (value) => {
@@ -52,10 +52,13 @@ export default function SettingsScreen() {
   };
 
   const openLimitModal = (category) => {
+    if (!category) return;
     setSelectedCategory(category);
     const currentLimit = categoryLimits[category.id] !== undefined ? categoryLimits[category.id] : category.limit;
     setLimitValue(currentLimit.toString());
-    setLimitModalVisible(true);
+    setTimeout(() => {
+      setLimitModalVisible(true);
+    }, 50);
   };
 
   const saveLimit = () => {
@@ -174,7 +177,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* Limit Modal */}
-      <Modal visible={limitModalVisible} transparent animationType="fade">
+      <Modal visible={limitModalVisible && selectedCategory !== null} transparent animationType="fade">
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <ScaleInView>
             <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
