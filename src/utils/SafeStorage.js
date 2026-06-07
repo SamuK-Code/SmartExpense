@@ -35,6 +35,13 @@ export const safeGetItem = async (key, defaultValue = null) => {
       return defaultValue;
     }
 
+    // Check for incomplete JSON (starts with [ or { but doesn't end properly)
+    if ((trimmed.startsWith('[') && !trimmed.endsWith(']')) || 
+        (trimmed.startsWith('{') && !trimmed.endsWith('}'))) {
+      console.warn(`Incomplete JSON for key ${key}, returning default`);
+      return defaultValue;
+    }
+
     // Try to parse as JSON
     try {
       return JSON.parse(trimmed);
