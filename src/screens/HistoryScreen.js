@@ -36,37 +36,17 @@ export default function HistoryScreen({ navigation }) {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // Calculate monthly total for severity comparison
   const monthlyTotal = getMonthlyTotal(getFilteredExpenses('month'));
 
-  // Determine expense severity based on monthly spending
   const getExpenseSeverity = (amount) => {
-    if (monthlyTotal === 0) return { level: 'normal', color: colors.textSecondary, label: '', icon: '' };
+    if (monthlyTotal === 0) return { level: 'normal', color: colors.textSecondary, label: '', icon: '', bgColor: 'transparent' };
     const percentage = (amount / monthlyTotal) * 100;
     if (percentage >= 20) {
-      return { 
-        level: 'high', 
-        color: colors.danger, 
-        label: 'Muito caro', 
-        icon: 'alert-circle',
-        bgColor: colors.danger + (isDark ? '25' : '15')
-      };
+      return { level: 'high', color: colors.danger, label: 'Muito caro', icon: 'alert-circle', bgColor: colors.danger + (isDark ? '25' : '15') };
     } else if (percentage >= 10) {
-      return { 
-        level: 'medium', 
-        color: colors.warning, 
-        label: 'Médio', 
-        icon: 'trending-up',
-        bgColor: colors.warning + (isDark ? '25' : '15')
-      };
+      return { level: 'medium', color: colors.warning, label: 'Médio', icon: 'trending-up', bgColor: colors.warning + (isDark ? '25' : '15') };
     } else if (percentage >= 5) {
-      return { 
-        level: 'low', 
-        color: colors.info, 
-        label: 'Simples', 
-        icon: 'checkmark-circle',
-        bgColor: colors.info + (isDark ? '25' : '15')
-      };
+      return { level: 'low', color: colors.info, label: 'Simples', icon: 'checkmark-circle', bgColor: colors.info + (isDark ? '25' : '15') };
     }
     return { level: 'normal', color: colors.textSecondary, label: '', icon: '', bgColor: 'transparent' };
   };
@@ -81,11 +61,7 @@ export default function HistoryScreen({ navigation }) {
       `Deseja excluir "${expense.description}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Excluir', 
-          style: 'destructive',
-          onPress: () => deleteExpense(expense.id)
-        },
+        { text: 'Excluir', style: 'destructive', onPress: () => deleteExpense(expense.id) },
       ]
     );
   };
@@ -93,6 +69,7 @@ export default function HistoryScreen({ navigation }) {
   const renderExpenseItem = (item) => {
     const category = getCategoryInfo(item.category);
     const card = cards.find(c => c.id === item.cardId);
+    const isStandalone = !item.cardId;
     const severity = getExpenseSeverity(parseFloat(item.amount));
 
     return (
@@ -111,11 +88,17 @@ export default function HistoryScreen({ navigation }) {
             <View style={[styles.categoryBadge, { backgroundColor: category.color + (isDark ? '30' : '20') }]}>
               <Text style={[styles.categoryBadgeText, { color: category.color }]}>{category.name}</Text>
             </View>
-            {card && (
+            {isStandalone ? (
+              <View style={[styles.standaloneBadge, { backgroundColor: colors.info + (isDark ? '30' : '20') }]}>
+                <Ionicons name="receipt-outline" size={10} color={colors.info} />
+                <Text style={[styles.standaloneText, { color: colors.info }]}>Boleto/Avulso</Text>
+              </View>
+            ) : card ? (
               <View style={[styles.cardBadge, { backgroundColor: card.color + '20' }]}>
+                <Ionicons name="card-outline" size={10} color={card.color} />
                 <Text style={[styles.cardBadgeText, { color: card.color }]}>{card.name}</Text>
               </View>
-            )}
+            ) : null}
           </View>
           <View style={styles.expenseBottomRow}>
             <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
@@ -143,16 +126,13 @@ export default function HistoryScreen({ navigation }) {
 
       <PeriodFilter selected={period} onSelect={setPeriod} />
 
-      {/* Category Filter */}
       <View style={[styles.filterContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           <TouchableOpacity
             style={[styles.filterButton, filter === 'all' && { backgroundColor: colors.header }]}
             onPress={() => setFilter('all')}
           >
-            <Text style={[styles.filterText, filter === 'all' && { color: '#fff' }, { color: colors.textSecondary }]}>
-              Todos
-            </Text>
+            <Text style={[styles.filterText, filter === 'all' && { color: '#fff' }, { color: colors.textSecondary }]}>Todos</Text>
           </TouchableOpacity>
           {CATEGORIES.map(cat => (
             <TouchableOpacity
@@ -186,73 +166,32 @@ export default function HistoryScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: {
-    flex: 1,
-  },
-  filterContainer: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
+  content: { flex: 1 },
+  filterContainer: { paddingVertical: 10, borderBottomWidth: 1 },
   filterScroll: { paddingHorizontal: 12 },
-  filterButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: 6,
-  },
+  filterButton: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, marginRight: 6 },
   filterText: { fontSize: 12 },
   expenseItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    flexDirection: 'row', alignItems: 'center', padding: 16,
+    borderRadius: 14, marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  categoryIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   expenseInfo: { flex: 1, marginLeft: 12 },
   expenseDescription: { fontSize: 15, fontWeight: '600' },
-  expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap' },
-  categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginRight: 6,
-    marginBottom: 4,
-  },
+  expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap', gap: 6 },
+  categoryBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   categoryBadgeText: { fontSize: 11, fontWeight: '500' },
-  cardBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginBottom: 4,
-  },
+  // Standalone badge
+  standaloneBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 3 },
+  standaloneText: { fontSize: 11, fontWeight: '500' },
+  // Card badge
+  cardBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, gap: 3 },
   cardBadgeText: { fontSize: 11, fontWeight: '500' },
-  expenseBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    justifyContent: 'space-between',
-  },
+  expenseBottomRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, justifyContent: 'space-between' },
   expenseDate: { fontSize: 12 },
-  severityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
+  severityBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 },
   severityText: { fontSize: 10, fontWeight: '600', marginLeft: 3 },
   expenseRight: { alignItems: 'flex-end' },
   expenseAmount: { fontSize: 15, fontWeight: 'bold' },
