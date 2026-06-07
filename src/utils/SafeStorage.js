@@ -20,17 +20,37 @@ export const STORAGE_KEYS = {
 export const safeGetItem = async (key, defaultValue = null) => {
   try {
     const value = await AsyncStorage.getItem(key);
-    if (value === null || value === undefined || value === 'undefined') return defaultValue;
 
-    // Check if value is a valid JSON string
+    // Handle null, undefined, empty string
+    if (value === null || value === undefined || value === '' || value === 'undefined' || value === 'null') {
+      return defaultValue;
+    }
+
+    // Check if value is a valid string
     if (typeof value !== 'string') return defaultValue;
+
+    // Trim whitespace
+    const trimmed = value.trim();
+    if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null') {
+      return defaultValue;
+    }
 
     // Try to parse as JSON
     try {
-      return JSON.parse(value);
+      return JSON.parse(trimmed);
     } catch (parseError) {
-      // If it's not valid JSON, return the raw string or default
-      console.warn(`Invalid JSON for key ${key}:`, value.substring(0, 50));
+      // If it's not valid JSON, check if it's a simple value
+      if (trimmed === 'true') return true;
+      if (trimmed === 'false') return false;
+
+      // Try to parse as number
+      const num = parseFloat(trimmed);
+      if (!isNaN(num) && isFinite(num)) {
+        return num;
+      }
+
+      // Return raw string or default
+      console.warn(`Invalid JSON for key ${key}, returning default. Value:`, trimmed.substring(0, 50));
       return defaultValue;
     }
   } catch (error) {
@@ -42,10 +62,16 @@ export const safeGetItem = async (key, defaultValue = null) => {
 // Safe set with error handling and backup
 export const safeSetItem = async (key, value) => {
   try {
+    // Don't save undefined or null directly
+    if (value === undefined || value === null) {
+      console.warn(`Attempted to save null/undefined for key ${key}`);
+      return false;
+    }
+
     const jsonValue = JSON.stringify(value);
 
     // Validate JSON before saving
-    if (!jsonValue) {
+    if (!jsonValue || jsonValue === '' || jsonValue === 'undefined' || jsonValue === 'null') {
       throw new Error('Failed to stringify value');
     }
 
