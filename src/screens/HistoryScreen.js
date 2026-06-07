@@ -16,10 +16,11 @@ import SimpleList from '../components/SimpleList';
 import PeriodFilter from '../components/PeriodFilter';
 
 export default function HistoryScreen({ navigation }) {
-  const { expenses, deleteExpense, getFilteredExpenses, cards, CATEGORIES, getMonthlyTotal } = useExpenses();
+  const { expenses, deleteExpense, getFilteredExpenses, cards, CATEGORIES, getMonthlyTotal, cashTransactions, addCashTransaction } = useExpenses();
   const { colors, isDark } = useTheme();
   const [period, setPeriod] = useState('all');
   const [filter, setFilter] = useState('all');
+  const [historyTab, setHistoryTab] = useState('expenses'); // 'expenses' or 'cash'
 
   const filteredExpenses = getFilteredExpenses(period);
 
@@ -63,6 +64,33 @@ export default function HistoryScreen({ navigation }) {
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Excluir', style: 'destructive', onPress: () => deleteExpense(expense.id) },
       ]
+    );
+  };
+
+  const renderCashItem = (item) => {
+    return (
+      <TouchableOpacity 
+        style={[styles.expenseItem, { backgroundColor: colors.card }]}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.categoryIcon, { backgroundColor: colors.success + (isDark ? '30' : '20') }]}>
+          <Ionicons name="cash-outline" size={22} color={colors.success} />
+        </View>
+        <View style={styles.expenseInfo}>
+          <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
+          <View style={styles.expenseMeta}>
+            <View style={[styles.categoryBadge, { backgroundColor: colors.success + (isDark ? '30' : '20') }]}>
+              <Text style={[styles.categoryBadgeText, { color: colors.success }]}>Entrada</Text>
+            </View>
+          </View>
+          <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
+        </View>
+        <View style={styles.expenseRight}>
+          <Text style={[styles.expenseAmount, { color: colors.success }]}>
+            + {formatCurrency(parseFloat(item.amount))}
+          </Text>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -148,8 +176,40 @@ export default function HistoryScreen({ navigation }) {
         </ScrollView>
       </View>
 
+      {/* History Tabs */}
+      <View style={[styles.historyTabs, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.historyTab, historyTab === 'expenses' && { backgroundColor: colors.primary }]}
+          onPress={() => setHistoryTab('expenses')}
+        >
+          <Ionicons name="receipt-outline" size={16} color={historyTab === 'expenses' ? '#fff' : colors.textSecondary} />
+          <Text style={[styles.historyTabText, { color: historyTab === 'expenses' ? '#fff' : colors.textSecondary }]}>
+            Gastos ({finalExpenses.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.historyTab, historyTab === 'cash' && { backgroundColor: colors.success }]}
+          onPress={() => setHistoryTab('cash')}
+        >
+          <Ionicons name="cash-outline" size={16} color={historyTab === 'cash' ? '#fff' : colors.textSecondary} />
+          <Text style={[styles.historyTabText, { color: historyTab === 'cash' ? '#fff' : colors.textSecondary }]}>
+            Entradas ({cashTransactions.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.content}>
-        <SimpleList
+        {historyTab === 'cash' ? (
+          <SimpleList
+            data={cashTransactions}
+            renderItem={renderCashItem}
+            keyExtractor={(item) => item.id}
+            emptyTitle="Nenhuma entrada registrada"
+            emptySubtitle="Adicione dinheiro ao caixa na aba Gastos"
+            emptyIcon="cash-outline"
+          />
+        ) : (
+          <SimpleList
           data={finalExpenses}
           renderItem={renderExpenseItem}
           keyExtractor={(item) => item.id}
@@ -158,13 +218,33 @@ export default function HistoryScreen({ navigation }) {
           emptyIcon="receipt-outline"
           onAddPress={() => navigation.navigate('AddExpense')}
           addButtonText="Adicionar Gasto"
-        />
+          />
+        )}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  historyTabs: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+  },
+  historyTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  historyTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   container: { flex: 1 },
   content: { flex: 1 },
   filterContainer: { paddingVertical: 10, borderBottomWidth: 1 },
