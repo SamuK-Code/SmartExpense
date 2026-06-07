@@ -24,7 +24,7 @@ export default function EditExpenseScreen({ navigation, route }) {
 
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('alimentacao');
+  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]?.id || 'outros');
   const [selectedCard, setSelectedCard] = useState(null);
   const [date, setDate] = useState('');
 
