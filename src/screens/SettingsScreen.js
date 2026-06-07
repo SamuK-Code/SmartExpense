@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
+import AppHeader from '../components/AppHeader';
+import SimpleList from '../components/SimpleList';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
@@ -85,76 +87,74 @@ export default function SettingsScreen() {
     },
   ];
 
+  const renderSettingItem = (item, index) => (
+    <SlideInView key={item.id} delay={index * 100}>
+      <TouchableOpacity
+        style={[styles.settingItem, { backgroundColor: colors.card }]}
+        onPress={() => {
+          if (item.action === 'toggle') toggleTheme();
+          if (item.action === 'export') handleExport();
+        }}
+      >
+        <View style={[styles.settingIcon, { backgroundColor: colors.primary + '15' }]}>
+          <Ionicons name={item.icon} size={20} color={colors.primary} />
+        </View>
+        <View style={styles.settingInfo}>
+          <Text style={[styles.settingTitle, { color: colors.text }]}>{item.title}</Text>
+          <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
+        </View>
+        {item.action === 'toggle' ? (
+          <Switch
+            value={item.value}
+            onValueChange={toggleTheme}
+            trackColor={{ false: '#767577', true: colors.primary + '80' }}
+            thumbColor={item.value ? colors.primary : '#f4f3f4'}
+          />
+        ) : (
+          <Ionicons name="chevron-forward-outline" size={20} color={colors.textLight} />
+        )}
+      </TouchableOpacity>
+    </SlideInView>
+  );
+
+  const renderCategoryItem = (cat, index) => {
+    const currentLimit = categoryLimits[cat.id] !== undefined ? categoryLimits[cat.id] : cat.limit;
+    return (
+      <SlideInView key={cat.id} delay={index * 60}>
+        <TouchableOpacity
+          style={[styles.settingItem, { backgroundColor: colors.card }]}
+          onPress={() => openLimitModal(cat)}
+        >
+          <View style={[styles.settingIcon, { backgroundColor: cat.color + '15' }]}>
+            <Ionicons name={cat.icon} size={20} color={cat.color} />
+          </View>
+          <View style={styles.settingInfo}>
+            <Text style={[styles.settingTitle, { color: colors.text }]}>{cat.name}</Text>
+            <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
+              Limite: {formatCurrency(currentLimit)}
+            </Text>
+          </View>
+          <Ionicons name="create-outline" size={18} color={colors.textLight} />
+        </TouchableOpacity>
+      </SlideInView>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <FadeInView>
-          <View style={styles.header}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Configurações</Text>
-          </View>
-        </FadeInView>
+      <AppHeader title="Configurações" showStats={false} />
 
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
         {/* General Settings */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>GERAL</Text>
-          {settingsItems.map((item, index) => (
-            <SlideInView key={item.id} delay={index * 100}>
-              <TouchableOpacity
-                style={[styles.settingItem, { backgroundColor: colors.card }]}
-                onPress={() => {
-                  if (item.action === 'toggle') toggleTheme();
-                  if (item.action === 'export') handleExport();
-                }}
-              >
-                <View style={[styles.settingIcon, { backgroundColor: colors.primary + '15' }]}>
-                  <Ionicons name={item.icon} size={20} color={colors.primary} />
-                </View>
-                <View style={styles.settingInfo}>
-                  <Text style={[styles.settingTitle, { color: colors.text }]}>{item.title}</Text>
-                  <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
-                </View>
-                {item.action === 'toggle' ? (
-                  <Switch
-                    value={item.value}
-                    onValueChange={toggleTheme}
-                    trackColor={{ false: '#767577', true: colors.primary + '80' }}
-                    thumbColor={item.value ? colors.primary : '#f4f3f4'}
-                  />
-                ) : (
-                  <Ionicons name="chevron-forward-outline" size={20} color={colors.textLight} />
-                )}
-              </TouchableOpacity>
-            </SlideInView>
-          ))}
+          {settingsItems.map((item, index) => renderSettingItem(item, index))}
         </View>
 
         {/* Category Limits */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>ORÇAMENTO POR CATEGORIA</Text>
-          <View>
-            {CATEGORIES.map((cat, index) => {
-              const currentLimit = categoryLimits[cat.id] !== undefined ? categoryLimits[cat.id] : cat.limit;
-              return (
-                <SlideInView key={cat.id} delay={index * 60}>
-                  <TouchableOpacity
-                    style={[styles.settingItem, { backgroundColor: colors.card }]}
-                    onPress={() => openLimitModal(cat)}
-                  >
-                    <View style={[styles.settingIcon, { backgroundColor: cat.color + '15' }]}>
-                      <Ionicons name={cat.icon} size={20} color={cat.color} />
-                    </View>
-                    <View style={styles.settingInfo}>
-                      <Text style={[styles.settingTitle, { color: colors.text }]}>{cat.name}</Text>
-                      <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
-                        Limite: {formatCurrency(currentLimit)}
-                      </Text>
-                    </View>
-                    <Ionicons name="create-outline" size={18} color={colors.textLight} />
-                  </TouchableOpacity>
-                </SlideInView>
-              );
-            })}
-          </View>
+          {CATEGORIES.map((cat, index) => renderCategoryItem(cat, index))}
         </View>
 
         {/* Stats */}
@@ -207,9 +207,10 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingTop: 50 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold' },
-  section: { paddingHorizontal: 16, marginBottom: 24 },
+  content: {
+    flex: 1,
+  },
+  section: { paddingHorizontal: 16, marginBottom: 24, paddingTop: 16 },
   sectionTitle: {
     fontSize: 12, fontWeight: 'bold', marginBottom: 8,
     marginLeft: 4, letterSpacing: 1,
