@@ -134,8 +134,8 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <ExpenseProvider>
-          <PlanningProvider>
+        <PlanningProvider>
+          <ExpenseProvider>
             <NavigationContainer>
               <StatusBar style="auto" />
               <TabNavigator />
