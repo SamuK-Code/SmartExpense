@@ -24,6 +24,7 @@ import ChartDetailScreen from './src/screens/ChartDetailScreen';
 import CardsScreen from './src/screens/CardsScreen';
 import PlanningScreen from './src/screens/PlanningScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import MenuScreen from './src/screens/MenuScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -65,6 +66,25 @@ function ChartStack() {
   );
 }
 
+function MenuStack() {
+  const { colors } = useTheme();
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.header },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: { fontWeight: 'bold' },
+        cardStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <Stack.Screen name="MenuMain" component={MenuScreen} options={{ title: 'Menu' }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configuracoes' }} />
+      <Stack.Screen name="EditExpense" component={EditExpenseScreen} options={{ title: 'Editar Gasto' }} />
+      <Stack.Screen name="ChartDetail" component={ChartDetailScreen} options={{ title: 'Detalhes' }} />
+    </Stack.Navigator>
+  );
+}
+
 function TabNavigator() {
   const { colors, isDark } = useTheme();
 
@@ -77,8 +97,9 @@ function TabNavigator() {
           else if (route.name === 'Adicionar') iconName = focused ? 'add-circle' : 'add-circle-outline';
           else if (route.name === 'Historico') iconName = focused ? 'list' : 'list-outline';
           else if (route.name === 'Graficos') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
-          else if (route.name === 'Planejar') iconName = focused ? 'calendar-outline' : 'calendar-outline';
+          else if (route.name === 'Planejar') iconName = focused ? 'calendar' : 'calendar-outline';
           else if (route.name === 'Cartoes') iconName = focused ? 'card' : 'card-outline';
+          else if (route.name === 'Menu') iconName = focused ? 'menu' : 'menu-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: colors.primary,
@@ -103,6 +124,7 @@ function TabNavigator() {
       <Tab.Screen name="Graficos" component={ChartStack} />
       <Tab.Screen name="Planejar" component={PlanningScreen} />
       <Tab.Screen name="Cartoes" component={CardsScreen} />
+      <Tab.Screen name="Menu" component={MenuStack} />
     </Tab.Navigator>
   );
 }
