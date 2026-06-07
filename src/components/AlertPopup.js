@@ -10,10 +10,10 @@ export default function AlertPopup({ visible, alert, onDismiss }) {
 
   const getIcon = (type) => {
     switch (type) {
-      case 'danger': return 'warning';
-      case 'warning': return 'alert-circle';
-      case 'info': return 'information-circle';
-      default: return 'information-circle';
+      case 'danger': return 'warning-outline';
+      case 'warning': return 'alert-circle-outline';
+      case 'info': return 'information-circle-outline';
+      default: return 'information-circle-outline';
     }
   };
 
