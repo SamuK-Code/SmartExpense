@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Switch,
   ScrollView,
   Alert,
   Modal,
@@ -15,40 +14,41 @@ import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
-import SimpleList from '../components/SimpleList';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
-  const { CATEGORIES, categoryLimits, setCategoryLimit, expenses, cards } = useExpenses();
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { 
+    CATEGORIES, 
+    DEFAULT_CATEGORIES, 
+    AVAILABLE_ICONS, 
+    AVAILABLE_COLORS,
+    categoryLimits, 
+    setCategoryLimit,
+    addCategory,
+    deleteCategory,
+    updateCategory,
+    expenses,
+  } = useExpenses();
+  const { colors, isDark } = useTheme();
+
   const [limitModalVisible, setLimitModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
   const [limitValue, setLimitValue] = useState('');
 
+  // Category management modals
+  const [addCategoryModalVisible, setAddCategoryModalVisible] = useState(false);
+  const [iconPickerVisible, setIconPickerVisible] = useState(false);
+  const [colorPickerVisible, setColorPickerVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+
+  // New category form
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('star-outline');
+  const [newCategoryColor, setNewCategoryColor] = useState('#FF6B6B');
+  const [newCategoryLimit, setNewCategoryLimit] = useState('');
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
-
-  const handleExport = async () => {
-    try {
-      const csvContent = [
-        ['Data', 'Descrição', 'Categoria', 'Cartão', 'Valor'].join(','),
-        ...expenses.map(e => [
-          e.date,
-          `"${e.description}"`,
-          CATEGORIES.find(c => c.id === e.category)?.name || e.category,
-          e.cardId || 'N/A',
-          e.amount,
-        ].join(','))
-      ].join('\n');
-
-      const fileUri = FileSystem.documentDirectory + 'gastos.csv';
-      await FileSystem.writeAsStringAsync(fileUri, csvContent);
-      await Sharing.shareAsync(fileUri);
-    } catch (e) {
-      Alert.alert('Erro', 'Não foi possível exportar os dados');
-    }
   };
 
   const openLimitModal = (category) => {
@@ -62,82 +62,122 @@ export default function SettingsScreen() {
   };
 
   const saveLimit = () => {
-    const limit = parseFloat(limitValue.replace(',', '.'));
-    if (isNaN(limit) || limit < 0) {
+    if (!limitValue || isNaN(parseFloat(limitValue))) {
       Alert.alert('Erro', 'Digite um valor válido');
       return;
     }
+    const limit = parseFloat(limitValue.replace(',', '.'));
     setCategoryLimit(selectedCategory.id, limit);
     setLimitModalVisible(false);
     Alert.alert('Sucesso', `Limite de ${selectedCategory.name} atualizado!`);
   };
 
-  const settingsItems = [
-    {
-      id: 'darkMode',
-      icon: isDark ? 'moon-outline' : 'sunny-outline',
-      title: 'Modo Escuro',
-      subtitle: isDark ? 'Ativado' : 'Desativado',
-      action: 'toggle',
-      value: isDark,
-    },
-    {
-      id: 'export',
-      icon: 'download-outline',
-      title: 'Exportar Dados',
-      subtitle: 'CSV para planilha',
-      action: 'export',
-    },
-  ];
+  const isDefaultCategory = (categoryId) => {
+    return DEFAULT_CATEGORIES.some(c => c.id === categoryId);
+  };
 
-  const renderSettingItem = (item, index) => (
-    <SlideInView key={item.id} delay={index * 100}>
-      <TouchableOpacity
-        style={[styles.settingItem, { backgroundColor: colors.card }]}
-        onPress={() => {
-          if (item.action === 'toggle') toggleTheme();
-          if (item.action === 'export') handleExport();
-        }}
-      >
-        <View style={[styles.settingIcon, { backgroundColor: colors.primary + '15' }]}>
-          <Ionicons name={item.icon} size={20} color={colors.primary} />
-        </View>
-        <View style={styles.settingInfo}>
-          <Text style={[styles.settingTitle, { color: colors.text }]}>{item.title}</Text>
-          <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
-        </View>
-        {item.action === 'toggle' ? (
-          <Switch
-            value={item.value}
-            onValueChange={toggleTheme}
-            trackColor={{ false: '#767577', true: colors.primary + '80' }}
-            thumbColor={item.value ? colors.primary : '#f4f3f4'}
-          />
-        ) : (
-          <Ionicons name="chevron-forward-outline" size={20} color={colors.textLight} />
-        )}
-      </TouchableOpacity>
-    </SlideInView>
-  );
+  const isCategoryUsed = (categoryId) => {
+    return expenses.some(e => e.category === categoryId);
+  };
+
+  const handleDeleteCategory = (category) => {
+    if (isDefaultCategory(category.id)) {
+      Alert.alert('Não permitido', 'Categorias padrão não podem ser excluídas.');
+      return;
+    }
+    if (isCategoryUsed(category.id)) {
+      Alert.alert('Não permitido', `A categoria "${category.name}" está sendo usada em gastos. Exclua os gastos primeiro.`);
+      return;
+    }
+    setCategoryToDelete(category);
+    setDeleteConfirmVisible(true);
+  };
+
+  const confirmDeleteCategory = () => {
+    if (categoryToDelete) {
+      try {
+        deleteCategory(categoryToDelete.id);
+        setDeleteConfirmVisible(false);
+        setCategoryToDelete(null);
+        Alert.alert('Sucesso', 'Categoria excluída!');
+      } catch (error) {
+        Alert.alert('Erro', error.message);
+      }
+    }
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) {
+      Alert.alert('Erro', 'Digite um nome para a categoria');
+      return;
+    }
+
+    // Check if name already exists
+    const nameExists = CATEGORIES.some(c => 
+      c.name.toLowerCase() === newCategoryName.trim().toLowerCase()
+    );
+    if (nameExists) {
+      Alert.alert('Erro', 'Já existe uma categoria com este nome');
+      return;
+    }
+
+    const limit = newCategoryLimit ? parseFloat(newCategoryLimit.replace(',', '.')) : 500;
+
+    addCategory({
+      name: newCategoryName.trim(),
+      icon: newCategoryIcon,
+      color: newCategoryColor,
+      limit: limit,
+    });
+
+    // Reset form
+    setNewCategoryName('');
+    setNewCategoryIcon('star-outline');
+    setNewCategoryColor('#FF6B6B');
+    setNewCategoryLimit('');
+    setAddCategoryModalVisible(false);
+    Alert.alert('Sucesso', `Categoria "${newCategoryName.trim()}" criada!`);
+  };
 
   const renderCategoryItem = (cat, index) => {
     const currentLimit = categoryLimits[cat.id] !== undefined ? categoryLimits[cat.id] : cat.limit;
+    const isDefault = isDefaultCategory(cat.id);
+
     return (
-      <SlideInView key={cat.id} delay={index * 60}>
+      <SlideInView key={cat.id} delay={index * 50}>
         <TouchableOpacity
-          style={[styles.settingItem, { backgroundColor: colors.card }]}
+          style={[styles.categoryCard, { backgroundColor: colors.card }]}
           onPress={() => openLimitModal(cat)}
         >
-          <View style={[styles.settingIcon, { backgroundColor: cat.color + '15' }]}>
-            <Ionicons name={cat.icon} size={20} color={cat.color} />
+          <View style={styles.categoryLeft}>
+            <View style={[styles.categoryIcon, { backgroundColor: cat.color + '20' }]}>
+              <Ionicons name={cat.icon} size={22} color={cat.color} />
+            </View>
+            <View>
+              <Text style={[styles.categoryName, { color: colors.text }]}>
+                {cat.name} {!isDefault && '✨'}
+              </Text>
+              <Text style={[styles.categoryLimit, { color: colors.textSecondary }]}>
+                Limite: {formatCurrency(currentLimit)}
+              </Text>
+            </View>
           </View>
-          <View style={styles.settingInfo}>
-            <Text style={[styles.settingTitle, { color: colors.text }]}>{cat.name}</Text>
-            <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
-              Limite: {formatCurrency(currentLimit)}
-            </Text>
+          <View style={styles.categoryRight}>
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: colors.primary + '20' }]}
+              onPress={() => openLimitModal(cat)}
+            >
+              <Ionicons name="create-outline" size={16} color={colors.primary} />
+            </TouchableOpacity>
+            {!isDefault && (
+              <TouchableOpacity
+                style={[styles.deleteButton, { backgroundColor: colors.danger + '20' }]}
+                onPress={() => handleDeleteCategory(cat)}
+              >
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              </TouchableOpacity>
+            )}
           </View>
-          <Ionicons name="create-outline" size={18} color={colors.textLight} />
         </TouchableOpacity>
       </SlideInView>
     );
@@ -145,34 +185,26 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="Configurações" showStats={false} />
+      <AppHeader title="Configuracoes" />
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {/* General Settings */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>GERAL</Text>
-          {settingsItems.map((item, index) => renderSettingItem(item, index))}
-        </View>
+        {/* Add Category Button */}
+        <FadeInView>
+          <TouchableOpacity
+            style={[styles.addCategoryButton, { backgroundColor: colors.primary }]}
+            onPress={() => setAddCategoryModalVisible(true)}
+          >
+            <Ionicons name="add-outline" size={24} color="#fff" />
+            <Text style={styles.addCategoryText}>Nova Categoria</Text>
+          </TouchableOpacity>
+        </FadeInView>
 
-        {/* Category Limits */}
+        {/* Categories List */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>ORÇAMENTO POR CATEGORIA</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            CATEGORIAS ({CATEGORIES.length})
+          </Text>
           {CATEGORIES.map((cat, index) => renderCategoryItem(cat, index))}
-        </View>
-
-        {/* Stats */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>ESTATÍSTICAS</Text>
-          <View style={[styles.statsCard, { backgroundColor: colors.card }]}>
-            <View style={styles.statRow}>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total de gastos</Text>
-              <Text style={[styles.statValue, { color: colors.text }]}>{expenses.length}</Text>
-            </View>
-            <View style={styles.statRow}>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cartões cadastrados</Text>
-              <Text style={[styles.statValue, { color: colors.text }]}>{cards?.length || 0}</Text>
-            </View>
-          </View>
         </View>
       </ScrollView>
 
@@ -204,59 +236,400 @@ export default function SettingsScreen() {
           </ScaleInView>
         </View>
       </Modal>
+
+      {/* Add Category Modal */}
+      <Modal visible={addCategoryModalVisible} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <ScaleInView>
+            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Nova Categoria</Text>
+
+              {/* Name Input */}
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Nome</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
+                placeholder="Ex: Academia 💪"
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+                placeholderTextColor={colors.textLight}
+              />
+
+              {/* Icon Picker */}
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Ícone</Text>
+              <TouchableOpacity
+                style={[styles.pickerButton, { backgroundColor: colors.inputBg }]}
+                onPress={() => setIconPickerVisible(true)}
+              >
+                <Ionicons name={newCategoryIcon} size={24} color={newCategoryColor} />
+                <Text style={[styles.pickerText, { color: colors.text }]}>{newCategoryIcon}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+              </TouchableOpacity>
+
+              {/* Color Picker */}
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Cor</Text>
+              <TouchableOpacity
+                style={[styles.pickerButton, { backgroundColor: colors.inputBg }]}
+                onPress={() => setColorPickerVisible(true)}
+              >
+                <View style={[styles.colorPreview, { backgroundColor: newCategoryColor }]} />
+                <Text style={[styles.pickerText, { color: colors.text }]}>{newCategoryColor}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+              </TouchableOpacity>
+
+              {/* Limit Input */}
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Limite (R$)</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
+                placeholder="500"
+                keyboardType="decimal-pad"
+                value={newCategoryLimit}
+                onChangeText={setNewCategoryLimit}
+                placeholderTextColor={colors.textLight}
+              />
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: colors.border }]} 
+                  onPress={() => {
+                    setAddCategoryModalVisible(false);
+                    setNewCategoryName('');
+                    setNewCategoryIcon('star-outline');
+                    setNewCategoryColor('#FF6B6B');
+                    setNewCategoryLimit('');
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: colors.primary }]} 
+                  onPress={handleAddCategory}
+                >
+                  <Text style={styles.modalButtonText}>Criar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScaleInView>
+        </View>
+      </Modal>
+
+      {/* Icon Picker Modal */}
+      <Modal visible={iconPickerVisible} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.pickerModalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.pickerHeader}>
+              <Text style={[styles.pickerTitle, { color: colors.text }]}>Escolher Ícone</Text>
+              <TouchableOpacity onPress={() => setIconPickerVisible(false)}>
+                <Ionicons name="close-outline" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.iconGrid}>
+              {AVAILABLE_ICONS.map((icon) => (
+                <TouchableOpacity
+                  key={icon}
+                  style={[
+                    styles.iconItem,
+                    newCategoryIcon === icon && { 
+                      backgroundColor: newCategoryColor + '30',
+                      borderColor: newCategoryColor,
+                      borderWidth: 2,
+                    },
+                  ]}
+                  onPress={() => {
+                    setNewCategoryIcon(icon);
+                    setIconPickerVisible(false);
+                  }}
+                >
+                  <Ionicons name={icon} size={28} color={newCategoryColor} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Color Picker Modal */}
+      <Modal visible={colorPickerVisible} transparent animationType="slide">
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.pickerModalContent, { backgroundColor: colors.card }]}>
+            <View style={styles.pickerHeader}>
+              <Text style={[styles.pickerTitle, { color: colors.text }]}>Escolher Cor</Text>
+              <TouchableOpacity onPress={() => setColorPickerVisible(false)}>
+                <Ionicons name="close-outline" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.colorGrid}>
+              {AVAILABLE_COLORS.map((color) => (
+                <TouchableOpacity
+                  key={color}
+                  style={[
+                    styles.colorItem,
+                    { backgroundColor: color },
+                    newCategoryColor === color && { 
+                      borderColor: colors.text,
+                      borderWidth: 3,
+                    },
+                  ]}
+                  onPress={() => {
+                    setNewCategoryColor(color);
+                    setColorPickerVisible(false);
+                  }}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={deleteConfirmVisible} transparent animationType="fade">
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <ScaleInView>
+            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+              <Ionicons name="warning-outline" size={48} color={colors.danger} />
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Excluir Categoria?</Text>
+              <Text style={[styles.confirmText, { color: colors.textSecondary }]}>
+                A categoria "{categoryToDelete?.name}" será excluída permanentemente.
+              </Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: colors.border }]} 
+                  onPress={() => {
+                    setDeleteConfirmVisible(false);
+                    setCategoryToDelete(null);
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: colors.danger }]} 
+                  onPress={confirmDeleteCategory}
+                >
+                  <Text style={styles.modalButtonText}>Excluir</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScaleInView>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: {
+  content: { flex: 1 },
+
+  addCategoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 16,
+    padding: 16,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  addCategoryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+
+  section: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+
+  categoryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  categoryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  section: { paddingHorizontal: 16, marginBottom: 24, paddingTop: 16 },
-  sectionTitle: {
-    fontSize: 12, fontWeight: 'bold', marginBottom: 8,
-    marginLeft: 4, letterSpacing: 1,
+  categoryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  settingItem: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: 14, borderRadius: 14, marginBottom: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+  categoryName: {
+    fontSize: 15,
+    fontWeight: '600',
   },
-  settingIcon: {
-    width: 40, height: 40, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+  categoryLimit: {
+    fontSize: 12,
+    marginTop: 2,
   },
-  settingInfo: { flex: 1 },
-  settingTitle: { fontSize: 15, fontWeight: '600' },
-  settingSubtitle: { fontSize: 12, marginTop: 2 },
-  statsCard: {
-    padding: 16, borderRadius: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+  categoryRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  statRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#e0e0e0',
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  statLabel: { fontSize: 14 },
-  statValue: { fontSize: 14, fontWeight: 'bold' },
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Modal styles
   modalOverlay: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
-    width: '100%', maxWidth: 320, borderRadius: 20, padding: 24,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2, shadowRadius: 16, elevation: 10,
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
   modalInput: {
-    borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    marginBottom: 16,
   },
-  modalButtons: { flexDirection: 'row', gap: 10 },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  pickerText: {
+    fontSize: 15,
+    marginLeft: 12,
+    flex: 1,
+  },
+  colorPreview: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
   modalButton: {
-    flex: 1, padding: 14, borderRadius: 12, alignItems: 'center',
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  modalButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  confirmText: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginVertical: 16,
+    lineHeight: 20,
+  },
+
+  // Picker modals
+  pickerModalContent: {
+    width: '100%',
+    maxWidth: 360,
+    maxHeight: '80%',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    paddingBottom: 20,
+  },
+  iconItem: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    paddingBottom: 20,
+  },
+  colorItem: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
 });
