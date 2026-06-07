@@ -22,7 +22,7 @@ const generateUUID = () => {
   });
 };
 
-export const CATEGORIES = [
+export const DEFAULT_CATEGORIES = [
   { id: 'alimentacao', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant-outline', limit: 800 },
   { id: 'transporte', name: 'Transporte', color: '#4ECDC4', icon: 'car-outline', limit: 500 },
   { id: 'lazer', name: 'Lazer', color: '#45B7D1', icon: 'game-controller-outline', limit: 400 },
@@ -33,26 +33,110 @@ export const CATEGORIES = [
   { id: 'outros', name: 'Outros', color: '#B2BEC3', icon: 'ellipsis-horizontal-outline', limit: 200 },
 ];
 
+export const AVAILABLE_ICONS = [
+  'restaurant-outline', 'car-outline', 'game-controller-outline', 'medical-outline',
+  'home-outline', 'school-outline', 'cart-outline', 'ellipsis-horizontal-outline',
+  'airplane-outline', 'barbell-outline', 'beer-outline', 'book-outline',
+  'briefcase-outline', 'brush-outline', 'bus-outline', 'cafe-outline',
+  'call-outline', 'camera-outline', 'card-outline', 'cash-outline',
+  'chatbubble-outline', 'checkmark-circle-outline', 'clipboard-outline',
+  'cloud-outline', 'code-outline', 'color-palette-outline', 'desktop-outline',
+  'diamond-outline', 'earth-outline', 'egg-outline', 'eye-outline',
+  'film-outline', 'fitness-outline', 'flame-outline', 'flash-outline',
+  'flower-outline', 'football-outline', 'gift-outline', 'glasses-outline',
+  'globe-outline', 'golf-outline', 'grid-outline', 'hammer-outline',
+  'happy-outline', 'headset-outline', 'heart-outline', 'help-circle-outline',
+  'ice-cream-outline', 'image-outline', 'laptop-outline', 'leaf-outline',
+  'library-outline', 'link-outline', 'lock-closed-outline', 'log-out-outline',
+  'mail-outline', 'map-outline', 'mic-outline', 'moon-outline',
+  'musical-note-outline', 'navigate-outline', 'notifications-outline',
+  'nutrition-outline', 'paw-outline', 'pencil-outline', 'people-outline',
+  'person-outline', 'phone-portrait-outline', 'pizza-outline', 'planet-outline',
+  'pricetag-outline', 'print-outline', 'pulse-outline', 'rainy-outline',
+  'rocket-outline', 'rose-outline', 'sad-outline', 'save-outline',
+  'search-outline', 'send-outline', 'settings-outline', 'shield-checkmark-outline',
+  'shirt-outline', 'snow-outline', 'sparkles-outline', 'star-outline',
+  'storefront-outline', 'subway-outline', 'sunny-outline', 'sync-outline',
+  'tennisball-outline', 'thumbs-up-outline', 'ticket-outline', 'time-outline',
+  'train-outline', 'trash-outline', 'trophy-outline', 'umbrella-outline',
+  'videocam-outline', 'wallet-outline', 'warning-outline', 'water-outline',
+  'wifi-outline', 'wine-outline', 'woman-outline', 'bicycle-outline',
+  'boat-outline', 'bonfire-outline', 'bowling-ball-outline', 'basketball-outline',
+  'bed-outline', 'beaker-outline', 'build-outline', 'bug-outline',
+  'business-outline', 'calculator-outline', 'calendar-outline', 'camera-reverse-outline',
+  'car-sport-outline', 'cellular-outline', 'chatbox-outline', 'cloud-circle-outline',
+  'cloud-done-outline', 'compass-outline', 'construct-outline', 'copy-outline',
+  'cube-outline', 'cut-outline', 'desktop-outline', 'disc-outline',
+  'document-outline', 'documents-outline', 'download-outline', 'ear-outline',
+  'easel-outline', 'exit-outline', 'expand-outline', 'extension-puzzle-outline',
+  'eyedrop-outline', 'fast-food-outline', 'female-outline', 'file-tray-full-outline',
+  'finger-print-outline', 'fish-outline', 'flag-outline', 'flask-outline',
+  'folder-open-outline', 'footsteps-outline', 'funnel-outline', 'game-controller-outline',
+  'golf-outline', 'grid-outline', 'hand-left-outline', 'hardware-chip-outline',
+  'headset-outline', 'hourglass-outline', 'id-card-outline', 'infinite-outline',
+  'information-circle-outline', 'journal-outline', 'key-outline', 'language-outline',
+  'layers-outline', 'leaf-outline', 'library-outline', 'list-outline',
+  'location-outline', 'magnet-outline', 'mail-open-outline', 'male-outline',
+  'man-outline', 'medal-outline', 'medical-outline', 'mic-off-outline',
+  'move-outline', 'newspaper-outline', 'open-outline', 'options-outline',
+  'paper-plane-outline', 'partly-sunny-outline', 'paw-outline', 'pencil-outline',
+  'phone-landscape-outline', 'pie-chart-outline', 'pin-outline', 'pint-outline',
+  'play-circle-outline', 'power-outline', 'pricetags-outline', 'qr-code-outline',
+  'radio-outline', 'reader-outline', 'receipt-outline', 'reload-outline',
+  'remove-circle-outline', 'restaurant-outline', 'ribbon-outline', 'rocket-outline',
+  'rose-outline', 'save-outline', 'scan-outline', 'school-outline',
+  'search-circle-outline', 'send-outline', 'server-outline', 'share-outline',
+  'shield-outline', 'shirt-outline', 'shuffle-outline', 'skull-outline',
+  'snow-outline', 'speedometer-outline', 'square-outline', 'stats-chart-outline',
+  'stopwatch-outline', 'storefront-outline', 'subway-outline', 'sunny-outline',
+  'sync-circle-outline', 'tablet-landscape-outline', 'tablet-portrait-outline',
+  'telescope-outline', 'tennisball-outline', 'thermometer-outline', 'thunderstorm-outline',
+  'ticket-outline', 'time-outline', 'timer-outline', 'today-outline',
+  'trail-sign-outline', 'train-outline', 'transgender-outline', 'trash-bin-outline',
+  'trending-down-outline', 'trending-up-outline', 'triangle-outline', 'trophy-outline',
+  'tv-outline', 'umbrella-outline', 'videocam-off-outline', 'volume-high-outline',
+  'volume-low-outline', 'volume-medium-outline', 'volume-mute-outline', 'walk-outline',
+  'wallet-outline', 'warning-outline', 'watch-outline', 'water-outline',
+  'wifi-outline', 'wine-outline', 'woman-outline', 'bicycle-outline'
+];
+
+export const AVAILABLE_COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#FDCB6E', '#B2BEC3',
+  '#FF9F43', '#10AC84', '#EE5A24', '#009432', '#0652DD', '#9980FA', '#833471', '#F79F1F',
+  '#A3CB38', '#1289A7', '#D980FA', '#B53471', '#45AAF2', '#FD79A8', '#FDCB6E', '#6C5CE7',
+  '#A29BFE', '#74B9FF', '#00B894', '#00CEC9', '#FDCB6E', '#E17055', '#D63031', '#E84393',
+  '#2D3436', '#636E72', '#B2BEC3', '#DFE6E9', '#FF7675', '#FAB1A0', '#FD79A8', '#FDCB6E',
+  '#FDCB6E', '#55A3FF', '#26DE81', '#FC5C65', '#FD9644', '#F8B500', '#4B7BEC', '#A55EEA',
+  '#45AAF2', '#2BCBCA', '#778CA3', '#2D98DA', '#F7B731', '#8854D0', '#20BF6B', '#EB3B5A',
+  '#3867D6', '#0FB9B1', '#FA8231', '#FDCB6E', '#2BCBCA', '#45AAF2', '#4B6584', '#D1D8E0'
+];
+
 export function ExpenseProvider({ children }) {
   const [expenses, setExpenses] = useState([]);
   const [cards, setCards] = useState([]);
   const [categoryLimits, setCategoryLimits] = useState({});
+  const [customCategories, setCustomCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState([]);
+
+  // Combine default + custom categories
+  const CATEGORIES = useMemo(() => [...DEFAULT_CATEGORIES, ...customCategories], [customCategories]);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { if (!loading) { saveData(); checkAlerts(); } }, [expenses, cards, categoryLimits]);
 
   const loadData = async () => {
     try {
-      const [storedExpenses, storedCards, storedLimits] = await Promise.all([
+      const [storedExpenses, storedCards, storedLimits, storedCustomCategories] = await Promise.all([
         AsyncStorage.getItem('@expenses'),
         AsyncStorage.getItem('@cards'),
         AsyncStorage.getItem('@categoryLimits'),
+        AsyncStorage.getItem('@customCategories'),
       ]);
       if (storedExpenses) setExpenses(JSON.parse(storedExpenses));
       if (storedCards) setCards(JSON.parse(storedCards));
       if (storedLimits) setCategoryLimits(JSON.parse(storedLimits));
+      if (storedCustomCategories) setCustomCategories(JSON.parse(storedCustomCategories));
     } catch (error) { console.error('Erro ao carregar:', error); }
     finally { setLoading(false); }
   };
@@ -63,6 +147,7 @@ export function ExpenseProvider({ children }) {
         AsyncStorage.setItem('@expenses', JSON.stringify(expenses)),
         AsyncStorage.setItem('@cards', JSON.stringify(cards)),
         AsyncStorage.setItem('@categoryLimits', JSON.stringify(categoryLimits)),
+        AsyncStorage.setItem('@customCategories', JSON.stringify(customCategories)),
       ]);
     } catch (error) { console.error('Erro ao salvar:', error); }
   };
@@ -147,14 +232,40 @@ export function ExpenseProvider({ children }) {
     const now = new Date(); return expenses.filter(e => { const d = new Date(e.date); return e.category === categoryId && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((sum, e) => sum + parseFloat(e.amount), 0);
   };
 
+  const addCategory = (category) => {
+    const newCategory = { id: generateUUID(), ...category };
+    setCustomCategories(prev => [...prev, newCategory]);
+    return newCategory;
+  };
+
+  const deleteCategory = (categoryId) => {
+    // Check if category is used in any expense
+    const isUsed = expenses.some(e => e.category === categoryId);
+    if (isUsed) {
+      throw new Error('Cannot delete category that is used in expenses');
+    }
+    setCustomCategories(prev => prev.filter(c => c.id !== categoryId));
+    // Also remove any limit for this category
+    setCategoryLimits(prev => {
+      const newLimits = { ...prev };
+      delete newLimits[categoryId];
+      return newLimits;
+    });
+  };
+
+  const updateCategory = (categoryId, updates) => {
+    setCustomCategories(prev => prev.map(c => c.id === categoryId ? { ...c, ...updates } : c));
+  };
+
   const value = {
-    expenses, cards, categoryLimits, alerts, loading,
+    expenses, cards, categoryLimits, customCategories, alerts, loading,
     addExpense, updateExpense, deleteExpense,
     addCard, updateCard, deleteCard,
     setCategoryLimit, dismissAlert,
+    addCategory, deleteCategory, updateCategory,
     getFilteredExpenses, getTotalByCategory, getTotalByCard,
     getMonthlyTotal, getExpensesByMonth, getCardUsage, getCategoryUsage,
-    CATEGORIES,
+    CATEGORIES, DEFAULT_CATEGORIES, AVAILABLE_ICONS, AVAILABLE_COLORS,
   };
 
   return <ExpenseContext.Provider value={value}>{children}</ExpenseContext.Provider>;
