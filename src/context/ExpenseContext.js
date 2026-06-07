@@ -1,10 +1,10 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { safeGetItem, safeSetItem, safeRemoveItem, STORAGE_KEYS } from '../utils/SafeStorage';
 import * as Crypto from 'expo-crypto';
+import { usePlanning } from './PlanningContext';
 
 const ExpenseContext = createContext();
 
-// Função segura para gerar UUID com fallback
 const generateUUID = () => {
   try {
     if (Crypto && Crypto.randomUUID) {
@@ -13,8 +13,6 @@ const generateUUID = () => {
   } catch (e) {
     console.log('expo-crypto não disponível, usando fallback');
   }
-
-  // Fallback manual (UUID v4)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -34,225 +32,61 @@ export const DEFAULT_CATEGORIES = [
 ];
 
 export const AVAILABLE_ICONS = [
-  'restaurant-outline',
-  'car-outline',
-  'game-controller-outline',
-  'medical-outline',
-  'home-outline',
-  'school-outline',
-  'cart-outline',
-  'ellipsis-horizontal-outline',
-  'airplane-outline',
-  'barbell-outline',
-  'beer-outline',
-  'book-outline',
-  'briefcase-outline',
-  'brush-outline',
-  'bus-outline',
-  'cafe-outline',
-  'call-outline',
-  'camera-outline',
-  'card-outline',
-  'cash-outline',
-  'chatbubble-outline',
-  'checkmark-circle-outline',
-  'clipboard-outline',
-  'cloud-outline',
-  'code-outline',
-  'color-palette-outline',
-  'desktop-outline',
-  'diamond-outline',
-  'earth-outline',
-  'egg-outline',
-  'eye-outline',
-  'film-outline',
-  'fitness-outline',
-  'flame-outline',
-  'flash-outline',
-  'flower-outline',
-  'football-outline',
-  'gift-outline',
-  'glasses-outline',
-  'globe-outline',
-  'golf-outline',
-  'grid-outline',
-  'hammer-outline',
-  'happy-outline',
-  'headset-outline',
-  'heart-outline',
-  'help-circle-outline',
-  'ice-cream-outline',
-  'image-outline',
-  'laptop-outline',
-  'leaf-outline',
-  'library-outline',
-  'link-outline',
-  'lock-closed-outline',
-  'log-out-outline',
-  'mail-outline',
-  'map-outline',
-  'mic-outline',
-  'moon-outline',
-  'musical-note-outline',
-  'navigate-outline',
-  'notifications-outline',
-  'nutrition-outline',
-  'paw-outline',
-  'pencil-outline',
-  'people-outline',
-  'person-outline',
-  'phone-portrait-outline',
-  'pizza-outline',
-  'planet-outline',
-  'pricetag-outline',
-  'print-outline',
-  'pulse-outline',
-  'rainy-outline',
-  'rocket-outline',
-  'rose-outline',
-  'sad-outline',
-  'save-outline',
-  'search-outline',
-  'send-outline',
-  'settings-outline',
-  'shield-checkmark-outline',
-  'shirt-outline',
-  'snow-outline',
-  'sparkles-outline',
-  'star-outline',
-  'storefront-outline',
-  'subway-outline',
-  'sunny-outline',
-  'sync-outline',
-  'tennisball-outline',
-  'thumbs-up-outline',
-  'ticket-outline',
-  'time-outline',
-  'train-outline',
-  'trash-outline',
-  'trophy-outline',
-  'umbrella-outline',
-  'videocam-outline',
-  'wallet-outline',
-  'warning-outline',
-  'water-outline',
-  'wifi-outline',
-  'wine-outline',
-  'woman-outline',
-  'bicycle-outline',
-  'boat-outline',
-  'bonfire-outline',
-  'bowling-ball-outline',
-  'basketball-outline',
-  'bed-outline',
-  'beaker-outline',
-  'build-outline',
-  'bug-outline',
-  'business-outline',
-  'calculator-outline',
-  'calendar-outline',
-  'camera-reverse-outline',
-  'car-sport-outline',
-  'cellular-outline',
-  'chatbox-outline',
-  'cloud-circle-outline',
-  'cloud-done-outline',
-  'compass-outline',
-  'construct-outline',
-  'copy-outline',
-  'cube-outline',
-  'cut-outline',
-  'disc-outline',
-  'document-outline',
-  'documents-outline',
-  'download-outline',
-  'ear-outline',
-  'easel-outline',
-  'exit-outline',
-  'expand-outline',
-  'extension-puzzle-outline',
-  'eyedrop-outline',
-  'fast-food-outline',
-  'female-outline',
-  'file-tray-full-outline',
-  'finger-print-outline',
-  'fish-outline',
-  'flag-outline',
-  'flask-outline',
-  'folder-open-outline',
-  'footsteps-outline',
-  'funnel-outline',
-  'hand-left-outline',
-  'hardware-chip-outline',
-  'hourglass-outline',
-  'id-card-outline',
-  'infinite-outline',
-  'information-circle-outline',
-  'journal-outline',
-  'key-outline',
-  'language-outline',
-  'layers-outline',
-  'list-outline',
-  'location-outline',
-  'magnet-outline',
-  'mail-open-outline',
-  'male-outline',
-  'man-outline',
-  'medal-outline',
-  'mic-off-outline',
-  'move-outline',
-  'newspaper-outline',
-  'open-outline',
-  'options-outline',
-  'paper-plane-outline',
-  'partly-sunny-outline',
-  'phone-landscape-outline',
-  'pie-chart-outline',
-  'pin-outline',
-  'pint-outline',
-  'play-circle-outline',
-  'power-outline',
-  'pricetags-outline',
-  'qr-code-outline',
-  'radio-outline',
-  'reader-outline',
-  'receipt-outline',
-  'reload-outline',
-  'remove-circle-outline',
-  'ribbon-outline',
-  'scan-outline',
-  'search-circle-outline',
-  'server-outline',
-  'share-outline',
-  'shield-outline',
-  'shuffle-outline',
-  'skull-outline',
-  'speedometer-outline',
-  'square-outline',
-  'stats-chart-outline',
-  'stopwatch-outline',
-  'sync-circle-outline',
-  'tablet-landscape-outline',
-  'tablet-portrait-outline',
-  'telescope-outline',
-  'thermometer-outline',
-  'thunderstorm-outline',
-  'timer-outline',
-  'today-outline',
-  'trail-sign-outline',
-  'transgender-outline',
-  'trash-bin-outline',
-  'trending-down-outline',
-  'trending-up-outline',
-  'triangle-outline',
-  'tv-outline',
-  'videocam-off-outline',
-  'volume-high-outline',
-  'volume-low-outline',
-  'volume-medium-outline',
-  'volume-mute-outline',
-  'walk-outline',
-  'watch-outline'
+  'restaurant-outline', 'car-outline', 'game-controller-outline', 'medical-outline',
+  'home-outline', 'school-outline', 'cart-outline', 'ellipsis-horizontal-outline',
+  'airplane-outline', 'barbell-outline', 'beer-outline', 'book-outline',
+  'briefcase-outline', 'brush-outline', 'bus-outline', 'cafe-outline',
+  'call-outline', 'camera-outline', 'card-outline', 'cash-outline',
+  'chatbubble-outline', 'checkmark-circle-outline', 'clipboard-outline', 'cloud-outline',
+  'code-outline', 'color-palette-outline', 'desktop-outline', 'diamond-outline',
+  'earth-outline', 'egg-outline', 'eye-outline', 'film-outline',
+  'fitness-outline', 'flame-outline', 'flash-outline', 'flower-outline',
+  'football-outline', 'gift-outline', 'glasses-outline', 'globe-outline',
+  'golf-outline', 'grid-outline', 'hammer-outline', 'happy-outline',
+  'headset-outline', 'heart-outline', 'help-circle-outline', 'ice-cream-outline',
+  'image-outline', 'laptop-outline', 'leaf-outline', 'library-outline',
+  'link-outline', 'lock-closed-outline', 'log-out-outline', 'mail-outline',
+  'map-outline', 'mic-outline', 'moon-outline', 'musical-note-outline',
+  'navigate-outline', 'notifications-outline', 'nutrition-outline', 'paw-outline',
+  'pencil-outline', 'people-outline', 'person-outline', 'phone-portrait-outline',
+  'pizza-outline', 'planet-outline', 'pricetag-outline', 'print-outline',
+  'pulse-outline', 'rainy-outline', 'rocket-outline', 'rose-outline',
+  'sad-outline', 'save-outline', 'search-outline', 'send-outline',
+  'settings-outline', 'shield-checkmark-outline', 'shirt-outline', 'snow-outline',
+  'sparkles-outline', 'star-outline', 'storefront-outline', 'subway-outline',
+  'sunny-outline', 'sync-outline', 'tennisball-outline', 'thumbs-up-outline',
+  'ticket-outline', 'time-outline', 'train-outline', 'trash-outline',
+  'trophy-outline', 'umbrella-outline', 'videocam-outline', 'wallet-outline',
+  'warning-outline', 'water-outline', 'wifi-outline', 'wine-outline',
+  'woman-outline', 'bicycle-outline', 'boat-outline', 'bonfire-outline',
+  'bowling-ball-outline', 'basketball-outline', 'bed-outline', 'beaker-outline',
+  'build-outline', 'bug-outline', 'business-outline', 'calculator-outline',
+  'calendar-outline', 'camera-reverse-outline', 'car-sport-outline', 'cellular-outline',
+  'chatbox-outline', 'cloud-circle-outline', 'cloud-done-outline', 'compass-outline',
+  'construct-outline', 'copy-outline', 'cube-outline', 'cut-outline',
+  'disc-outline', 'document-outline', 'documents-outline', 'download-outline',
+  'ear-outline', 'easel-outline', 'exit-outline', 'expand-outline',
+  'extension-puzzle-outline', 'eyedrop-outline', 'fast-food-outline', 'female-outline',
+  'file-tray-full-outline', 'finger-print-outline', 'fish-outline', 'flag-outline',
+  'flask-outline', 'folder-open-outline', 'footsteps-outline', 'funnel-outline',
+  'hand-left-outline', 'hardware-chip-outline', 'hourglass-outline', 'id-card-outline',
+  'infinite-outline', 'information-circle-outline', 'journal-outline', 'key-outline',
+  'language-outline', 'layers-outline', 'list-outline', 'location-outline',
+  'magnet-outline', 'mail-open-outline', 'male-outline', 'man-outline',
+  'medal-outline', 'mic-off-outline', 'move-outline', 'newspaper-outline',
+  'open-outline', 'options-outline', 'paper-plane-outline', 'partly-sunny-outline',
+  'phone-landscape-outline', 'pie-chart-outline', 'pin-outline', 'pint-outline',
+  'play-circle-outline', 'power-outline', 'pricetags-outline', 'qr-code-outline',
+  'radio-outline', 'reader-outline', 'receipt-outline', 'reload-outline',
+  'remove-circle-outline', 'ribbon-outline', 'scan-outline', 'search-circle-outline',
+  'server-outline', 'share-outline', 'shield-outline', 'shuffle-outline',
+  'skull-outline', 'speedometer-outline', 'square-outline', 'stats-chart-outline',
+  'stopwatch-outline', 'sync-circle-outline', 'tablet-landscape-outline', 'tablet-portrait-outline',
+  'telescope-outline', 'thermometer-outline', 'thunderstorm-outline', 'timer-outline',
+  'today-outline', 'trail-sign-outline', 'transgender-outline', 'trash-bin-outline',
+  'trending-down-outline', 'trending-up-outline', 'triangle-outline', 'tv-outline',
+  'videocam-off-outline', 'volume-high-outline', 'volume-low-outline', 'volume-medium-outline',
+  'volume-mute-outline', 'walk-outline', 'watch-outline'
 ];
 
 export const AVAILABLE_COLORS = [
@@ -267,6 +101,8 @@ export const AVAILABLE_COLORS = [
 ];
 
 export function ExpenseProvider({ children }) {
+  const { addCashTransaction: planningAddCashTransaction } = usePlanning();
+
   const [expenses, setExpenses] = useState([]);
   const [cards, setCards] = useState([]);
   const [categoryLimits, setCategoryLimits] = useState({});
@@ -276,7 +112,6 @@ export function ExpenseProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState([]);
 
-  // Combine default + custom categories
   const CATEGORIES = useMemo(() => [...DEFAULT_CATEGORIES, ...customCategories], [customCategories]);
 
   useEffect(() => { loadData(); }, []);
@@ -293,7 +128,6 @@ export function ExpenseProvider({ children }) {
         safeGetItem(STORAGE_KEYS.CASH_TRANSACTIONS, []),
       ]);
 
-      // Validate loaded data
       if (Array.isArray(storedExpenses)) setExpenses(storedExpenses);
       if (Array.isArray(storedCards)) setCards(storedCards);
       if (storedLimits && typeof storedLimits === 'object') setCategoryLimits(storedLimits);
@@ -363,7 +197,7 @@ export function ExpenseProvider({ children }) {
     const completedExpense = {
       ...expense,
       completedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h from now
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     };
 
     setCompletedExpenses(prev => [completedExpense, ...prev]);
@@ -380,41 +214,48 @@ export function ExpenseProvider({ children }) {
     return completedExpenses.filter(e => e.expiresAt <= now);
   };
 
-  const addCashTransaction = (amount, description = 'Entrada de caixa') => {
-    console.log('addCashTransaction called with:', amount, typeof amount, description);
+  const addCashTransaction = useCallback((amount, description = 'Entrada de caixa') => {
+    console.log('[ExpenseContext] addCashTransaction chamado:', amount, typeof amount, description);
 
-    // Handle both string and number inputs
     let numAmount;
     if (typeof amount === 'string') {
       numAmount = parseFloat(amount);
     } else if (typeof amount === 'number') {
       numAmount = amount;
     } else {
-      console.error('Invalid amount type:', typeof amount);
+      console.error('[ExpenseContext] Tipo de amount inválido:', typeof amount);
       return null;
     }
 
     if (isNaN(numAmount) || numAmount <= 0) {
-      console.error('Invalid cash transaction amount:', numAmount, 'from input:', amount);
+      console.error('[ExpenseContext] Valor inválido:', numAmount, 'do input:', amount);
       return null;
     }
 
+    console.log('[ExpenseContext] Chamando PlanningContext.addCashTransaction...');
+    const result = planningAddCashTransaction(numAmount, 'income', {
+      description: description || 'Entrada de caixa',
+      source: 'expense_context',
+    });
+
+    console.log('[ExpenseContext] Resultado do PlanningContext:', result);
+
     const transaction = {
-      id: generateUUID(),
+      id: result?.id || generateUUID(),
       amount: numAmount,
-      description,
+      description: description || 'Entrada de caixa',
       date: new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
       type: 'cash_in',
     };
 
     setCashTransactions(prev => [transaction, ...prev]);
-    console.log('Transaction created:', transaction);
+    console.log('[ExpenseContext] Transação local criada:', transaction);
+
     return transaction;
-  };
+  }, [planningAddCashTransaction]);
 
   const addExpense = (expense) => {
-    // Validate required fields
     if (!expense || typeof expense !== 'object') {
       console.error('Invalid expense object');
       return null;
@@ -432,7 +273,6 @@ export function ExpenseProvider({ children }) {
       return null;
     }
 
-    // Sanitize data
     const sanitizedExpense = {
       ...expense,
       description: expense.description.trim().substring(0, 100),
@@ -447,10 +287,46 @@ export function ExpenseProvider({ children }) {
       createdAt: new Date().toISOString() 
     };
     setExpenses(prev => [newExpense, ...prev]);
+
+    if (expense.paymentMethod === 'debit' || expense.paymentMethod === 'cash' || expense.paymentMethod === 'dinheiro') {
+      console.log('[ExpenseContext] Pagamento em dinheiro/débito detectado. Atualizando caixa...');
+      planningAddCashTransaction(
+        parseFloat(expense.amount),
+        'expense',
+        {
+          description: `Despesa: ${expense.description}`,
+          category: expense.category,
+          expenseId: newExpense.id,
+        }
+      );
+    }
+
     return newExpense;
   };
-  const updateExpense = (id, updates) => { setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); };
-  const deleteExpense = (id) => { setExpenses(prev => prev.filter(e => e.id !== id)); };
+
+  const updateExpense = (id, updates) => { 
+    setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); 
+  };
+
+  const deleteExpense = (id) => { 
+    const expenseToDelete = expenses.find(e => e.id === id);
+
+    if (expenseToDelete && (expenseToDelete.paymentMethod === 'debit' || expenseToDelete.paymentMethod === 'cash' || expenseToDelete.paymentMethod === 'dinheiro')) {
+      console.log('[ExpenseContext] Revertendo caixa para despesa removida:', id);
+      planningAddCashTransaction(
+        parseFloat(expenseToDelete.amount),
+        'income',
+        {
+          description: `Reversão: ${expenseToDelete.description}`,
+          category: 'reversal',
+          originalExpenseId: id,
+        }
+      );
+    }
+
+    setExpenses(prev => prev.filter(e => e.id !== id)); 
+  };
+
   const addCard = (card) => { 
     if (!card || !card.bankId || !card.name) {
       console.error('Invalid card data');
@@ -464,9 +340,16 @@ export function ExpenseProvider({ children }) {
     setCards(prev => [...prev, newCard]); 
     return newCard;
   };
+
   const updateCard = (id, updates) => { setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c)); };
-  const deleteCard = (id) => { setCards(prev => prev.filter(c => c.id !== id)); setExpenses(prev => prev.map(e => e.cardId === id ? { ...e, cardId: null } : e)); };
+
+  const deleteCard = (id) => { 
+    setCards(prev => prev.filter(c => c.id !== id)); 
+    setExpenses(prev => prev.map(e => e.cardId === id ? { ...e, cardId: null } : e)); 
+  };
+
   const setCategoryLimit = (categoryId, limit) => { setCategoryLimits(prev => ({ ...prev, [categoryId]: limit })); };
+
   const dismissAlert = (alertId) => { setAlerts(prev => prev.filter(a => a.id !== alertId)); };
 
   const getFilteredExpenses = (period = 'all', customStart = null, customEnd = null) => {
@@ -506,13 +389,11 @@ export function ExpenseProvider({ children }) {
   };
 
   const deleteCategory = (categoryId) => {
-    // Check if category is used in any expense
     const isUsed = expenses.some(e => e.category === categoryId);
     if (isUsed) {
       throw new Error('Cannot delete category that is used in expenses');
     }
     setCustomCategories(prev => prev.filter(c => c.id !== categoryId));
-    // Also remove any limit for this category
     setCategoryLimits(prev => {
       const newLimits = { ...prev };
       delete newLimits[categoryId];
