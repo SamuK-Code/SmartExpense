@@ -1,10 +1,9 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { safeGetItem, safeSetItem, STORAGE_KEYS } from '../utils/SafeStorage';
 import * as Crypto from 'expo-crypto';
 
 const PlanningContext = createContext();
 
-// Função segura para gerar UUID com fallback
 const generateUUID = () => {
   try {
     if (Crypto && Crypto.randomUUID) {
@@ -13,8 +12,6 @@ const generateUUID = () => {
   } catch (e) {
     console.log('expo-crypto não disponível, usando fallback');
   }
-
-  // Fallback manual (UUID v4)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -23,21 +20,24 @@ const generateUUID = () => {
 };
 
 export function PlanningProvider({ children }) {
-  const [cashBalance, setCashBalance] = useState(0);  // Valor em caixa
+  const [cashBalance, setCashBalance] = useState(0);
+  const [cashTransactions, setCashTransactions] = useState([]);
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadData(); }, []);
-  useEffect(() => { if (!loading) saveData(); }, [cashBalance, goals]);
+  useEffect(() => { if (!loading) saveData(); }, [cashBalance, cashTransactions, goals]);
 
   const loadData = async () => {
     try {
-      const [storedCash, storedGoals] = await Promise.all([
+      const [storedCash, storedCashTx, storedGoals] = await Promise.all([
         safeGetItem(STORAGE_KEYS.CASH_BALANCE, 0),
+        safeGetItem(STORAGE_KEYS.CASH_TRANSACTIONS, []),
         safeGetItem(STORAGE_KEYS.GOALS, []),
       ]);
       if (storedCash) setCashBalance(parseFloat(storedCash));
-      if (storedGoals) setGoals(JSON.parse(storedGoals));
+      if (storedCashTx) setCashTransactions(storedCashTx);
+      if (storedGoals) setGoals(storedGoals);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -46,6 +46,7 @@ export function PlanningProvider({ children }) {
     try {
       await Promise.all([
         safeSetItem(STORAGE_KEYS.CASH_BALANCE, cashBalance),
+        safeSetItem(STORAGE_KEYS.CASH_TRANSACTIONS, cashTransactions),
         safeSetItem(STORAGE_KEYS.GOALS, goals),
       ]);
     } catch (e) { console.error(e); }
@@ -57,6 +58,52 @@ export function PlanningProvider({ children }) {
       setCashBalance(Math.min(parsed, 999999.99));
     }
   };
+
+  const addCashTransaction = useCallback((amount, type = 'income', transactionData = {}) => {
+    console.log('[PlanningContext] addCashTransaction chamado:', { amount, type, transactionData });
+
+    let numAmount;
+    if (typeof amount === 'string') {
+      numAmount = parseFloat(amount);
+    } else if (typeof amount === 'number') {
+      numAmount = amount;
+    } else {
+      console.error('[PlanningContext] Tipo de amount inválido:', typeof amount);
+      return null;
+    }
+
+    if (isNaN(numAmount) || numAmount <= 0) {
+      console.error('[PlanningContext] Valor inválido:', numAmount, 'do input:', amount);
+      return null;
+    }
+
+    const newBalance = type === 'income'
+      ? cashBalance + numAmount
+      : cashBalance - numAmount;
+
+    console.log('[PlanningContext] Atualizando caixa:', {
+      previousBalance: cashBalance,
+      newBalance,
+      type,
+      amount: numAmount,
+    });
+
+    const transaction = {
+      id: generateUUID(),
+      amount: numAmount,
+      type,
+      description: transactionData.description || (type === 'income' ? 'Entrada de caixa' : 'Saída de caixa'),
+      date: transactionData.date || new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+      ...transactionData,
+    };
+
+    setCashBalance(newBalance);
+    setCashTransactions(prev => [transaction, ...prev]);
+
+    console.log('[PlanningContext] Transação criada:', transaction);
+    return transaction;
+  }, [cashBalance]);
 
   const addGoal = (goal) => {
     const newGoal = { id: generateUUID(), ...goal, createdAt: new Date().toISOString() };
@@ -73,17 +120,14 @@ export function PlanningProvider({ children }) {
     setGoals(prev => prev.map(g => g.id === id ? { ...g, completed: !g.completed, completedAt: !g.completed ? new Date().toISOString() : null } : g));
   };
 
-  // Check if goal is achievable with current cash balance
   const checkGoalFeasibility = (goalAmount, cashBalance, monthlyExpenses) => {
     const availableAfterExpenses = cashBalance - monthlyExpenses;
-
     if (cashBalance <= 0) return { feasible: false, reason: 'Sem dinheiro em caixa', severity: 'danger' };
     if (goalAmount > cashBalance) return { feasible: false, reason: 'Valor em caixa insuficiente', severity: 'danger' };
     if (goalAmount > availableAfterExpenses * 0.8) return { feasible: true, warning: true, reason: 'Compra possivel mas compromete caixa', severity: 'warning' };
     return { feasible: true, warning: false, reason: 'Compra tranquila!', severity: 'success' };
   };
 
-  // Calculate how much you can spend daily/weekly based on cash
   const calculateDailyBudget = (cashBalance, monthlyExpenses) => {
     const remaining = cashBalance - monthlyExpenses;
     if (remaining <= 0) return { daily: 0, weekly: 0, message: 'Sem margem para gastos' };
@@ -96,9 +140,18 @@ export function PlanningProvider({ children }) {
   };
 
   const value = {
-    cashBalance, goals, loading,
-    updateCashBalance, addGoal, updateGoal, deleteGoal, toggleGoalComplete,
-    checkGoalFeasibility, calculateDailyBudget,
+    cashBalance,
+    cashTransactions,
+    goals,
+    loading,
+    updateCashBalance,
+    addCashTransaction,
+    addGoal,
+    updateGoal,
+    deleteGoal,
+    toggleGoalComplete,
+    checkGoalFeasibility,
+    calculateDailyBudget,
   };
 
   return <PlanningContext.Provider value={value}>{children}</PlanningContext.Provider>;
