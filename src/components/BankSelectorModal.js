@@ -38,13 +38,13 @@ export default function BankSelectorModal({ visible, onSelect, onClose, selected
             <View style={[styles.header, { backgroundColor: colors.header }]}>
               <Text style={[styles.headerTitle, { color: colors.headerText }]}>Escolher Banco</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color={colors.headerText} />
+                <Ionicons name="close-outline" size={24} color={colors.headerText} />
               </TouchableOpacity>
             </View>
 
             {/* Search */}
             <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
-              <Ionicons name="search" size={18} color={colors.textSecondary} />
+              <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
               <TextInput
                 style={[styles.searchInput, { color: colors.text }]}
                 placeholder="Buscar banco..."
@@ -54,7 +54,7 @@ export default function BankSelectorModal({ visible, onSelect, onClose, selected
               />
               {search.length > 0 && (
                 <TouchableOpacity onPress={() => setSearch('')}>
-                  <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                  <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -108,7 +108,7 @@ export default function BankSelectorModal({ visible, onSelect, onClose, selected
                       <Text style={[styles.popularName, { color: colors.text }]}>{bank.name}</Text>
                       {selectedBankId === bank.id && (
                         <View style={[styles.checkBadge, { backgroundColor: colors.primary }]}>
-                          <Ionicons name="checkmark" size={12} color="#fff" />
+                          <Ionicons name="checkmark-outline" size={12} color="#fff" />
                         </View>
                       )}
                     </TouchableOpacity>
@@ -147,7 +147,7 @@ export default function BankSelectorModal({ visible, onSelect, onClose, selected
                       </Text>
                     </View>
                     {selectedBankId === bank.id && (
-                      <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                      <Ionicons name="checkmark-circle-outline" size={22} color={colors.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
