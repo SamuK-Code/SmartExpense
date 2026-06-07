@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeGetItem, safeSetItem, STORAGE_KEYS } from '../utils/SafeStorage';
 import * as Crypto from 'expo-crypto';
 
 const PlanningContext = createContext();
@@ -33,8 +33,8 @@ export function PlanningProvider({ children }) {
   const loadData = async () => {
     try {
       const [storedCash, storedGoals] = await Promise.all([
-        AsyncStorage.getItem('@cashBalance'),
-        AsyncStorage.getItem('@goals'),
+        safeGetItem(STORAGE_KEYS.CASH_BALANCE, 0),
+        safeGetItem(STORAGE_KEYS.GOALS, []),
       ]);
       if (storedCash) setCashBalance(parseFloat(storedCash));
       if (storedGoals) setGoals(JSON.parse(storedGoals));
@@ -45,13 +45,18 @@ export function PlanningProvider({ children }) {
   const saveData = async () => {
     try {
       await Promise.all([
-        AsyncStorage.setItem('@cashBalance', cashBalance.toString()),
-        AsyncStorage.setItem('@goals', JSON.stringify(goals)),
+        safeSetItem(STORAGE_KEYS.CASH_BALANCE, cashBalance),
+        safeSetItem(STORAGE_KEYS.GOALS, goals),
       ]);
     } catch (e) { console.error(e); }
   };
 
-  const updateCashBalance = (amount) => setCashBalance(parseFloat(amount) || 0);
+  const updateCashBalance = (amount) => {
+    const parsed = parseFloat(amount);
+    if (!isNaN(parsed) && parsed >= 0) {
+      setCashBalance(Math.min(parsed, 999999.99));
+    }
+  };
 
   const addGoal = (goal) => {
     const newGoal = { id: generateUUID(), ...goal, createdAt: new Date().toISOString() };
