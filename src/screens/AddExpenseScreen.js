@@ -15,11 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
-import { playSuccess, playDelete, playClick } from '../utils/SoundManager';
 import AppHeader from '../components/AppHeader';
 
 export default function AddExpenseScreen({ navigation }) {
-  const { addExpense, expenses, cards, CATEGORIES, deleteExpense } = useExpenses();
+  const { addExpense, expenses, cards, CATEGORIES, deleteExpense, cashTransactions, addCashTransaction } = useExpenses();
   const { colors, isDark } = useTheme();
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
@@ -32,6 +31,7 @@ export default function AddExpenseScreen({ navigation }) {
   const [filterDate, setFilterDate] = useState('all'); // 'all', 'today', 'week', 'month'
   const [filterCard, setFilterCard] = useState('all');
   const [filterType, setFilterType] = useState('all'); // 'all', 'card', 'standalone'
+  const [viewMode, setViewMode] = useState('expenses'); // 'expenses' or 'cash'
 
   const getTodayDate = () => {
     const now = new Date();
@@ -164,6 +164,17 @@ export default function AddExpenseScreen({ navigation }) {
     );
   };
 
+  const handleDeleteCash = (cashItem) => {
+    Alert.alert(
+      'Confirmar exclusão',
+      `Deseja excluir "${cashItem.description}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: () => deleteCashTransaction(cashItem.id) },
+      ]
+    );
+  };
+
   const renderExpenseItem = ({ item, index }) => {
     const category = getCategoryInfo(item.category);
     const card = cards.find(c => c.id === item.cardId);
@@ -203,6 +214,37 @@ export default function AddExpenseScreen({ navigation }) {
           <View style={styles.expenseRight}>
             <Text style={[styles.expenseAmount, { color: colors.danger }]}>
               {formatCurrency(parseFloat(item.amount))}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </SlideInView>
+    );
+  };
+
+  const renderCashItem = ({ item, index }) => {
+    return (
+      <SlideInView delay={index * 50}>
+        <TouchableOpacity 
+          style={[styles.expenseItem, { backgroundColor: colors.card }]}
+          onLongPress={() => handleDeleteCash(item)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.categoryIcon, { backgroundColor: colors.success + (isDark ? '30' : '20') }]}>
+            <Ionicons name="cash-outline" size={20} color={colors.success} />
+          </View>
+          <View style={styles.expenseInfo}>
+            <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
+            <View style={styles.expenseMeta}>
+              <View style={[styles.cashBadge, { backgroundColor: colors.success + (isDark ? '30' : '20') }]}>
+                <Ionicons name="arrow-up-outline" size={10} color={colors.success} />
+                <Text style={[styles.cashBadgeText, { color: colors.success }]}>Entrada</Text>
+              </View>
+            </View>
+            <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
+          </View>
+          <View style={styles.expenseRight}>
+            <Text style={[styles.cashAmount, { color: colors.success }]}>
+              + {formatCurrency(parseFloat(item.amount))}
             </Text>
           </View>
         </TouchableOpacity>
@@ -553,74 +595,127 @@ export default function AddExpenseScreen({ navigation }) {
     return filtered;
   };
 
+  const getFilteredCashList = () => {
+    let filtered = cashTransactions || [];
+
+    // Filter by date
+    if (filterDate !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(e => {
+        const d = new Date(e.date);
+        if (filterDate === 'today') {
+          return d.toDateString() === now.toDateString();
+        } else if (filterDate === 'week') {
+          const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+          return d >= weekAgo;
+        } else if (filterDate === 'month') {
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        }
+        return true;
+      });
+    }
+
+    return filtered;
+  };
+
   const renderList = () => (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="Gastos" />
+      <AppHeader title={viewMode === 'expenses' ? 'Gastos' : 'Caixa'} />
 
-      {/* Filters */}
-      <View style={[styles.filtersContainer, { backgroundColor: colors.card }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
-          {/* Date Filter */}
-          <View style={styles.filterGroup}>
-            <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Data</Text>
-            <View style={styles.filterButtons}>
-              {['all', 'today', 'week', 'month'].map(f => (
-                <TouchableOpacity
-                  key={f}
-                  style={[styles.filterBtn, filterDate === f && { backgroundColor: colors.primary }]}
-                  onPress={() => setFilterDate(f)}
-                >
-                  <Text style={[styles.filterBtnText, { color: filterDate === f ? '#fff' : colors.textSecondary }]}>
-                    {f === 'all' ? 'Todas' : f === 'today' ? 'Hoje' : f === 'week' ? '7 Dias' : 'Mês'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Type Filter */}
-          <View style={styles.filterGroup}>
-            <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Tipo</Text>
-            <View style={styles.filterButtons}>
-              {['all', 'card', 'standalone'].map(f => (
-                <TouchableOpacity
-                  key={f}
-                  style={[styles.filterBtn, filterType === f && { backgroundColor: colors.primary }]}
-                  onPress={() => setFilterType(f)}
-                >
-                  <Text style={[styles.filterBtnText, { color: filterType === f ? '#fff' : colors.textSecondary }]}>
-                    {f === 'all' ? 'Todos' : f === 'card' ? 'Cartão' : 'Avulso'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Card Filter */}
-          <View style={styles.filterGroup}>
-            <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Cartão</Text>
-            <View style={styles.filterButtons}>
-              <TouchableOpacity
-                style={[styles.filterBtn, filterCard === 'all' && { backgroundColor: colors.primary }]}
-                onPress={() => setFilterCard('all')}
-              >
-                <Text style={[styles.filterBtnText, { color: filterCard === 'all' ? '#fff' : colors.textSecondary }]}>Todos</Text>
-              </TouchableOpacity>
-              {cards.map(c => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[styles.filterBtn, filterCard === c.id && { backgroundColor: c.color }]}
-                  onPress={() => setFilterCard(c.id)}
-                >
-                  <Text style={[styles.filterBtnText, { color: filterCard === c.id ? '#fff' : colors.textSecondary }]}>{c.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </ScrollView>
+      {/* View Mode Toggle */}
+      <View style={[styles.viewModeContainer, { backgroundColor: colors.card }]}>
+        <View style={styles.viewModeToggle}>
+          <TouchableOpacity
+            style={[
+              styles.viewModeButton,
+              viewMode === 'expenses' && { backgroundColor: colors.danger },
+              { backgroundColor: viewMode === 'expenses' ? colors.danger : colors.inputBg }
+            ]}
+            onPress={() => setViewMode('expenses')}
+          >
+            <Ionicons name="receipt-outline" size={16} color={viewMode === 'expenses' ? '#fff' : colors.textSecondary} />
+            <Text style={[styles.viewModeText, { color: viewMode === 'expenses' ? '#fff' : colors.textSecondary }]}>Despesas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.viewModeButton,
+              viewMode === 'cash' && { backgroundColor: colors.success },
+              { backgroundColor: viewMode === 'cash' ? colors.success : colors.inputBg }
+            ]}
+            onPress={() => setViewMode('cash')}
+          >
+            <Ionicons name="cash-outline" size={16} color={viewMode === 'cash' ? '#fff' : colors.textSecondary} />
+            <Text style={[styles.viewModeText, { color: viewMode === 'cash' ? '#fff' : colors.textSecondary }]}>Caixa</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {expenses.length === 0 ? (
+      {/* Filters */}
+      {viewMode === 'expenses' && (
+        <View style={[styles.filtersContainer, { backgroundColor: colors.card }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
+            {/* Date Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Data</Text>
+              <View style={styles.filterButtons}>
+                {['all', 'today', 'week', 'month'].map(f => (
+                  <TouchableOpacity
+                    key={f}
+                    style={[styles.filterBtn, filterDate === f && { backgroundColor: colors.primary }]}
+                    onPress={() => setFilterDate(f)}
+                  >
+                    <Text style={[styles.filterBtnText, { color: filterDate === f ? '#fff' : colors.textSecondary }]}>
+                      {f === 'all' ? 'Todas' : f === 'today' ? 'Hoje' : f === 'week' ? '7 Dias' : 'Mês'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Type Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Tipo</Text>
+              <View style={styles.filterButtons}>
+                {['all', 'card', 'standalone'].map(f => (
+                  <TouchableOpacity
+                    key={f}
+                    style={[styles.filterBtn, filterType === f && { backgroundColor: colors.primary }]}
+                    onPress={() => setFilterType(f)}
+                  >
+                    <Text style={[styles.filterBtnText, { color: filterType === f ? '#fff' : colors.textSecondary }]}>
+                      {f === 'all' ? 'Todos' : f === 'card' ? 'Cartão' : 'Avulso'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Card Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Cartão</Text>
+              <View style={styles.filterButtons}>
+                <TouchableOpacity
+                  style={[styles.filterBtn, filterCard === 'all' && { backgroundColor: colors.primary }]}
+                  onPress={() => setFilterCard('all')}
+                >
+                  <Text style={[styles.filterBtnText, { color: filterCard === 'all' ? '#fff' : colors.textSecondary }]}>Todos</Text>
+                </TouchableOpacity>
+                {cards.map(c => (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[styles.filterBtn, filterCard === c.id && { backgroundColor: c.color }]}
+                    onPress={() => setFilterCard(c.id)}
+                  >
+                    <Text style={[styles.filterBtnText, { color: filterCard === c.id ? '#fff' : colors.textSecondary }]}>{c.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      )}
+
+      {viewMode === 'expenses' && expenses.length === 0 ? (
         <FadeInView>
           <View style={styles.emptyContainer}>
             <Ionicons name="receipt-outline" size={64} color={colors.textLight} />
@@ -628,10 +723,18 @@ export default function AddExpenseScreen({ navigation }) {
             <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>Adicione seu primeiro gasto</Text>
           </View>
         </FadeInView>
+      ) : viewMode === 'cash' && (cashTransactions || []).length === 0 ? (
+        <FadeInView>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="cash-outline" size={64} color={colors.textLight} />
+            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Nenhuma entrada no caixa</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>Adicione sua primeira entrada</Text>
+          </View>
+        </FadeInView>
       ) : (
         <FlatList
-          data={getFilteredExpensesList()}
-          renderItem={renderExpenseItem}
+          data={viewMode === 'expenses' ? getFilteredExpensesList() : getFilteredCashList()}
+          renderItem={viewMode === 'expenses' ? renderExpenseItem : renderCashItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -696,6 +799,31 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 24 },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  // View Mode Toggle
+  viewModeContainer: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  viewModeToggle: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  viewModeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 6,
+  },
+  viewModeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   // Type Toggle
   typeToggleContainer: {
     flexDirection: 'row',
@@ -776,6 +904,7 @@ const styles = StyleSheet.create({
   expenseDate: { fontSize: 11, marginTop: 4 },
   expenseRight: { alignItems: 'flex-end' },
   expenseAmount: { fontSize: 15, fontWeight: 'bold' },
+  cashAmount: { fontSize: 15, fontWeight: 'bold' },
   // Standalone badge
   standaloneBadge: {
     flexDirection: 'row', alignItems: 'center',
@@ -790,6 +919,13 @@ const styles = StyleSheet.create({
     borderRadius: 4, gap: 3,
   },
   cardBadgeText: { fontSize: 10, fontWeight: '600' },
+  // Cash badge
+  cashBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 4, gap: 3,
+  },
+  cashBadgeText: { fontSize: 10, fontWeight: '600' },
   // Empty & FAB
   emptyContainer: { alignItems: 'center', padding: 40, paddingTop: 80 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 16 },
