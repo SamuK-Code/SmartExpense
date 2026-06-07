@@ -381,9 +381,21 @@ export function ExpenseProvider({ children }) {
   };
 
   const addCashTransaction = (amount, description = 'Entrada de caixa') => {
-    const numAmount = parseFloat(amount);
+    console.log('addCashTransaction called with:', amount, typeof amount, description);
+
+    // Handle both string and number inputs
+    let numAmount;
+    if (typeof amount === 'string') {
+      numAmount = parseFloat(amount);
+    } else if (typeof amount === 'number') {
+      numAmount = amount;
+    } else {
+      console.error('Invalid amount type:', typeof amount);
+      return null;
+    }
+
     if (isNaN(numAmount) || numAmount <= 0) {
-      console.error('Invalid cash transaction amount');
+      console.error('Invalid cash transaction amount:', numAmount, 'from input:', amount);
       return null;
     }
 
@@ -397,6 +409,7 @@ export function ExpenseProvider({ children }) {
     };
 
     setCashTransactions(prev => [transaction, ...prev]);
+    console.log('Transaction created:', transaction);
     return transaction;
   };
 
