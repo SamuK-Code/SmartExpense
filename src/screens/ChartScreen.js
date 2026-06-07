@@ -33,7 +33,6 @@ export default function ChartScreen({ navigation }) {
   const monthlyTotals = getExpensesByMonth();
   const totalGeral = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
 
-  // Check if cash covers expenses
   const isCashInsufficient = cashBalance > 0 && cashBalance < totalGeral;
   const cashDeficit = totalGeral - cashBalance;
 
@@ -52,7 +51,7 @@ export default function ChartScreen({ navigation }) {
       amount: amount,
       color: cat?.color || '#999',
       legendFontColor: colors.text,
-      legendFontSize: 12,
+      legendFontSize: 11,
       onPress: () => handleCategoryPress(catId, cat?.name || catId),
     };
   }).sort((a, b) => b.amount - a.amount);
@@ -71,8 +70,8 @@ export default function ChartScreen({ navigation }) {
     color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
     labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
     style: { borderRadius: 16 },
-    propsForLabels: { fontSize: 10 },
-    propsForBackgroundLines: { stroke: isDark ? '#333' : '#e0e0e0' },
+    propsForLabels: { fontSize: 10, fontWeight: '500' },
+    propsForBackgroundLines: { stroke: isDark ? '#333' : '#e0e0e0', strokeWidth: 1 },
   };
 
   if (expenses.length === 0) {
@@ -93,9 +92,9 @@ export default function ChartScreen({ navigation }) {
         {/* Summary Card */}
         <FadeInView>
           <View style={[styles.summaryCard, { backgroundColor: colors.header }]}>
-            <Text style={[styles.summaryLabel, { color: colors.headerText }]}>Total do Periodo</Text>
+            <Text style={[styles.summaryLabel, { color: colors.headerText }]}>Total do Período</Text>
             <Text style={[styles.summaryAmount, { color: colors.headerText }]}>{formatCurrency(totalGeral)}</Text>
-            <Text style={[styles.summaryCount, { color: colors.headerText }]}>{filteredExpenses.length} transacoes</Text>
+            <Text style={[styles.summaryCount, { color: colors.headerText }]}>{filteredExpenses.length} transações</Text>
           </View>
         </FadeInView>
 
@@ -114,26 +113,59 @@ export default function ChartScreen({ navigation }) {
           </SlideInView>
         )}
 
+        {/* Chart Type Toggle - Improved styling */}
         <SlideInView delay={100}>
           <View style={[styles.toggleContainer, { backgroundColor: colors.card }]}>
-            <TouchableOpacity style={[styles.toggleButton, chartType === 'pie' && { backgroundColor: colors.primary }]} onPress={() => setChartType('pie')}>
-              <Text style={[styles.toggleText, chartType === 'pie' && { color: '#fff' }, { color: colors.textSecondary }]}>Por Categoria</Text>
+            <TouchableOpacity 
+              style={[styles.toggleButton, chartType === 'pie' && { backgroundColor: colors.primary }]} 
+              onPress={() => setChartType('pie')}
+            >
+              <Ionicons name="pie-chart" size={14} color={chartType === 'pie' ? '#fff' : colors.textSecondary} />
+              <Text style={[styles.toggleText, chartType === 'pie' && { color: '#fff' }, { color: colors.textSecondary }]}>Categoria</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.toggleButton, chartType === 'bar' && { backgroundColor: colors.primary }]} onPress={() => setChartType('bar')}>
-              <Text style={[styles.toggleText, chartType === 'bar' && { color: '#fff' }, { color: colors.textSecondary }]}>Por Mes</Text>
+            <TouchableOpacity 
+              style={[styles.toggleButton, chartType === 'bar' && { backgroundColor: colors.primary }]} 
+              onPress={() => setChartType('bar')}
+            >
+              <Ionicons name="bar-chart" size={14} color={chartType === 'bar' ? '#fff' : colors.textSecondary} />
+              <Text style={[styles.toggleText, chartType === 'bar' && { color: '#fff' }, { color: colors.textSecondary }]}>Mês</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.toggleButton, chartType === 'card' && { backgroundColor: colors.primary }]} onPress={() => setChartType('card')}>
-              <Text style={[styles.toggleText, chartType === 'card' && { color: '#fff' }, { color: colors.textSecondary }]}>Por Cartao</Text>
+            <TouchableOpacity 
+              style={[styles.toggleButton, chartType === 'card' && { backgroundColor: colors.primary }]} 
+              onPress={() => setChartType('card')}
+            >
+              <Ionicons name="card" size={14} color={chartType === 'card' ? '#fff' : colors.textSecondary} />
+              <Text style={[styles.toggleText, chartType === 'card' && { color: '#fff' }, { color: colors.textSecondary }]}>Cartão</Text>
             </TouchableOpacity>
           </View>
         </SlideInView>
 
+        {/* Chart Container - Improved styling */}
         <ScaleInView delay={200}>
           <View style={[styles.chartContainer, { backgroundColor: colors.card }]}>
             {chartType === 'pie' && pieData.length > 0 ? (
-              <PieChart data={pieData} width={screenWidth - 48} height={220} chartConfig={chartConfig} accessor="amount" backgroundColor="transparent" paddingLeft="15" absolute hasOnPress={true} />
+              <PieChart 
+                data={pieData} 
+                width={screenWidth - 48} 
+                height={220} 
+                chartConfig={chartConfig} 
+                accessor="amount" 
+                backgroundColor="transparent" 
+                paddingLeft="15" 
+                absolute 
+                hasOnPress={true} 
+              />
             ) : chartType === 'bar' && barData.labels.length > 0 ? (
-              <BarChart data={barData} width={screenWidth - 48} height={220} chartConfig={chartConfig} verticalLabelRotation={0} fromZero showValuesOnTopOfBars style={styles.barChart} />
+              <BarChart 
+                data={barData} 
+                width={screenWidth - 48} 
+                height={220} 
+                chartConfig={chartConfig} 
+                verticalLabelRotation={0} 
+                fromZero 
+                showValuesOnTopOfBars 
+                style={styles.barChart} 
+              />
             ) : chartType === 'card' ? (
               <View style={styles.cardChartContainer}>
                 {Object.entries(cardTotals).map(([cardId, amount]) => {
@@ -141,10 +173,14 @@ export default function ChartScreen({ navigation }) {
                   const bank = card ? getBankById(card.bankId) : null;
                   const pct = totalGeral > 0 ? ((amount / totalGeral) * 100).toFixed(1) : 0;
                   return (
-                    <TouchableOpacity key={cardId} style={styles.cardChartItem} onPress={() => handleCardPress(cardId, card?.customName || card?.name || 'Sem cartao')}>
+                    <TouchableOpacity 
+                      key={cardId} 
+                      style={styles.cardChartItem} 
+                      onPress={() => handleCardPress(cardId, card?.customName || card?.name || 'Sem cartão')}
+                    >
                       <View style={styles.cardChartHeader}>
                         <View style={[styles.cardDot, { backgroundColor: bank?.color || card?.color || '#999' }]} />
-                        <Text style={[styles.cardChartName, { color: colors.text }]}>{card?.customName || card?.name || 'Sem cartao'}</Text>
+                        <Text style={[styles.cardChartName, { color: colors.text }]}>{card?.customName || card?.name || 'Sem cartão'}</Text>
                       </View>
                       <View style={styles.cardChartBarContainer}>
                         <View style={[styles.cardChartBar, { width: `${pct}%`, backgroundColor: bank?.color || card?.color || '#999' }]} />
@@ -161,14 +197,20 @@ export default function ChartScreen({ navigation }) {
           </View>
         </ScaleInView>
 
+        {/* Breakdown Section - Improved styling */}
         <View style={styles.breakdownSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Detalhamento - Toque para ver</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Detalhamento</Text>
+          <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Toque para ver mais detalhes</Text>
           <StaggeredList staggerDelay={60}>
             {pieData.map((item, index) => {
               const percentage = totalGeral > 0 ? ((item.amount / totalGeral) * 100).toFixed(1) : 0;
               const catId = Object.keys(categoryTotals)[index];
               return (
-                <TouchableOpacity key={index} style={[styles.breakdownItem, { backgroundColor: colors.card }]} onPress={() => handleCategoryPress(catId, item.name)}>
+                <TouchableOpacity 
+                  key={index} 
+                  style={[styles.breakdownItem, { backgroundColor: colors.card }]} 
+                  onPress={() => handleCategoryPress(catId, item.name)}
+                >
                   <View style={styles.breakdownLeft}>
                     <View style={[styles.colorDot, { backgroundColor: item.color }]} />
                     <View>
@@ -198,22 +240,71 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
   emptySubtitle: { fontSize: 14, textAlign: 'center' },
-  summaryCard: { margin: 16, padding: 24, borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5 },
+  summaryCard: { 
+    margin: 16, 
+    padding: 24, 
+    borderRadius: 20, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.15, 
+    shadowRadius: 8, 
+    elevation: 5 
+  },
   summaryLabel: { fontSize: 14, opacity: 0.8 },
   summaryAmount: { fontSize: 32, fontWeight: 'bold', marginVertical: 8 },
   summaryCount: { fontSize: 14, opacity: 0.7 },
   cashAlert: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
+    flexDirection: 'row', 
+    alignItems: 'center',
+    marginHorizontal: 16, 
+    marginBottom: 12, 
+    padding: 12, 
+    borderRadius: 12,
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, 
+    shadowRadius: 4, 
+    elevation: 2,
   },
   cashAlertTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 2 },
   cashAlertText: { fontSize: 11 },
-  toggleContainer: { flexDirection: 'row', justifyContent: 'center', marginHorizontal: 16, marginBottom: 16, borderRadius: 14, padding: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  toggleButton: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10 },
-  toggleText: { fontSize: 13, fontWeight: '500' },
-  chartContainer: { marginHorizontal: 16, borderRadius: 20, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  toggleContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    marginHorizontal: 16, 
+    marginBottom: 16, 
+    borderRadius: 14, 
+    padding: 4, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.05, 
+    shadowRadius: 4, 
+    elevation: 2 
+  },
+  toggleButton: { 
+    flex: 1, 
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10, 
+    borderRadius: 10,
+    gap: 4,
+  },
+  toggleText: { 
+    fontSize: 12, 
+    fontWeight: '600',
+  },
+  chartContainer: { 
+    marginHorizontal: 16, 
+    borderRadius: 20, 
+    padding: 16, 
+    alignItems: 'center', 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.05, 
+    shadowRadius: 4, 
+    elevation: 2 
+  },
   barChart: { borderRadius: 16 },
   cardChartContainer: { width: '100%', paddingVertical: 10 },
   cardChartItem: { marginBottom: 16 },
@@ -226,8 +317,21 @@ const styles = StyleSheet.create({
   cardChartAmount: { fontSize: 13, fontWeight: '600' },
   cardChartPct: { fontSize: 12 },
   breakdownSection: { margin: 16, marginTop: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
-  breakdownItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderRadius: 14, marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold' },
+  sectionSubtitle: { fontSize: 12, marginTop: 2, marginBottom: 16 },
+  breakdownItem: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 14, 
+    borderRadius: 14, 
+    marginBottom: 8, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.05, 
+    shadowRadius: 3, 
+    elevation: 1 
+  },
   breakdownLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   colorDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
   breakdownName: { fontSize: 14, fontWeight: '500' },
