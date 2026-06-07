@@ -215,7 +215,7 @@ Os gastos associados não serão excluídos.`,
         />
       </View>
 
-      {/* Botão flutuante para adicionar (quando tem cartões) */}
+      {/* FAB */}
       {cards.length > 0 && (
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: colors.primary }]}
@@ -225,7 +225,7 @@ Os gastos associados não serão excluídos.`,
         </TouchableOpacity>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* Add/Edit Modal - Improved contrast */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <ScaleInView>
