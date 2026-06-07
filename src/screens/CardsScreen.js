@@ -103,7 +103,7 @@ Os gastos associados não serão excluídos.`,
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Meus Cartões</Text>
           <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={openAddModal}>
-            <Ionicons name="add" size={24} color="#fff" />
+            <Ionicons name="add-outline" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
@@ -171,7 +171,7 @@ Os gastos associados não serão excluídos.`,
                 )}
                 {pct >= 80 && pct < 100 && (
                   <View style={[styles.alertBadge, { backgroundColor: colors.warning + '20' }]}>
-                    <Ionicons name="alert-circle" size={14} color={colors.warning} />
+                    <Ionicons name="alert-circle-outline" size={14} color={colors.warning} />
                     <Text style={[styles.alertText, { color: colors.warning }]}>Quase no limite</Text>
                   </View>
                 )}
@@ -221,11 +221,11 @@ Os gastos associados não serão excluídos.`,
                   </View>
                 ) : (
                   <View style={styles.selectBankPlaceholder}>
-                    <Ionicons name="card" size={24} color={colors.textLight} />
+                    <Ionicons name="card-outline" size={24} color={colors.textLight} />
                     <Text style={[styles.selectBankText, { color: colors.textLight }]}>Selecionar banco...</Text>
                   </View>
                 )}
-                <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+                <Ionicons name="chevron-forward-outline" size={20} color={colors.textLight} />
               </TouchableOpacity>
 
               {/* Custom Name */}
