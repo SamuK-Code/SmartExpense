@@ -19,10 +19,27 @@ export default function AddExpenseScreen({ navigation }) {
   const { addExpense, cards, CATEGORIES } = useExpenses();
   const { colors, isDark } = useTheme();
   const [amount, setAmount] = useState('');
+  const [amountDisplay, setAmountDisplay] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('alimentacao');
   const [selectedCard, setSelectedCard] = useState(cards[0]?.id || null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+
+  // Formata o input de moeda enquanto digita
+  const handleAmountChange = (text) => {
+    // Remove tudo que não é número
+    const numeric = text.replace(/\D/g, '');
+    setAmount(numeric);
+
+    // Formata para display
+    const number = parseInt(numeric) / 100;
+    setAmountDisplay(
+      new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }).format(number || 0)
+    );
+  };
 
   const handleSubmit = () => {
     if (!amount || !description) {
@@ -30,27 +47,42 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    const numericAmount = parseFloat(amount.replace(',', '.'));
+    // Converter o valor numérico (em centavos) para reais
+    const numericAmount = parseInt(amount) / 100;
     if (isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert('Erro', 'Digite um valor válido');
       return;
     }
 
-    addExpense({
-      amount: numericAmount,
-      description,
-      category: selectedCategory,
-      cardId: selectedCard,
-      date,
-    });
+    // Verificar se tem cartão selecionado quando há cartões
+    if (cards.length > 0 && !selectedCard) {
+      Alert.alert('Erro', 'Selecione um cartão');
+      return;
+    }
 
-    Alert.alert('Sucesso', 'Gasto adicionado!', [
-      { text: 'OK', onPress: () => navigation.goBack() }
-    ]);
+    try {
+      addExpense({
+        amount: numericAmount,
+        description,
+        category: selectedCategory,
+        cardId: selectedCard,
+        date,
+      });
 
-    setAmount('');
-    setDescription('');
-    setSelectedCategory('alimentacao');
+      Alert.alert('Sucesso', 'Gasto adicionado!', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+
+      // Limpar estados
+      setAmount('');
+      setAmountDisplay('');
+      setDescription('');
+      setSelectedCategory('alimentacao');
+      setSelectedCard(cards[0]?.id || null);
+      setDate(new Date().toISOString().split('T')[0]);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível salvar: ' + error.message);
+    }
   };
 
   return (
@@ -63,7 +95,7 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.title, { color: colors.header }]}>Novo Gasto</Text>
         </FadeInView>
 
-        {/* Amount Input */}
+        {/* Amount Input - COM FORMATAÇÃO DE MOEDA */}
         <SlideInView delay={100}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
@@ -73,10 +105,10 @@ export default function AddExpenseScreen({ navigation }) {
                 color: colors.text,
                 shadowColor: isDark ? '#000' : '#ccc',
               }]}
-              placeholder="0,00"
-              keyboardType="decimal-pad"
-              value={amount}
-              onChangeText={setAmount}
+              placeholder="R$ 0,00"
+              keyboardType="numeric"
+              value={amountDisplay}
+              onChangeText={handleAmountChange}
               placeholderTextColor={colors.textLight}
             />
           </View>
@@ -119,36 +151,38 @@ export default function AddExpenseScreen({ navigation }) {
         </SlideInView>
 
         {/* Card Selection */}
-        <SlideInView delay={350}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Cartão</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {cards.map(card => (
-                <TouchableOpacity
-                  key={card.id}
-                  style={[
-                    styles.cardButton,
-                    selectedCard === card.id && { 
-                      backgroundColor: card.color + '25',
-                      borderColor: card.color,
-                      borderWidth: 2,
-                    },
-                    { backgroundColor: colors.inputBg },
-                  ]}
-                  onPress={() => setSelectedCard(card.id)}
-                >
-                  <Ionicons name="card" size={18} color={card.color} />
-                  <Text style={[
-                    styles.cardText,
-                    { color: selectedCard === card.id ? card.color : colors.textSecondary },
-                  ]}>
-                    {card.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </SlideInView>
+        {cards.length > 0 && (
+          <SlideInView delay={350}>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Cartão</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {cards.map(card => (
+                  <TouchableOpacity
+                    key={card.id}
+                    style={[
+                      styles.cardButton,
+                      selectedCard === card.id && { 
+                        backgroundColor: card.color + '25',
+                        borderColor: card.color,
+                        borderWidth: 2,
+                      },
+                      { backgroundColor: colors.inputBg },
+                    ]}
+                    onPress={() => setSelectedCard(card.id)}
+                  >
+                    <Ionicons name="card-outline" size={18} color={card.color} />
+                    <Text style={[
+                      styles.cardText,
+                      { color: selectedCard === card.id ? card.color : colors.textSecondary },
+                    ]}>
+                      {card.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </SlideInView>
+        )}
 
         {/* Category Selection */}
         <SlideInView delay={400}>
@@ -188,7 +222,7 @@ export default function AddExpenseScreen({ navigation }) {
         {/* Submit Button */}
         <ScaleInView delay={500}>
           <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleSubmit}>
-            <Ionicons name="checkmark" size={24} color="#fff" />
+            <Ionicons name="checkmark-outline" size={24} color="#fff" />
             <Text style={styles.submitText}>Salvar Gasto</Text>
           </TouchableOpacity>
         </ScaleInView>
