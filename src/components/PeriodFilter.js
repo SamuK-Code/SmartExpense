@@ -55,8 +55,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 8,
     backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   text: {
     fontSize: 13,
+    fontWeight: '500',
   },
 });
