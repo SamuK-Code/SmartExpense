@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExpenseProvider } from './src/context/ExpenseContext';
 import { PlanningProvider } from './src/context/PlanningContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import ErrorBoundary from './src/utils/ErrorBoundary';
 
 import HomeScreen from './src/screens/HomeScreen';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
@@ -131,15 +132,17 @@ function TabNavigator() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <ExpenseProvider>
-        <PlanningProvider>
-          <NavigationContainer>
-            <StatusBar style="auto" />
-            <TabNavigator />
-          </NavigationContainer>
-        </PlanningProvider>
-      </ExpenseProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ExpenseProvider>
+          <PlanningProvider>
+            <NavigationContainer>
+              <StatusBar style="auto" />
+              <TabNavigator />
+            </NavigationContainer>
+          </PlanningProvider>
+        </ExpenseProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
