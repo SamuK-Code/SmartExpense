@@ -13,12 +13,25 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
+import { usePlanning } from '../context/PlanningContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 
 export default function AddExpenseScreen({ navigation }) {
-  const { addExpense, expenses, cards, CATEGORIES, deleteExpense, deleteCashTransaction, cashTransactions: ctxCashTransactions, addCashTransaction: ctxAddCashTransaction } = useExpenses();
+  const { 
+    addExpense, 
+    expenses, 
+    cards, 
+    CATEGORIES, 
+    deleteExpense, 
+    deleteCashTransaction, 
+    cashTransactions: ctxCashTransactions, 
+    addCashTransaction: ctxAddCashTransaction 
+  } = useExpenses();
+
+  const { cashBalance } = usePlanning();
+
   const [localCashTransactions, setLocalCashTransactions] = useState([]);
   const { colors, isDark } = useTheme();
   const [showForm, setShowForm] = useState(false);
@@ -27,26 +40,23 @@ export default function AddExpenseScreen({ navigation }) {
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]?.id || 'outros');
   const [selectedCard, setSelectedCard] = useState(null);
-  const [expenseType, setExpenseType] = useState('card'); // 'card' or 'standalone'
-  const [paymentMethod, setPaymentMethod] = useState('credit'); // 'credit' or 'debit'
-  const [filterDate, setFilterDate] = useState('all'); // 'all', 'today', 'week', 'month'
+  const [expenseType, setExpenseType] = useState('card');
+  const [paymentMethod, setPaymentMethod] = useState('credit');
+  const [filterDate, setFilterDate] = useState('all');
   const [filterCard, setFilterCard] = useState('all');
-  const [filterType, setFilterType] = useState('all'); // 'all', 'card', 'standalone'
-  const [viewMode, setViewMode] = useState('expenses'); // 'expenses' or 'cash'
+  const [filterType, setFilterType] = useState('all');
+  const [viewMode, setViewMode] = useState('expenses');
 
   const getTodayDate = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   };
 
-  // Helper: use contexto se disponível, senão local
   const cashTransactions = ctxCashTransactions || localCashTransactions;
   const addCashTransaction = (amount, description) => {
     if (ctxAddCashTransaction) {
-      // Context function expects (amount, description) as separate params
       return ctxAddCashTransaction(amount, description);
     } else {
-      // Local fallback
       const newEntry = {
         id: Date.now().toString(),
         amount: amount,
@@ -59,7 +69,6 @@ export default function AddExpenseScreen({ navigation }) {
     }
   };
 
-  // FAB menu states
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
   const [showCashForm, setShowCashForm] = useState(false);
   const [cashAmount, setCashAmount] = useState('');
@@ -114,7 +123,6 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    // Parse amount - cashAmount is stored as string of cents (e.g., "50000" for R$ 500,00)
     const numericValue = parseFloat(cashAmount);
     console.log('numericValue:', numericValue);
 
@@ -123,7 +131,6 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    // Convert to actual value (cashAmount is in cents)
     const finalAmount = numericValue / 100;
     console.log('finalAmount:', finalAmount);
 
@@ -163,7 +170,6 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    // For card expenses, require card selection
     if (expenseType === 'card' && cards.length > 0 && !selectedCard) {
       Alert.alert('Erro', 'Selecione um cartão ou mude para "Sem Cartão"');
       return;
@@ -311,6 +317,15 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.title, { color: colors.header }]}>Adicionar ao Caixa</Text>
         </FadeInView>
 
+        <SlideInView delay={50}>
+          <View style={[styles.balanceCard, { backgroundColor: colors.success + (isDark ? '25' : '15') }]}>
+            <Text style={[styles.balanceLabel, { color: colors.success }]}>Saldo Atual do Caixa</Text>
+            <Text style={[styles.balanceValue, { color: colors.success }]}>
+              {formatCurrency(cashBalance)}
+            </Text>
+          </View>
+        </SlideInView>
+
         <SlideInView delay={100}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
@@ -399,7 +414,15 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.title, { color: colors.header }]}>Novo Gasto</Text>
         </FadeInView>
 
-        {/* Expense Type Toggle */}
+        <SlideInView delay={25}>
+          <View style={[styles.balanceCard, { backgroundColor: colors.primary + (isDark ? '25' : '15') }]}>
+            <Text style={[styles.balanceLabel, { color: colors.primary }]}>Saldo Atual do Caixa</Text>
+            <Text style={[styles.balanceValue, { color: colors.primary }]}>
+              {formatCurrency(cashBalance)}
+            </Text>
+          </View>
+        </SlideInView>
+
         <SlideInView delay={50}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Tipo de Gasto</Text>
@@ -430,7 +453,6 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Payment Method Toggle - only for card expenses */}
         {expenseType === 'card' && (
           <SlideInView delay={75}>
             <View style={styles.inputGroup}>
@@ -463,7 +485,6 @@ export default function AddExpenseScreen({ navigation }) {
           </SlideInView>
         )}
 
-        {/* Amount Input */}
         <SlideInView delay={100}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
@@ -482,7 +503,6 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Description Input */}
         <SlideInView delay={200}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Descrição</Text>
@@ -500,7 +520,6 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Date Input */}
         <SlideInView delay={300}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
@@ -518,7 +537,6 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Card Selection - Only show if type is card */}
         {expenseType === 'card' && cards.length > 0 && (
           <SlideInView delay={350}>
             <View style={styles.inputGroup}>
@@ -552,7 +570,6 @@ export default function AddExpenseScreen({ navigation }) {
           </SlideInView>
         )}
 
-        {/* Category Selection */}
         <SlideInView delay={400}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Categoria</Text>
@@ -610,7 +627,6 @@ export default function AddExpenseScreen({ navigation }) {
   const getFilteredExpensesList = () => {
     let filtered = expenses;
 
-    // Filter by date
     if (filterDate !== 'all') {
       const now = new Date();
       filtered = filtered.filter(e => {
@@ -627,12 +643,10 @@ export default function AddExpenseScreen({ navigation }) {
       });
     }
 
-    // Filter by card
     if (filterCard !== 'all') {
       filtered = filtered.filter(e => e.cardId === filterCard);
     }
 
-    // Filter by type
     if (filterType !== 'all') {
       if (filterType === 'card') {
         filtered = filtered.filter(e => e.cardId);
@@ -647,7 +661,6 @@ export default function AddExpenseScreen({ navigation }) {
   const getFilteredCashList = () => {
     let filtered = cashTransactions || [];
 
-    // Filter by date
     if (filterDate !== 'all') {
       const now = new Date();
       filtered = filtered.filter(e => {
@@ -671,7 +684,6 @@ export default function AddExpenseScreen({ navigation }) {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title={viewMode === 'expenses' ? 'Gastos' : 'Caixa'} />
 
-      {/* View Mode Toggle */}
       <View style={[styles.viewModeContainer, { backgroundColor: colors.card }]}>
         <View style={styles.viewModeToggle}>
           <TouchableOpacity
@@ -699,11 +711,9 @@ export default function AddExpenseScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Filters */}
       {viewMode === 'expenses' && (
         <View style={[styles.filtersContainer, { backgroundColor: colors.card }]}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
-            {/* Date Filter */}
             <View style={styles.filterGroup}>
               <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Data</Text>
               <View style={styles.filterButtons}>
@@ -721,7 +731,6 @@ export default function AddExpenseScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Type Filter */}
             <View style={styles.filterGroup}>
               <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Tipo</Text>
               <View style={styles.filterButtons}>
@@ -739,7 +748,6 @@ export default function AddExpenseScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Card Filter */}
             <View style={styles.filterGroup}>
               <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Cartão</Text>
               <View style={styles.filterButtons}>
@@ -790,7 +798,6 @@ export default function AddExpenseScreen({ navigation }) {
         />
       )}
 
-      {/* Interactive FAB Menu */}
       {fabMenuOpen && (
         <View style={styles.fabMenuOverlay}>
           <TouchableOpacity style={styles.fabMenuOverlayTouchable} onPress={() => setFabMenuOpen(false)} />
@@ -846,9 +853,21 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20 },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 24 },
-  inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
-  // View Mode Toggle
+  balanceCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  balanceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  balanceValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
   viewModeContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -873,7 +892,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  // Type Toggle
   typeToggleContainer: {
     flexDirection: 'row',
     gap: 10,
@@ -897,7 +915,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  // Amount & inputs
   amountInput: {
     borderRadius: 16, padding: 18, fontSize: 32, fontWeight: 'bold',
     textAlign: 'center', shadowOffset: { width: 0, height: 2 },
@@ -934,7 +951,6 @@ const styles = StyleSheet.create({
     padding: 18, borderRadius: 16, marginTop: 12,
   },
   submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
-  // List styles
   listContent: { padding: 16, paddingBottom: 80 },
   expenseItem: {
     flexDirection: 'row', alignItems: 'center',
@@ -954,28 +970,24 @@ const styles = StyleSheet.create({
   expenseRight: { alignItems: 'flex-end' },
   expenseAmount: { fontSize: 15, fontWeight: 'bold' },
   cashAmount: { fontSize: 15, fontWeight: 'bold' },
-  // Standalone badge
   standaloneBadge: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 6, paddingVertical: 2,
     borderRadius: 4, gap: 3,
   },
   standaloneText: { fontSize: 10, fontWeight: '600' },
-  // Card badge
   cardBadge: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 6, paddingVertical: 2,
     borderRadius: 4, gap: 3,
   },
   cardBadgeText: { fontSize: 10, fontWeight: '600' },
-  // Cash badge
   cashBadge: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 6, paddingVertical: 2,
     borderRadius: 4, gap: 3,
   },
   cashBadgeText: { fontSize: 10, fontWeight: '600' },
-  // Empty & FAB
   emptyContainer: { alignItems: 'center', padding: 40, paddingTop: 80 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 16 },
   emptySubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
