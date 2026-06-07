@@ -28,6 +28,7 @@ export default function AddExpenseScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]?.id || 'outros');
   const [selectedCard, setSelectedCard] = useState(null);
   const [expenseType, setExpenseType] = useState('card'); // 'card' or 'standalone'
+  const [paymentMethod, setPaymentMethod] = useState('credit'); // 'credit' or 'debit'
   const [filterDate, setFilterDate] = useState('all'); // 'all', 'today', 'week', 'month'
   const [filterCard, setFilterCard] = useState('all');
   const [filterType, setFilterType] = useState('all'); // 'all', 'card', 'standalone'
@@ -132,6 +133,7 @@ export default function AddExpenseScreen({ navigation }) {
         category: selectedCategory,
         cardId: expenseType === 'standalone' ? null : selectedCard,
         date,
+        paymentMethod: expenseType === 'card' ? paymentMethod : null,
       });
 
       Alert.alert('Sucesso', 'Gasto adicionado!', [
@@ -336,6 +338,39 @@ export default function AddExpenseScreen({ navigation }) {
             </View>
           </View>
         </SlideInView>
+
+        {/* Payment Method Toggle - only for card expenses */}
+        {expenseType === 'card' && (
+          <SlideInView delay={75}>
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Forma de Pagamento</Text>
+              <View style={styles.typeToggleContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeToggleButton,
+                    paymentMethod === 'credit' && { backgroundColor: colors.warning },
+                    { backgroundColor: paymentMethod === 'credit' ? colors.warning : colors.inputBg }
+                  ]}
+                  onPress={() => setPaymentMethod('credit')}
+                >
+                  <Ionicons name="timer-outline" size={16} color={paymentMethod === 'credit' ? '#fff' : colors.textSecondary} />
+                  <Text style={[styles.typeToggleText, { color: paymentMethod === 'credit' ? '#fff' : colors.textSecondary }]}>Crédito</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeToggleButton,
+                    paymentMethod === 'debit' && { backgroundColor: colors.primary },
+                    { backgroundColor: paymentMethod === 'debit' ? colors.primary : colors.inputBg }
+                  ]}
+                  onPress={() => setPaymentMethod('debit')}
+                >
+                  <Ionicons name="cash-outline" size={16} color={paymentMethod === 'debit' ? '#fff' : colors.textSecondary} />
+                  <Text style={[styles.typeToggleText, { color: paymentMethod === 'debit' ? '#fff' : colors.textSecondary }]}>Débito</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SlideInView>
+        )}
 
         {/* Amount Input */}
         <SlideInView delay={100}>
