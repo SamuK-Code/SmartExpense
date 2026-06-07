@@ -18,7 +18,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen() {
-  const { CATEGORIES, categoryLimits, setCategoryLimit, expenses } = useExpenses();
+  const { CATEGORIES, categoryLimits, setCategoryLimit, expenses, cards } = useExpenses();
   const { colors, isDark, toggleTheme } = useTheme();
   const [limitModalVisible, setLimitModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -39,8 +39,7 @@ export default function SettingsScreen() {
           e.cardId || 'N/A',
           e.amount,
         ].join(','))
-      ].join('
-');
+      ].join('\n');
 
       const fileUri = FileSystem.documentDirectory + 'gastos.csv';
       await FileSystem.writeAsStringAsync(fileUri, csvContent);
@@ -71,7 +70,7 @@ export default function SettingsScreen() {
   const settingsItems = [
     {
       id: 'darkMode',
-      icon: isDark ? 'moon' : 'sunny',
+      icon: isDark ? 'moon-outline' : 'sunny-outline',
       title: 'Modo Escuro',
       subtitle: isDark ? 'Ativado' : 'Desativado',
       action: 'toggle',
@@ -79,7 +78,7 @@ export default function SettingsScreen() {
     },
     {
       id: 'export',
-      icon: 'download',
+      icon: 'download-outline',
       title: 'Exportar Dados',
       subtitle: 'CSV para planilha',
       action: 'export',
@@ -122,7 +121,7 @@ export default function SettingsScreen() {
                     thumbColor={item.value ? colors.primary : '#f4f3f4'}
                   />
                 ) : (
-                  <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+                  <Ionicons name="chevron-forward-outline" size={20} color={colors.textLight} />
                 )}
               </TouchableOpacity>
             </SlideInView>
@@ -132,29 +131,30 @@ export default function SettingsScreen() {
         {/* Category Limits */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>ORÇAMENTO POR CATEGORIA</Text>
-          <StaggeredList staggerDelay={60}>
-            {CATEGORIES.map(cat => {
+          <View>
+            {CATEGORIES.map((cat, index) => {
               const currentLimit = categoryLimits[cat.id] !== undefined ? categoryLimits[cat.id] : cat.limit;
               return (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[styles.settingItem, { backgroundColor: colors.card }]}
-                  onPress={() => openLimitModal(cat)}
-                >
-                  <View style={[styles.settingIcon, { backgroundColor: cat.color + '15' }]}>
-                    <Ionicons name={cat.icon} size={20} color={cat.color} />
-                  </View>
-                  <View style={styles.settingInfo}>
-                    <Text style={[styles.settingTitle, { color: colors.text }]}>{cat.name}</Text>
-                    <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
-                      Limite: {formatCurrency(currentLimit)}
-                    </Text>
-                  </View>
-                  <Ionicons name="create-outline" size={18} color={colors.textLight} />
-                </TouchableOpacity>
+                <SlideInView key={cat.id} delay={index * 60}>
+                  <TouchableOpacity
+                    style={[styles.settingItem, { backgroundColor: colors.card }]}
+                    onPress={() => openLimitModal(cat)}
+                  >
+                    <View style={[styles.settingIcon, { backgroundColor: cat.color + '15' }]}>
+                      <Ionicons name={cat.icon} size={20} color={cat.color} />
+                    </View>
+                    <View style={styles.settingInfo}>
+                      <Text style={[styles.settingTitle, { color: colors.text }]}>{cat.name}</Text>
+                      <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]}>
+                        Limite: {formatCurrency(currentLimit)}
+                      </Text>
+                    </View>
+                    <Ionicons name="create-outline" size={18} color={colors.textLight} />
+                  </TouchableOpacity>
+                </SlideInView>
               );
             })}
-          </StaggeredList>
+          </View>
         </View>
 
         {/* Stats */}
@@ -167,7 +167,7 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.statRow}>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Cartões cadastrados</Text>
-              <Text style={[styles.statValue, { color: colors.text }]}>{cards.length}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{cards?.length || 0}</Text>
             </View>
           </View>
         </View>
