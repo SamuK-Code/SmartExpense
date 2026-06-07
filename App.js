@@ -36,7 +36,7 @@ function HomeStack() {
       <Stack.Screen name="HomeMain" component={HomeScreen} options={{ title: 'Inicio' }} />
       <Stack.Screen name="AddExpense" component={AddExpenseScreen} options={{ title: 'Novo Gasto' }} />
       <Stack.Screen name="EditExpense" component={EditExpenseScreen} options={{ title: 'Editar Gasto' }} />
-      <Stack.Screen name="Cards" component={CardsScreen} options={{ title: 'Meus Cartoes' }} />
+      <Stack.Screen name="Cartoes" component={CardsScreen} options={{ title: 'Meus Cartoes' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configuracoes' }} />
     </Stack.Navigator>
   );
@@ -70,8 +70,8 @@ function TabNavigator() {
           if (route.name === 'Inicio') iconName = focused ? 'home' : 'home-outline';
           else if (route.name === 'Adicionar') iconName = focused ? 'add-circle' : 'add-circle-outline';
           else if (route.name === 'Historico') iconName = focused ? 'list' : 'list-outline';
-          else if (route.name === 'Graficos') iconName = focused ? 'pie-chart' : 'pie-chart-outline';
-          else if (route.name === 'Planejar') iconName = focused ? 'calendar' : 'calendar-outline';
+          else if (route.name === 'Graficos') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
+          else if (route.name === 'Planejar') iconName = focused ? 'calendar-outline' : 'calendar-outline';
           else if (route.name === 'Cartoes') iconName = focused ? 'card' : 'card-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
