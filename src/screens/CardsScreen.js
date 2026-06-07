@@ -60,7 +60,9 @@ export default function CardsScreen() {
     setEditingCard(card);
     const bank = getBankById(card.bankId);
     setSelectedBank(bank);
-    setCardLimit((card.limit * 100).toString());
+    // Converte o limite para centavos para o input
+    const limitInCents = Math.round(card.limit * 100);
+    setCardLimit(limitInCents.toString());
     setCardLimitDisplay(formatCurrency(card.limit));
     setCustomName(card.customName || '');
     setModalVisible(true);
@@ -72,37 +74,50 @@ export default function CardsScreen() {
   };
 
   const handleSave = () => {
+    // Validação 1: Banco selecionado
     if (!selectedBank) {
       Alert.alert('Erro', 'Selecione um banco');
       return;
     }
 
-    // Pega o valor numérico puro (sem formatação)
-    const numericValue = cardLimit.replace(/\D/g, '');
-    const limit = parseInt(numericValue) / 100;
+    // Validação 2: Limite preenchido
+    if (!cardLimit || cardLimit === '0') {
+      Alert.alert('Erro', 'Preencha o limite do cartão');
+      return;
+    }
 
-    if (!numericValue || limit <= 0) {
+    // Converte o valor de centavos para reais
+    const numericValue = parseInt(cardLimit);
+    const limit = numericValue / 100;
+
+    // Validação 3: Limite válido
+    if (isNaN(limit) || limit <= 0) {
       Alert.alert('Erro', 'Digite um limite válido');
       return;
     }
 
+    // Dados do cartão
     const cardData = {
       bankId: selectedBank.id,
       name: selectedBank.name,
       customName: customName.trim() || selectedBank.name,
-      limit,
+      limit: limit,
       color: selectedBank.color,
       icon: selectedBank.icon,
     };
 
+    // Salva (adiciona ou atualiza)
     if (editingCard) {
       updateCard(editingCard.id, cardData);
+      Alert.alert('Sucesso', 'Cartão atualizado!');
     } else {
       addCard(cardData);
+      Alert.alert('Sucesso', 'Cartão adicionado!');
     }
 
+    // Fecha modal e limpa estados
     setModalVisible(false);
-    // Limpar estados
+    setEditingCard(null);
     setSelectedBank(null);
     setCardLimit('');
     setCardLimitDisplay('');
@@ -277,6 +292,7 @@ Os gastos associados não serão excluídos.`,
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.border }]} onPress={() => {
                   setModalVisible(false);
+                  setEditingCard(null);
                   setSelectedBank(null);
                   setCardLimit('');
                   setCardLimitDisplay('');
