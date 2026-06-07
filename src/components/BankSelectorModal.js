@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { BANKS, BANK_TYPES, getPopularBanks } from '../utils/BanksData';
-import { FadeInView, ScaleInView, StaggeredList } from './AnimatedComponents';
+import { SlideInView, ScaleInView } from './AnimatedComponents';
 
 export default function BankSelectorModal({ visible, onSelect, onClose, selectedBankId }) {
   const { colors, isDark } = useTheme();
@@ -29,62 +29,85 @@ export default function BankSelectorModal({ visible, onSelect, onClose, selected
 
   const popularBanks = getPopularBanks();
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
-        <FadeInView>
+  // Verificar se BANKS está carregado
+  if (!BANKS || BANKS.length === 0) {
+    return (
+      <Modal visible={visible} animationType="slide" transparent>
+        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
           <View style={[styles.container, { backgroundColor: colors.background }]}>
-            {/* Header */}
             <View style={[styles.header, { backgroundColor: colors.header }]}>
               <Text style={[styles.headerTitle, { color: colors.headerText }]}>Escolher Banco</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <Ionicons name="close-outline" size={24} color={colors.headerText} />
               </TouchableOpacity>
             </View>
-
-            {/* Search */}
-            <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
-              <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
-              <TextInput
-                style={[styles.searchInput, { color: colors.text }]}
-                placeholder="Buscar banco..."
-                value={search}
-                onChangeText={setSearch}
-                placeholderTextColor={colors.textLight}
-              />
-              {search.length > 0 && (
-                <TouchableOpacity onPress={() => setSearch('')}>
-                  <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
+            <View style={styles.emptyState}>
+              <Ionicons name="alert-circle-outline" size={48} color={colors.textLight} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Erro ao carregar bancos</Text>
             </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
-            {/* Type Filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeFilter}>
-              {BANK_TYPES.map(type => (
-                <TouchableOpacity
-                  key={type.id}
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+          {/* Header */}
+          <View style={[styles.header, { backgroundColor: colors.header }]}>
+            <Text style={[styles.headerTitle, { color: colors.headerText }]}>Escolher Banco</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close-outline" size={24} color={colors.headerText} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Search */}
+          <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
+            <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Buscar banco..."
+              value={search}
+              onChangeText={setSearch}
+              placeholderTextColor={colors.textLight}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Type Filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeFilter}>
+            {BANK_TYPES.map(type => (
+              <TouchableOpacity
+                key={type.id}
+                style={[
+                  styles.typeButton,
+                  filterType === type.id && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setFilterType(type.id)}
+              >
+                <Text
                   style={[
-                    styles.typeButton,
-                    filterType === type.id && { backgroundColor: colors.primary },
+                    styles.typeText,
+                    filterType === type.id && { color: '#fff', fontWeight: 'bold' },
+                    { color: colors.textSecondary },
                   ]}
-                  onPress={() => setFilterType(type.id)}
                 >
-                  <Text
-                    style={[
-                      styles.typeText,
-                      filterType === type.id && { color: '#fff', fontWeight: 'bold' },
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    {type.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                  {type.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
+          {/* Content ScrollView */}
+          <ScrollView showsVerticalScrollIndicator={false} style={styles.contentScroll}>
             {/* Popular Banks (when no search and all filter) */}
-            {!search && filterType === 'all' && (
+            {!search && filterType === 'all' && popularBanks.length > 0 && (
               <View style={styles.popularSection}>
                 <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>MAIS USADOS</Text>
                 <View style={styles.popularGrid}>
@@ -118,50 +141,50 @@ export default function BankSelectorModal({ visible, onSelect, onClose, selected
             )}
 
             {/* All Banks List */}
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.bankList}>
+            <View style={styles.allBanksSection}>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
                 {search ? 'RESULTADOS' : 'TODOS OS BANCOS'}
               </Text>
-              <StaggeredList staggerDelay={30}>
-                {filteredBanks.map(bank => (
-                  <TouchableOpacity
-                    key={bank.id}
-                    style={[
-                      styles.bankItem,
-                      selectedBankId === bank.id && {
-                        backgroundColor: bank.color + (isDark ? '20' : '15'),
-                        borderColor: bank.color,
-                        borderWidth: 1,
-                      },
-                      { backgroundColor: colors.card },
-                    ]}
-                    onPress={() => onSelect(bank)}
-                  >
-                    <View style={[styles.bankIcon, { backgroundColor: bank.color + '15' }]}>
-                      <Ionicons name={bank.icon} size={20} color={bank.color} />
-                    </View>
-                    <View style={styles.bankInfo}>
-                      <Text style={[styles.bankName, { color: colors.text }]}>{bank.name}</Text>
-                      <Text style={[styles.bankType, { color: colors.textSecondary }]}>
-                        {BANK_TYPES.find(t => t.id === bank.type)?.name || bank.type}
-                      </Text>
-                    </View>
-                    {selectedBankId === bank.id && (
-                      <Ionicons name="checkmark-circle-outline" size={22} color={colors.primary} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </StaggeredList>
 
-              {filteredBanks.length === 0 && (
+              {filteredBanks.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="search-outline" size={32} color={colors.textLight} />
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Nenhum banco encontrado</Text>
                 </View>
+              ) : (
+                filteredBanks.map((bank, index) => (
+                  <SlideInView key={bank.id} delay={index * 30}>
+                    <TouchableOpacity
+                      style={[
+                        styles.bankItem,
+                        selectedBankId === bank.id && {
+                          backgroundColor: bank.color + (isDark ? '20' : '15'),
+                          borderColor: bank.color,
+                          borderWidth: 1,
+                        },
+                        { backgroundColor: colors.card },
+                      ]}
+                      onPress={() => onSelect(bank)}
+                    >
+                      <View style={[styles.bankIcon, { backgroundColor: bank.color + '15' }]}>
+                        <Ionicons name={bank.icon} size={20} color={bank.color} />
+                      </View>
+                      <View style={styles.bankInfo}>
+                        <Text style={[styles.bankName, { color: colors.text }]}>{bank.name}</Text>
+                        <Text style={[styles.bankType, { color: colors.textSecondary }]}>
+                          {BANK_TYPES.find(t => t.id === bank.type)?.name || bank.type}
+                        </Text>
+                      </View>
+                      {selectedBankId === bank.id && (
+                        <Ionicons name="checkmark-circle-outline" size={22} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  </SlideInView>
+                ))
               )}
-            </ScrollView>
-          </View>
-        </FadeInView>
+            </View>
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -176,7 +199,6 @@ const styles = StyleSheet.create({
     height: '85%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    flex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.2,
@@ -224,6 +246,7 @@ const styles = StyleSheet.create({
   typeFilter: {
     paddingHorizontal: 12,
     marginBottom: 12,
+    maxHeight: 50,
   },
   typeButton: {
     paddingHorizontal: 14,
@@ -234,6 +257,9 @@ const styles = StyleSheet.create({
   },
   typeText: {
     fontSize: 13,
+  },
+  contentScroll: {
+    flex: 1,
   },
   popularSection: {
     paddingHorizontal: 16,
@@ -289,9 +315,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bankList: {
-    flex: 1,
+  allBanksSection: {
     paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   bankItem: {
     flexDirection: 'row',
