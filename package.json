@@ -30,7 +30,8 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0"
+    "@babel/core": "^7.24.0",
+    "@react-native-community/cli": "latest"
   },
   "private": true,
   "allowScripts": {
