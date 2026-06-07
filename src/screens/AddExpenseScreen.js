@@ -18,7 +18,8 @@ import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComp
 import AppHeader from '../components/AppHeader';
 
 export default function AddExpenseScreen({ navigation }) {
-  const { addExpense, expenses, cards, CATEGORIES, deleteExpense, cashTransactions, addCashTransaction } = useExpenses();
+  const { addExpense, expenses, cards, CATEGORIES, deleteExpense, deleteCashTransaction, cashTransactions: ctxCashTransactions, addCashTransaction: ctxAddCashTransaction } = useExpenses();
+  const [localCashTransactions, setLocalCashTransactions] = useState([]);
   const { colors, isDark } = useTheme();
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
@@ -36,6 +37,24 @@ export default function AddExpenseScreen({ navigation }) {
   const getTodayDate = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+
+  // Helper: use contexto se disponível, senão local
+  const cashTransactions = ctxCashTransactions || localCashTransactions;
+  const addCashTransaction = (amount, description) => {
+    const newEntry = {
+      id: Date.now().toString(),
+      amount: amount,
+      description: description,
+      date: cashDate || getTodayDate(),
+      createdAt: new Date().toISOString(),
+    };
+    if (ctxAddCashTransaction) {
+      ctxAddCashTransaction(newEntry);
+    } else {
+      setLocalCashTransactions(prev => [newEntry, ...prev]);
+    }
+    return newEntry;
   };
 
   // FAB menu states
@@ -95,17 +114,21 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    addCashTransaction(numericAmount, cashDescription.trim());
+    try {
+      addCashTransaction(numericAmount, cashDescription.trim());
 
-    Alert.alert('Sucesso', 'Dinheiro adicionado ao caixa!', [
-      { text: 'OK', onPress: () => {
-        setShowCashForm(false);
-        setCashAmount('');
-        setCashAmountDisplay('');
-        setCashDate(getTodayDate());
-        setCashDescription('');
-      }}
-    ]);
+      Alert.alert('Sucesso', 'Dinheiro adicionado ao caixa!', [
+        { text: 'OK', onPress: () => {
+          setShowCashForm(false);
+          setCashAmount('');
+          setCashAmountDisplay('');
+          setCashDate(getTodayDate());
+          setCashDescription('');
+        }}
+      ]);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível adicionar: ' + error.message);
+    }
   };
 
   const handleSubmit = () => {
@@ -170,7 +193,13 @@ export default function AddExpenseScreen({ navigation }) {
       `Deseja excluir "${cashItem.description}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: () => deleteCashTransaction(cashItem.id) },
+        { text: 'Excluir', style: 'destructive', onPress: () => {
+          if (ctxAddCashTransaction && typeof deleteCashTransaction === 'function') {
+            deleteCashTransaction(cashItem.id);
+          } else {
+            setLocalCashTransactions(prev => prev.filter(item => item.id !== cashItem.id));
+          }
+        }},
       ]
     );
   };
