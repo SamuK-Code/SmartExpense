@@ -603,11 +603,50 @@ export default function AddExpenseScreen({ navigation }) {
         />
       )}
 
+      {/* Interactive FAB Menu */}
+      {fabMenuOpen && (
+        <View style={styles.fabMenuOverlay}>
+          <TouchableOpacity style={styles.fabMenuOverlayTouchable} onPress={() => setFabMenuOpen(false)} />
+          <View style={[styles.fabMenu, { backgroundColor: colors.card }]}>
+            <TouchableOpacity
+              style={[styles.fabMenuItem, { backgroundColor: colors.primary + '15' }]}
+              onPress={() => {
+                setFabMenuOpen(false);
+                setShowForm(true);
+              }}
+            >
+              <View style={[styles.fabMenuIcon, { backgroundColor: colors.primary }]}>
+                <Ionicons name="receipt-outline" size={20} color="#fff" />
+              </View>
+              <View>
+                <Text style={[styles.fabMenuTitle, { color: colors.text }]}>Novo Gasto</Text>
+                <Text style={[styles.fabMenuSubtitle, { color: colors.textSecondary }]}>Adicionar despesa</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.fabMenuItem, { backgroundColor: colors.success + '15' }]}
+              onPress={() => {
+                setFabMenuOpen(false);
+                setShowCashForm(true);
+              }}
+            >
+              <View style={[styles.fabMenuIcon, { backgroundColor: colors.success }]}>
+                <Ionicons name="cash-outline" size={20} color="#fff" />
+              </View>
+              <View>
+                <Text style={[styles.fabMenuTitle, { color: colors.text }]}>Adicionar Caixa</Text>
+                <Text style={[styles.fabMenuSubtitle, { color: colors.textSecondary }]}>Entrada de dinheiro</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={() => { playClick(); setShowForm(true); }}
+        onPress={() => setFabMenuOpen(!fabMenuOpen)}
       >
-        <Ionicons name="add-outline" size={28} color="#fff" />
+        <Ionicons name={fabMenuOpen ? "close-outline" : "add-outline"} size={28} color="#fff" />
       </TouchableOpacity>
     </View>
   );
