@@ -4,6 +4,24 @@ import * as Crypto from 'expo-crypto';
 
 const ExpenseContext = createContext();
 
+// Função segura para gerar UUID com fallback
+const generateUUID = () => {
+  try {
+    if (Crypto && Crypto.randomUUID) {
+      return Crypto.randomUUID();
+    }
+  } catch (e) {
+    console.log('expo-crypto não disponível, usando fallback');
+  }
+
+  // Fallback manual (UUID v4)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export const CATEGORIES = [
   { id: 'alimentacao', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant-outline', limit: 800 },
   { id: 'transporte', name: 'Transporte', color: '#4ECDC4', icon: 'car-outline', limit: 500 },
@@ -87,13 +105,13 @@ export function ExpenseProvider({ children }) {
   }, [expenses, cards, categoryLimits]);
 
   const addExpense = (expense) => {
-    const newExpense = { id: Crypto.randomUUID()(), ...expense, createdAt: new Date().toISOString() };
+    const newExpense = { id: generateUUID(), ...expense, createdAt: new Date().toISOString() };
     setExpenses(prev => [newExpense, ...prev]);
     return newExpense;
   };
   const updateExpense = (id, updates) => { setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); };
   const deleteExpense = (id) => { setExpenses(prev => prev.filter(e => e.id !== id)); };
-  const addCard = (card) => { const newCard = { id: Crypto.randomUUID()(), ...card }; setCards(prev => [...prev, newCard]); };
+  const addCard = (card) => { const newCard = { id: generateUUID(), ...card }; setCards(prev => [...prev, newCard]); };
   const updateCard = (id, updates) => { setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c)); };
   const deleteCard = (id) => { setCards(prev => prev.filter(c => c.id !== id)); setExpenses(prev => prev.map(e => e.cardId === id ? { ...e, cardId: null } : e)); };
   const setCategoryLimit = (categoryId, limit) => { setCategoryLimits(prev => ({ ...prev, [categoryId]: limit })); };
