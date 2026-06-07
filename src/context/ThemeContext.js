@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeGetItem, safeSetItem, STORAGE_KEYS } from '../utils/SafeStorage';
 
 const ThemeContext = createContext();
 
@@ -55,9 +55,9 @@ export function ThemeProvider({ children }) {
 
   const loadTheme = async () => {
     try {
-      const saved = await AsyncStorage.getItem('@darkMode');
+      const saved = await safeGetItem(STORAGE_KEYS.DARK_MODE, null);
       if (saved !== null) {
-        setIsDark(JSON.parse(saved));
+        setIsDark(!!saved);
       }
     } catch (e) {
       console.error(e);
@@ -70,7 +70,7 @@ export function ThemeProvider({ children }) {
     const newValue = !isDark;
     setIsDark(newValue);
     try {
-      await AsyncStorage.setItem('@darkMode', JSON.stringify(newValue));
+      await safeSetItem(STORAGE_KEYS.DARK_MODE, newValue);
     } catch (e) {
       console.error(e);
     }
