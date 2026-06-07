@@ -3,15 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Alert,
-  ScrollView,  // ← ADICIONADO
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
-import { FadeInView, SlideInView, StaggeredList } from '../components/AnimatedComponents';
+import { FadeInView, SlideInView } from '../components/AnimatedComponents';
+import AppHeader from '../components/AppHeader';
+import SimpleList from '../components/SimpleList';
 import PeriodFilter from '../components/PeriodFilter';
 
 export default function HistoryScreen({ navigation }) {
@@ -54,46 +54,47 @@ export default function HistoryScreen({ navigation }) {
     );
   };
 
-  const renderItem = ({ item, index }) => {
+  const renderExpenseItem = (item) => {
     const category = getCategoryInfo(item.category);
     const card = cards.find(c => c.id === item.cardId);
     return (
-      <SlideInView delay={index * 50}>
-        <TouchableOpacity 
-          style={[styles.expenseItem, { backgroundColor: colors.card }]}
-          onPress={() => navigation.navigate('EditExpense', { expenseId: item.id })}
-          onLongPress={() => handleDelete(item)}
-        >
-          <View style={[styles.categoryIcon, { backgroundColor: category.color + (isDark ? '30' : '20') }]}>
-            <Ionicons name={category.icon} size={22} color={category.color} />
-          </View>
-          <View style={styles.expenseInfo}>
-            <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
-            <View style={styles.expenseMeta}>
-              <View style={[styles.categoryBadge, { backgroundColor: category.color + (isDark ? '30' : '20') }]}>
-                <Text style={[styles.categoryBadgeText, { color: category.color }]}>{category.name}</Text>
-              </View>
-              {card && (
-                <View style={[styles.cardBadge, { backgroundColor: card.color + '20' }]}>
-                  <Text style={[styles.cardBadgeText, { color: card.color }]}>{card.name}</Text>
-                </View>
-              )}
+      <TouchableOpacity 
+        style={[styles.expenseItem, { backgroundColor: colors.card }]}
+        onPress={() => navigation.navigate('EditExpense', { expenseId: item.id })}
+        onLongPress={() => handleDelete(item)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.categoryIcon, { backgroundColor: category.color + (isDark ? '30' : '20') }]}>
+          <Ionicons name={category.icon} size={22} color={category.color} />
+        </View>
+        <View style={styles.expenseInfo}>
+          <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
+          <View style={styles.expenseMeta}>
+            <View style={[styles.categoryBadge, { backgroundColor: category.color + (isDark ? '30' : '20') }]}>
+              <Text style={[styles.categoryBadgeText, { color: category.color }]}>{category.name}</Text>
             </View>
-            <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
+            {card && (
+              <View style={[styles.cardBadge, { backgroundColor: card.color + '20' }]}>
+                <Text style={[styles.cardBadgeText, { color: card.color }]}>{card.name}</Text>
+              </View>
+            )}
           </View>
-          <View style={styles.expenseRight}>
-            <Text style={[styles.expenseAmount, { color: colors.danger }]}>
-              {formatCurrency(parseFloat(item.amount))}
-            </Text>
-            <Ionicons name="create-outline" size={14} color={colors.textLight} />
-          </View>
-        </TouchableOpacity>
-      </SlideInView>
+          <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
+        </View>
+        <View style={styles.expenseRight}>
+          <Text style={[styles.expenseAmount, { color: colors.danger }]}>
+            {formatCurrency(parseFloat(item.amount))}
+          </Text>
+          <Ionicons name="create-outline" size={14} color={colors.textLight} />
+        </View>
+      </TouchableOpacity>
     );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <AppHeader title="Histórico" />
+
       <PeriodFilter selected={period} onSelect={setPeriod} />
 
       {/* Category Filter */}
@@ -121,67 +122,77 @@ export default function HistoryScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {finalExpenses.length === 0 ? (
-        <FadeInView>
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={48} color={colors.textLight} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Nenhum gasto encontrado</Text>
-          </View>
-        </FadeInView>
-      ) : (
-        <FlatList
+      <View style={styles.content}>
+        <SimpleList
           data={finalExpenses}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
+          renderItem={renderExpenseItem}
+          keyExtractor={(item) => item.id}
+          emptyTitle="Nenhum gasto encontrado"
+          emptySubtitle="Adicione seu primeiro gasto para começar"
+          emptyIcon="receipt-outline"
+          onAddPress={() => navigation.navigate('AddExpense')}
+          addButtonText="Adicionar Gasto"
         />
-      )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  content: {
+    flex: 1,
+  },
   filterContainer: {
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
   filterScroll: { paddingHorizontal: 12 },
   filterButton: {
-    paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: 16, marginRight: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 6,
   },
   filterText: { fontSize: 12 },
-  listContent: { padding: 16 },
   expenseItem: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: 16, borderRadius: 14, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   categoryIcon: {
-    width: 48, height: 48, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   expenseInfo: { flex: 1, marginLeft: 12 },
   expenseDescription: { fontSize: 15, fontWeight: '600' },
   expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap' },
   categoryBadge: {
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 6, marginRight: 6, marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginRight: 6,
+    marginBottom: 4,
   },
   categoryBadgeText: { fontSize: 11, fontWeight: '500' },
   cardBadge: {
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 6, marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 4,
   },
   cardBadgeText: { fontSize: 11, fontWeight: '500' },
   expenseDate: { fontSize: 12, marginTop: 4 },
   expenseRight: { alignItems: 'flex-end' },
   expenseAmount: { fontSize: 15, fontWeight: 'bold' },
-  emptyState: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40,
-  },
-  emptyText: { fontSize: 14, marginTop: 12 },
 });
