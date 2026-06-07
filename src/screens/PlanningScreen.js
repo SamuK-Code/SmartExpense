@@ -3,17 +3,21 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
+  ScrollView,
   Alert,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { usePlanning } from '../context/PlanningContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView, ScaleInView, StaggeredList } from '../components/AnimatedComponents';
+import AppHeader from '../components/AppHeader';
+import SimpleList from '../components/SimpleList';
 import { getBankById } from '../utils/BanksData';
 
 export default function PlanningScreen() {
@@ -31,16 +35,11 @@ export default function PlanningScreen() {
 
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  // Calculate current month expenses
   const currentMonthExpenses = getFilteredExpenses('month');
   const totalExpenses = getMonthlyTotal(currentMonthExpenses);
   const remaining = cashBalance - totalExpenses;
   const expensePercent = cashBalance > 0 ? (totalExpenses / cashBalance) * 100 : 0;
-
-  // Daily budget calculation
   const dailyBudget = calculateDailyBudget(cashBalance, totalExpenses);
-
-  // Check if cash is sufficient for all expenses
   const isCashSufficient = cashBalance >= totalExpenses;
 
   const handleSaveCash = () => {
@@ -95,17 +94,91 @@ export default function PlanningScreen() {
 
   const getCategoryInfo = (catId) => CATEGORIES.find(c => c.id === catId) || CATEGORIES[7];
 
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={[styles.header, { backgroundColor: colors.header }]}>
-          <Text style={[styles.headerTitle, { color: colors.headerText }]}>Planejamento</Text>
-          <TouchableOpacity style={styles.cashButton} onPress={() => setCashModalVisible(true)}>
-            <Ionicons name="wallet-outline" size={20} color={colors.headerText} />
-          </TouchableOpacity>
+  const renderGoalItem = (goal) => {
+    const feasibility = checkGoalFeasibility(goal.amount, cashBalance, totalExpenses);
+    const category = getCategoryInfo(goal.category);
+    const canBuyNow = goal.amount <= cashBalance && feasibility.feasible;
+
+    return (
+      <View key={goal.id} style={[styles.goalCard, { backgroundColor: colors.card, borderLeftColor: category.color }]}>
+        <View style={styles.goalHeader}>
+          <View style={styles.goalTitleRow}>
+            <View style={[styles.goalCategoryIcon, { backgroundColor: category.color + '20' }]}>
+              <Ionicons name={category.icon} size={18} color={category.color} />
+            </View>
+            <View style={styles.goalTitleInfo}>
+              <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
+              <Text style={[styles.goalAmount, { color: colors.text }]}>{formatCurrency(goal.amount)}</Text>
+            </View>
+          </View>
+          <View style={styles.goalActions}>
+            <TouchableOpacity onPress={() => toggleGoalComplete(goal.id)}>
+              <Ionicons name={goal.completed ? "checkbox-outline" : "square-outline"} size={22} color={goal.completed ? colors.primary : colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openEditGoal(goal)}>
+              <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDeleteGoal(goal)}>
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
         </View>
 
+        {!goal.completed && (
+          <View style={styles.goalAnalysis}>
+            <View style={[styles.feasibilityBadge, {
+              backgroundColor: feasibility.severity === 'success' ? colors.primary + '20' : 
+                              feasibility.severity === 'warning' ? colors.warning + '20' : colors.danger + '20'
+            }]}>
+              <Ionicons 
+                name={feasibility.severity === 'success' ? "checkmark-circle-outline" : 
+                      feasibility.severity === 'warning' ? "alert-circle-outline" : "close-circle-outline"} 
+                size={14} 
+                color={feasibility.severity === 'success' ? colors.primary : 
+                       feasibility.severity === 'warning' ? colors.warning : colors.danger} 
+              />
+              <Text style={[styles.feasibilityText, {
+                color: feasibility.severity === 'success' ? colors.primary : 
+                       feasibility.severity === 'warning' ? colors.warning : colors.danger
+              }]}>
+                {feasibility.reason}
+              </Text>
+            </View>
+
+            {canBuyNow && (
+              <View style={[styles.buyNowBadge, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="cart-outline" size={14} color={colors.primary} />
+                <Text style={[styles.buyNowText, { color: colors.primary }]}>
+                  Pode comprar agora! Caixa cobre
+                </Text>
+              </View>
+            )}
+            {!canBuyNow && goal.amount > cashBalance && (
+              <View style={[styles.buyNowBadge, { backgroundColor: colors.danger + '20' }]}>
+                <Ionicons name="time-outline" size={14} color={colors.danger} />
+                <Text style={[styles.buyNowText, { color: colors.danger }]}>
+                  Faltam {formatCurrency(goal.amount - cashBalance)} em caixa
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {goal.completed && (
+          <View style={[styles.completedBadge, { backgroundColor: colors.primary + '20' }]}>
+            <Ionicons name="checkmark-done-outline" size={14} color={colors.primary} />
+            <Text style={[styles.completedText, { color: colors.primary }]}>Compra realizada!</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <AppHeader title="Planejamento" />
+
+      <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
         {/* Cash Balance Card */}
         <FadeInView>
           <TouchableOpacity style={[styles.cashCard, { backgroundColor: colors.card }]} onPress={() => setCashModalVisible(true)}>
@@ -115,7 +188,7 @@ export default function PlanningScreen() {
                 <Text style={[styles.cashValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
               </View>
               <View style={[styles.cashIcon, { backgroundColor: colors.primary + '20' }]}>
-                <Ionicons name="cash" size={24} color={colors.primary} />
+                <Ionicons name="cash-outline" size={24} color={colors.primary} />
               </View>
             </View>
             <Text style={[styles.cashHint, { color: colors.textLight }]}>Toque para atualizar</Text>
@@ -144,7 +217,6 @@ export default function PlanningScreen() {
               </View>
             </View>
 
-            {/* Progress bar */}
             <View style={styles.budgetProgressContainer}>
               <View style={[styles.budgetProgressBar, { backgroundColor: isDark ? '#333' : '#e0e0e0' }]}>
                 <View style={[styles.budgetProgressFill, {
@@ -157,10 +229,9 @@ export default function PlanningScreen() {
               </Text>
             </View>
 
-            {/* Insufficient Cash Alert */}
             {!isCashSufficient && cashBalance > 0 && (
               <View style={[styles.insufficientAlert, { backgroundColor: colors.danger + '20' }]}>
-                <Ionicons name="warning" size={16} color={colors.danger} />
+                <Ionicons name="warning-outline" size={16} color={colors.danger} />
                 <View style={{ marginLeft: 8, flex: 1 }}>
                   <Text style={[styles.insufficientTitle, { color: colors.danger }]}>Caixa Insuficiente!</Text>
                   <Text style={[styles.insufficientText, { color: colors.danger }]}>
@@ -171,7 +242,7 @@ export default function PlanningScreen() {
             )}
             {cashBalance <= 0 && (
               <View style={[styles.insufficientAlert, { backgroundColor: colors.danger + '20' }]}>
-                <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
                 <Text style={[styles.insufficientTitle, { color: colors.danger }]}>Sem dinheiro em caixa!</Text>
               </View>
             )}
@@ -183,7 +254,7 @@ export default function PlanningScreen() {
           <SlideInView delay={150}>
             <View style={[styles.dailyBudgetCard, { backgroundColor: colors.card }]}>
               <View style={styles.dailyBudgetHeader}>
-                <Ionicons name="trending-up" size={20} color={colors.info} />
+                <Ionicons name="trending-up-outline" size={20} color={colors.info} />
                 <Text style={[styles.dailyBudgetTitle, { color: colors.text }]}>Margem Diaria</Text>
               </View>
               <View style={styles.dailyBudgetRow}>
@@ -205,105 +276,20 @@ export default function PlanningScreen() {
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Metas e Compras</Text>
             <TouchableOpacity style={[styles.addGoalButton, { backgroundColor: colors.primary }]} onPress={openAddGoal}>
-              <Ionicons name="add" size={20} color="#fff" />
+              <Ionicons name="add-outline" size={20} color="#fff" />
             </TouchableOpacity>
           </View>
 
-          {goals.length === 0 ? (
-            <FadeInView>
-              <View style={styles.emptyState}>
-                <Ionicons name="flag-outline" size={48} color={colors.textLight} />
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Nenhuma meta cadastrada</Text>
-                <TouchableOpacity style={[styles.emptyButton, { backgroundColor: colors.primary }]} onPress={openAddGoal}>
-                  <Text style={styles.emptyButtonText}>Adicionar primeira meta</Text>
-                </TouchableOpacity>
-              </View>
-            </FadeInView>
-          ) : (
-            <StaggeredList staggerDelay={80}>
-              {goals.map(goal => {
-                const feasibility = checkGoalFeasibility(goal.amount, cashBalance, totalExpenses);
-                const category = getCategoryInfo(goal.category);
-                const canBuyNow = goal.amount <= cashBalance && feasibility.feasible;
-
-                return (
-                  <View key={goal.id} style={[styles.goalCard, { backgroundColor: colors.card, borderLeftColor: category.color }]}>
-                    <View style={styles.goalHeader}>
-                      <View style={styles.goalTitleRow}>
-                        <View style={[styles.goalCategoryIcon, { backgroundColor: category.color + '20' }]}>
-                          <Ionicons name={category.icon} size={18} color={category.color} />
-                        </View>
-                        <View style={styles.goalTitleInfo}>
-                          <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
-                          <Text style={[styles.goalAmount, { color: colors.text }]}>{formatCurrency(goal.amount)}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.goalActions}>
-                        <TouchableOpacity onPress={() => toggleGoalComplete(goal.id)}>
-                          <Ionicons name={goal.completed ? "checkbox" : "square-outline"} size={22} color={goal.completed ? colors.primary : colors.textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => openEditGoal(goal)}>
-                          <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteGoal(goal)}>
-                          <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {!goal.completed && (
-                      <View style={styles.goalAnalysis}>
-                        {/* Feasibility badge */}
-                        <View style={[styles.feasibilityBadge, {
-                          backgroundColor: feasibility.severity === 'success' ? colors.primary + '20' : 
-                                          feasibility.severity === 'warning' ? colors.warning + '20' : colors.danger + '20'
-                        }]}>
-                          <Ionicons 
-                            name={feasibility.severity === 'success' ? "checkmark-circle" : 
-                                  feasibility.severity === 'warning' ? "alert-circle" : "close-circle"} 
-                            size={14} 
-                            color={feasibility.severity === 'success' ? colors.primary : 
-                                   feasibility.severity === 'warning' ? colors.warning : colors.danger} 
-                          />
-                          <Text style={[styles.feasibilityText, {
-                            color: feasibility.severity === 'success' ? colors.primary : 
-                                   feasibility.severity === 'warning' ? colors.warning : colors.danger
-                          }]}>
-                            {feasibility.reason}
-                          </Text>
-                        </View>
-
-                        {/* Can buy now indicator */}
-                        {canBuyNow && (
-                          <View style={[styles.buyNowBadge, { backgroundColor: colors.primary + '20' }]}>
-                            <Ionicons name="cart" size={14} color={colors.primary} />
-                            <Text style={[styles.buyNowText, { color: colors.primary }]}>
-                              Pode comprar agora! Caixa cobre
-                            </Text>
-                          </View>
-                        )}
-                        {!canBuyNow && goal.amount > cashBalance && (
-                          <View style={[styles.buyNowBadge, { backgroundColor: colors.danger + '20' }]}>
-                            <Ionicons name="time" size={14} color={colors.danger} />
-                            <Text style={[styles.buyNowText, { color: colors.danger }]}>
-                              Faltam {formatCurrency(goal.amount - cashBalance)} em caixa
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-
-                    {goal.completed && (
-                      <View style={[styles.completedBadge, { backgroundColor: colors.primary + '20' }]}>
-                        <Ionicons name="checkmark-done" size={14} color={colors.primary} />
-                        <Text style={[styles.completedText, { color: colors.primary }]}>Compra realizada!</Text>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </StaggeredList>
-          )}
+          <SimpleList
+            data={goals}
+            renderItem={renderGoalItem}
+            keyExtractor={(item) => item.id}
+            emptyTitle="Nenhuma meta cadastrada"
+            emptySubtitle="Adicione sua primeira meta de compra ou economia"
+            emptyIcon="flag-outline"
+            onAddPress={openAddGoal}
+            addButtonText="Adicionar Meta"
+          />
         </View>
       </ScrollView>
 
@@ -405,20 +391,18 @@ export default function PlanningScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, paddingTop: 50,
-  },
-  headerTitle: { fontSize: 24, fontWeight: 'bold' },
-  cashButton: {
-    width: 44, height: 44, borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center', alignItems: 'center',
+  content: {
+    flex: 1,
   },
   cashCard: {
-    margin: 16, padding: 20, borderRadius: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
+    margin: 16,
+    padding: 20,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   cashRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cashLabel: { fontSize: 14, marginBottom: 4 },
@@ -505,12 +489,6 @@ const styles = StyleSheet.create({
     padding: 8, borderRadius: 8, alignSelf: 'flex-start', marginTop: 8,
   },
   completedText: { fontSize: 12, fontWeight: '600', marginLeft: 6 },
-  emptyState: { alignItems: 'center', padding: 40 },
-  emptyText: { fontSize: 14, marginTop: 12 },
-  emptyButton: {
-    marginTop: 16, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10,
-  },
-  emptyButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   modalOverlay: {
     flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20,
   },
