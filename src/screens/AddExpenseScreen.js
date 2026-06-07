@@ -25,7 +25,8 @@ export default function AddExpenseScreen({ navigation }) {
   const [amountDisplay, setAmountDisplay] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('alimentacao');
-  const [selectedCard, setSelectedCard] = useState(cards[0]?.id || null);
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [expenseType, setExpenseType] = useState('card'); // 'card' or 'standalone'
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   const formatCurrency = (value) => {
@@ -40,7 +41,6 @@ export default function AddExpenseScreen({ navigation }) {
     return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
   };
 
-  // Formata o input de moeda enquanto digita
   const handleAmountChange = (text) => {
     const numeric = text.replace(/\D/g, '');
     setAmount(numeric);
@@ -65,8 +65,9 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    if (cards.length > 0 && !selectedCard) {
-      Alert.alert('Erro', 'Selecione um cartão');
+    // For card expenses, require card selection
+    if (expenseType === 'card' && cards.length > 0 && !selectedCard) {
+      Alert.alert('Erro', 'Selecione um cartão ou mude para "Sem Cartão"');
       return;
     }
 
@@ -75,7 +76,7 @@ export default function AddExpenseScreen({ navigation }) {
         amount: numericAmount,
         description,
         category: selectedCategory,
-        cardId: selectedCard,
+        cardId: expenseType === 'standalone' ? null : selectedCard,
         date,
       });
 
@@ -86,7 +87,8 @@ export default function AddExpenseScreen({ navigation }) {
           setAmountDisplay('');
           setDescription('');
           setSelectedCategory('alimentacao');
-          setSelectedCard(cards[0]?.id || null);
+          setSelectedCard(null);
+          setExpenseType('card');
           setDate(new Date().toISOString().split('T')[0]);
         }}
       ]);
@@ -109,6 +111,7 @@ export default function AddExpenseScreen({ navigation }) {
   const renderExpenseItem = ({ item, index }) => {
     const category = getCategoryInfo(item.category);
     const card = cards.find(c => c.id === item.cardId);
+    const isStandalone = !item.cardId;
 
     return (
       <SlideInView delay={index * 50}>
@@ -125,10 +128,21 @@ export default function AddExpenseScreen({ navigation }) {
             <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
             <View style={styles.expenseMeta}>
               <Text style={[styles.expenseCategory, { color: colors.textSecondary }]}>
-                {category.name} {card ? `• ${card.name}` : ''}
+                {category.name}
               </Text>
-              <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
+              {isStandalone ? (
+                <View style={[styles.standaloneBadge, { backgroundColor: colors.info + (isDark ? '30' : '20') }]}>
+                  <Ionicons name="receipt-outline" size={10} color={colors.info} />
+                  <Text style={[styles.standaloneText, { color: colors.info }]}>Boleto/Avulso</Text>
+                </View>
+              ) : card ? (
+                <View style={[styles.cardBadge, { backgroundColor: card.color + '20' }]}>
+                  <Ionicons name="card-outline" size={10} color={card.color} />
+                  <Text style={[styles.cardBadgeText, { color: card.color }]}>{card.name}</Text>
+                </View>
+              ) : null}
             </View>
+            <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
           </View>
           <View style={styles.expenseRight}>
             <Text style={[styles.expenseAmount, { color: colors.danger }]}>
@@ -140,7 +154,6 @@ export default function AddExpenseScreen({ navigation }) {
     );
   };
 
-  // Render the add form
   const renderForm = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -151,6 +164,38 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.title, { color: colors.header }]}>Novo Gasto</Text>
         </FadeInView>
 
+        {/* Expense Type Toggle */}
+        <SlideInView delay={50}>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Tipo de Gasto</Text>
+            <View style={styles.typeToggleContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.typeToggleButton,
+                  expenseType === 'card' && { backgroundColor: colors.primary },
+                  { backgroundColor: expenseType === 'card' ? colors.primary : colors.inputBg }
+                ]}
+                onPress={() => { setExpenseType('card'); setSelectedCard(null); }}
+              >
+                <Ionicons name="card" size={16} color={expenseType === 'card' ? '#fff' : colors.textSecondary} />
+                <Text style={[styles.typeToggleText, { color: expenseType === 'card' ? '#fff' : colors.textSecondary }]}>Cartão</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.typeToggleButton,
+                  expenseType === 'standalone' && { backgroundColor: colors.info },
+                  { backgroundColor: expenseType === 'standalone' ? colors.info : colors.inputBg }
+                ]}
+                onPress={() => { setExpenseType('standalone'); setSelectedCard(null); }}
+              >
+                <Ionicons name="receipt" size={16} color={expenseType === 'standalone' ? '#fff' : colors.textSecondary} />
+                <Text style={[styles.typeToggleText, { color: expenseType === 'standalone' ? '#fff' : colors.textSecondary }]}>Boleto/Avulso</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SlideInView>
+
+        {/* Amount Input */}
         <SlideInView delay={100}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
@@ -169,6 +214,7 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
+        {/* Description Input */}
         <SlideInView delay={200}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Descrição</Text>
@@ -178,7 +224,7 @@ export default function AddExpenseScreen({ navigation }) {
                 color: colors.text,
                 shadowColor: isDark ? '#000' : '#ccc',
               }]}
-              placeholder="Ex: Supermercado Extra"
+              placeholder="Ex: Conta de luz, Boleto escola..."
               value={description}
               onChangeText={setDescription}
               placeholderTextColor={colors.textLight}
@@ -186,6 +232,7 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
+        {/* Date Input */}
         <SlideInView delay={300}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
@@ -203,7 +250,8 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {cards.length > 0 && (
+        {/* Card Selection - Only show if type is card */}
+        {expenseType === 'card' && cards.length > 0 && (
           <SlideInView delay={350}>
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.textSecondary }]}>Cartão</Text>
@@ -236,6 +284,7 @@ export default function AddExpenseScreen({ navigation }) {
           </SlideInView>
         )}
 
+        {/* Category Selection */}
         <SlideInView delay={400}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Categoria</Text>
@@ -290,7 +339,6 @@ export default function AddExpenseScreen({ navigation }) {
     </KeyboardAvoidingView>
   );
 
-  // Render the list of expenses with FAB
   const renderList = () => (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title="Gastos" />
@@ -313,7 +361,6 @@ export default function AddExpenseScreen({ navigation }) {
         />
       )}
 
-      {/* FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => setShowForm(true)}
@@ -327,170 +374,114 @@ export default function AddExpenseScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1 },
+  scrollContent: { padding: 20 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 24 },
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  // Type Toggle
+  typeToggleContainer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  typeToggleButton: {
     flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  amountInput: {
-    borderRadius: 16,
-    padding: 18,
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  input: {
-    borderRadius: 14,
-    padding: 16,
-    fontSize: 16,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  cardText: {
-    marginLeft: 6,
-    fontSize: 13,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    gap: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
-  categoryText: {
-    marginLeft: 6,
+  typeToggleText: {
     fontSize: 13,
+    fontWeight: '600',
   },
+  // Amount & inputs
+  amountInput: {
+    borderRadius: 16, padding: 18, fontSize: 32, fontWeight: 'bold',
+    textAlign: 'center', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
+  },
+  input: {
+    borderRadius: 14, padding: 16, fontSize: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
+  },
+  cardButton: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 12, marginRight: 8, borderWidth: 1, borderColor: 'transparent',
+  },
+  cardText: { marginLeft: 6, fontSize: 13 },
+  categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryButton: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12,
+    paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8,
+    borderWidth: 1, borderColor: 'transparent',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
+  },
+  categoryText: { marginLeft: 6, fontSize: 13 },
   submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    borderRadius: 16,
-    marginTop: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    padding: 18, borderRadius: 16, marginTop: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
   },
   cancelButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    borderRadius: 16,
-    marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    padding: 18, borderRadius: 16, marginTop: 12,
   },
-  submitText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
+  submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
   // List styles
-  listContent: {
-    padding: 16,
-    paddingBottom: 80,
-  },
+  listContent: { padding: 16, paddingBottom: 80 },
   expenseItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    flexDirection: 'row', alignItems: 'center',
+    padding: 16, borderRadius: 14, marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
   },
   categoryIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 44, height: 44, borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center',
   },
   expenseInfo: { flex: 1, marginLeft: 12 },
   expenseDescription: { fontSize: 15, fontWeight: '600' },
-  expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' },
+  expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap', gap: 6 },
   expenseCategory: { fontSize: 12 },
-  expenseDate: { fontSize: 11, marginLeft: 8 },
+  expenseDate: { fontSize: 11, marginTop: 4 },
   expenseRight: { alignItems: 'flex-end' },
   expenseAmount: { fontSize: 15, fontWeight: 'bold' },
-  emptyContainer: {
-    alignItems: 'center',
-    padding: 40,
-    paddingTop: 80,
+  // Standalone badge
+  standaloneBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 4, gap: 3,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
+  standaloneText: { fontSize: 10, fontWeight: '600' },
+  // Card badge
+  cardBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 4, gap: 3,
   },
-  emptySubtitle: {
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-  },
+  cardBadgeText: { fontSize: 10, fontWeight: '600' },
+  // Empty & FAB
+  emptyContainer: { alignItems: 'center', padding: 40, paddingTop: 80 },
+  emptyTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 16 },
+  emptySubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
   fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    position: 'absolute', right: 20, bottom: 20,
+    width: 56, height: 56, borderRadius: 28,
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
   },
 });
