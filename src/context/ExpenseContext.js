@@ -271,6 +271,7 @@ export function ExpenseProvider({ children }) {
   const [cards, setCards] = useState([]);
   const [categoryLimits, setCategoryLimits] = useState({});
   const [customCategories, setCustomCategories] = useState([]);
+  const [completedExpenses, setCompletedExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState([]);
 
@@ -282,11 +283,12 @@ export function ExpenseProvider({ children }) {
 
   const loadData = async () => {
     try {
-      const [storedExpenses, storedCards, storedLimits, storedCustomCategories] = await Promise.all([
+      const [storedExpenses, storedCards, storedLimits, storedCustomCategories, storedCompleted] = await Promise.all([
         safeGetItem(STORAGE_KEYS.EXPENSES, []),
         safeGetItem(STORAGE_KEYS.CARDS, []),
         safeGetItem(STORAGE_KEYS.CATEGORY_LIMITS, {}),
         safeGetItem(STORAGE_KEYS.CUSTOM_CATEGORIES, []),
+        safeGetItem(STORAGE_KEYS.COMPLETED_EXPENSES, []),
       ]);
 
       // Validate loaded data
@@ -294,6 +296,7 @@ export function ExpenseProvider({ children }) {
       if (Array.isArray(storedCards)) setCards(storedCards);
       if (storedLimits && typeof storedLimits === 'object') setCategoryLimits(storedLimits);
       if (Array.isArray(storedCustomCategories)) setCustomCategories(storedCustomCategories);
+      if (Array.isArray(storedCompleted)) setCompletedExpenses(storedCompleted);
     } catch (error) { 
       console.error('Erro ao carregar:', error); 
     }
@@ -307,6 +310,7 @@ export function ExpenseProvider({ children }) {
         safeSetItem(STORAGE_KEYS.CARDS, cards),
         safeSetItem(STORAGE_KEYS.CATEGORY_LIMITS, categoryLimits),
         safeSetItem(STORAGE_KEYS.CUSTOM_CATEGORIES, customCategories),
+        safeSetItem(STORAGE_KEYS.COMPLETED_EXPENSES, completedExpenses),
       ]);
     } catch (error) { console.error('Erro ao salvar:', error); }
   };
@@ -347,6 +351,30 @@ export function ExpenseProvider({ children }) {
 
     setAlerts(newAlerts);
   }, [expenses, cards, categoryLimits]);
+
+  const completeExpense = (expenseId) => {
+    const expense = expenses.find(e => e.id === expenseId);
+    if (!expense) return;
+
+    const completedExpense = {
+      ...expense,
+      completedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h from now
+    };
+
+    setCompletedExpenses(prev => [completedExpense, ...prev]);
+    deleteExpense(expenseId);
+  };
+
+  const getActiveCompletedExpenses = () => {
+    const now = new Date().toISOString();
+    return completedExpenses.filter(e => e.expiresAt > now);
+  };
+
+  const getExpiredCompletedExpenses = () => {
+    const now = new Date().toISOString();
+    return completedExpenses.filter(e => e.expiresAt <= now);
+  };
 
   const addExpense = (expense) => {
     // Validate required fields
@@ -467,6 +495,7 @@ export function ExpenseProvider({ children }) {
     addCategory, deleteCategory, updateCategory,
     getFilteredExpenses, getTotalByCategory, getTotalByCard,
     getMonthlyTotal, getExpensesByMonth, getCardUsage, getCategoryUsage,
+    completeExpense, getActiveCompletedExpenses, getExpiredCompletedExpenses,
     CATEGORIES, DEFAULT_CATEGORIES, AVAILABLE_ICONS, AVAILABLE_COLORS,
   };
 
