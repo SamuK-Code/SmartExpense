@@ -28,7 +28,14 @@ export default function AddExpenseScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]?.id || 'outros');
   const [selectedCard, setSelectedCard] = useState(null);
   const [expenseType, setExpenseType] = useState('card'); // 'card' or 'standalone'
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [filterDate, setFilterDate] = useState('all'); // 'all', 'today', 'week', 'month'
+  const [filterCard, setFilterCard] = useState('all');
+  const [filterType, setFilterType] = useState('all'); // 'all', 'card', 'standalone'
+  const getTodayDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  };
+  const [date, setDate] = useState(getTodayDate());
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -340,9 +347,109 @@ export default function AddExpenseScreen({ navigation }) {
     </KeyboardAvoidingView>
   );
 
+  const getFilteredExpensesList = () => {
+    let filtered = expenses;
+
+    // Filter by date
+    if (filterDate !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(e => {
+        const d = new Date(e.date);
+        if (filterDate === 'today') {
+          return d.toDateString() === now.toDateString();
+        } else if (filterDate === 'week') {
+          const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+          return d >= weekAgo;
+        } else if (filterDate === 'month') {
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        }
+        return true;
+      });
+    }
+
+    // Filter by card
+    if (filterCard !== 'all') {
+      filtered = filtered.filter(e => e.cardId === filterCard);
+    }
+
+    // Filter by type
+    if (filterType !== 'all') {
+      if (filterType === 'card') {
+        filtered = filtered.filter(e => e.cardId);
+      } else if (filterType === 'standalone') {
+        filtered = filtered.filter(e => !e.cardId);
+      }
+    }
+
+    return filtered;
+  };
+
   const renderList = () => (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title="Gastos" />
+
+      {/* Filters */}
+      <View style={[styles.filtersContainer, { backgroundColor: colors.card }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
+          {/* Date Filter */}
+          <View style={styles.filterGroup}>
+            <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Data</Text>
+            <View style={styles.filterButtons}>
+              {['all', 'today', 'week', 'month'].map(f => (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.filterBtn, filterDate === f && { backgroundColor: colors.primary }]}
+                  onPress={() => setFilterDate(f)}
+                >
+                  <Text style={[styles.filterBtnText, { color: filterDate === f ? '#fff' : colors.textSecondary }]}>
+                    {f === 'all' ? 'Todas' : f === 'today' ? 'Hoje' : f === 'week' ? '7 Dias' : 'Mês'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Type Filter */}
+          <View style={styles.filterGroup}>
+            <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Tipo</Text>
+            <View style={styles.filterButtons}>
+              {['all', 'card', 'standalone'].map(f => (
+                <TouchableOpacity
+                  key={f}
+                  style={[styles.filterBtn, filterType === f && { backgroundColor: colors.primary }]}
+                  onPress={() => setFilterType(f)}
+                >
+                  <Text style={[styles.filterBtnText, { color: filterType === f ? '#fff' : colors.textSecondary }]}>
+                    {f === 'all' ? 'Todos' : f === 'card' ? 'Cartão' : 'Avulso'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Card Filter */}
+          <View style={styles.filterGroup}>
+            <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Cartão</Text>
+            <View style={styles.filterButtons}>
+              <TouchableOpacity
+                style={[styles.filterBtn, filterCard === 'all' && { backgroundColor: colors.primary }]}
+                onPress={() => setFilterCard('all')}
+              >
+                <Text style={[styles.filterBtnText, { color: filterCard === 'all' ? '#fff' : colors.textSecondary }]}>Todos</Text>
+              </TouchableOpacity>
+              {cards.map(c => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.filterBtn, filterCard === c.id && { backgroundColor: c.color }]}
+                  onPress={() => setFilterCard(c.id)}
+                >
+                  <Text style={[styles.filterBtnText, { color: filterCard === c.id ? '#fff' : colors.textSecondary }]}>{c.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+      </View>
 
       {expenses.length === 0 ? (
         <FadeInView>
@@ -354,7 +461,7 @@ export default function AddExpenseScreen({ navigation }) {
         </FadeInView>
       ) : (
         <FlatList
-          data={expenses}
+          data={getFilteredExpensesList()}
           renderItem={renderExpenseItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
@@ -478,6 +585,40 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', padding: 40, paddingTop: 80 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 16 },
   emptySubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
+  filtersContainer: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  filtersScroll: {
+    paddingHorizontal: 12,
+    gap: 16,
+  },
+  filterGroup: {
+    marginRight: 16,
+  },
+  filterLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  filterBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  filterBtnText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
   fab: {
     position: 'absolute', right: 20, bottom: 20,
     width: 56, height: 56, borderRadius: 28,
