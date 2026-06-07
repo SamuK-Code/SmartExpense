@@ -9,15 +9,18 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
+import AppHeader from '../components/AppHeader';
 
 export default function AddExpenseScreen({ navigation }) {
-  const { addExpense, cards, CATEGORIES } = useExpenses();
+  const { addExpense, expenses, cards, CATEGORIES, deleteExpense } = useExpenses();
   const { colors, isDark } = useTheme();
+  const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
   const [description, setDescription] = useState('');
@@ -25,13 +28,22 @@ export default function AddExpenseScreen({ navigation }) {
   const [selectedCard, setSelectedCard] = useState(cards[0]?.id || null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  };
+
+  const getCategoryInfo = (categoryId) => {
+    return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
+  };
+
   // Formata o input de moeda enquanto digita
   const handleAmountChange = (text) => {
-    // Remove tudo que não é número
     const numeric = text.replace(/\D/g, '');
     setAmount(numeric);
-
-    // Formata para display
     const number = parseInt(numeric) / 100;
     setAmountDisplay(
       new Intl.NumberFormat('pt-BR', {
@@ -47,14 +59,12 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
-    // Converter o valor numérico (em centavos) para reais
     const numericAmount = parseInt(amount) / 100;
     if (isNaN(numericAmount) || numericAmount <= 0) {
       Alert.alert('Erro', 'Digite um valor válido');
       return;
     }
 
-    // Verificar se tem cartão selecionado quando há cartões
     if (cards.length > 0 && !selectedCard) {
       Alert.alert('Erro', 'Selecione um cartão');
       return;
@@ -70,22 +80,68 @@ export default function AddExpenseScreen({ navigation }) {
       });
 
       Alert.alert('Sucesso', 'Gasto adicionado!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        { text: 'OK', onPress: () => {
+          setShowForm(false);
+          setAmount('');
+          setAmountDisplay('');
+          setDescription('');
+          setSelectedCategory('alimentacao');
+          setSelectedCard(cards[0]?.id || null);
+          setDate(new Date().toISOString().split('T')[0]);
+        }}
       ]);
-
-      // Limpar estados
-      setAmount('');
-      setAmountDisplay('');
-      setDescription('');
-      setSelectedCategory('alimentacao');
-      setSelectedCard(cards[0]?.id || null);
-      setDate(new Date().toISOString().split('T')[0]);
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível salvar: ' + error.message);
     }
   };
 
-  return (
+  const handleDeleteExpense = (expense) => {
+    Alert.alert(
+      'Confirmar exclusão',
+      `Deseja excluir "${expense.description}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: () => deleteExpense(expense.id) },
+      ]
+    );
+  };
+
+  const renderExpenseItem = ({ item, index }) => {
+    const category = getCategoryInfo(item.category);
+    const card = cards.find(c => c.id === item.cardId);
+
+    return (
+      <SlideInView delay={index * 50}>
+        <TouchableOpacity 
+          style={[styles.expenseItem, { backgroundColor: colors.card }]}
+          onPress={() => navigation.navigate('EditExpense', { expenseId: item.id })}
+          onLongPress={() => handleDeleteExpense(item)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.categoryIcon, { backgroundColor: category.color + (isDark ? '30' : '20') }]}>
+            <Ionicons name={category.icon} size={20} color={category.color} />
+          </View>
+          <View style={styles.expenseInfo}>
+            <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
+            <View style={styles.expenseMeta}>
+              <Text style={[styles.expenseCategory, { color: colors.textSecondary }]}>
+                {category.name} {card ? `• ${card.name}` : ''}
+              </Text>
+              <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
+            </View>
+          </View>
+          <View style={styles.expenseRight}>
+            <Text style={[styles.expenseAmount, { color: colors.danger }]}>
+              {formatCurrency(parseFloat(item.amount))}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </SlideInView>
+    );
+  };
+
+  // Render the add form
+  const renderForm = () => (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -95,7 +151,6 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.title, { color: colors.header }]}>Novo Gasto</Text>
         </FadeInView>
 
-        {/* Amount Input - COM FORMATAÇÃO DE MOEDA */}
         <SlideInView delay={100}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
@@ -114,7 +169,6 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Description Input */}
         <SlideInView delay={200}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Descrição</Text>
@@ -132,7 +186,6 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Date Input */}
         <SlideInView delay={300}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
@@ -150,7 +203,6 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Card Selection */}
         {cards.length > 0 && (
           <SlideInView delay={350}>
             <View style={styles.inputGroup}>
@@ -184,7 +236,6 @@ export default function AddExpenseScreen({ navigation }) {
           </SlideInView>
         )}
 
-        {/* Category Selection */}
         <SlideInView delay={400}>
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.textSecondary }]}>Categoria</Text>
@@ -219,16 +270,60 @@ export default function AddExpenseScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Submit Button */}
         <ScaleInView delay={500}>
           <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleSubmit}>
             <Ionicons name="checkmark-outline" size={24} color="#fff" />
             <Text style={styles.submitText}>Salvar Gasto</Text>
           </TouchableOpacity>
         </ScaleInView>
+
+        <ScaleInView delay={550}>
+          <TouchableOpacity 
+            style={[styles.cancelButton, { backgroundColor: colors.border }]} 
+            onPress={() => setShowForm(false)}
+          >
+            <Ionicons name="close-outline" size={24} color={colors.text} />
+            <Text style={[styles.submitText, { color: colors.text }]}>Cancelar</Text>
+          </TouchableOpacity>
+        </ScaleInView>
       </ScrollView>
     </KeyboardAvoidingView>
   );
+
+  // Render the list of expenses with FAB
+  const renderList = () => (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <AppHeader title="Gastos" />
+
+      {expenses.length === 0 ? (
+        <FadeInView>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="receipt-outline" size={64} color={colors.textLight} />
+            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Nenhum gasto registrado</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>Adicione seu primeiro gasto</Text>
+          </View>
+        </FadeInView>
+      ) : (
+        <FlatList
+          data={expenses}
+          renderItem={renderExpenseItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => setShowForm(true)}
+      >
+        <Ionicons name="add-outline" size={28} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return showForm ? renderForm() : renderList();
 }
 
 const styles = StyleSheet.create({
@@ -323,10 +418,79 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    borderRadius: 16,
+    marginTop: 12,
+  },
   submitText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  // List styles
+  listContent: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+  expenseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  categoryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expenseInfo: { flex: 1, marginLeft: 12 },
+  expenseDescription: { fontSize: 15, fontWeight: '600' },
+  expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' },
+  expenseCategory: { fontSize: 12 },
+  expenseDate: { fontSize: 11, marginLeft: 8 },
+  expenseRight: { alignItems: 'flex-end' },
+  expenseAmount: { fontSize: 15, fontWeight: 'bold' },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 40,
+    paddingTop: 80,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });
