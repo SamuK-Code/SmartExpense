@@ -79,7 +79,7 @@ export default function BankSelectorModal({ visible, onSelect, onClose, selected
             )}
           </View>
 
-          {/* Type Filter - Improved contrast */}
+          {/* Type Filter - Compact height, white text on selected */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeFilter}>
             {BANK_TYPES.map(type => (
               <TouchableOpacity
@@ -94,7 +94,7 @@ export default function BankSelectorModal({ visible, onSelect, onClose, selected
                   style={[
                     styles.typeText,
                     filterType === type.id && { color: '#fff', fontWeight: 'bold' },
-                    { color: colors.textSecondary },
+                    { color: filterType === type.id ? '#fff' : colors.textSecondary },
                   ]}
                 >
                   {type.name}
@@ -244,17 +244,19 @@ const styles = StyleSheet.create({
   },
   typeFilter: {
     paddingHorizontal: 12,
-    marginBottom: 12,
-    maxHeight: 50,
+    marginBottom: 8,
+    maxHeight: 42,
+    minHeight: 42,
   },
   typeButton: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 20,
     marginRight: 8,
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: 'transparent',
+    alignSelf: 'center',
   },
   typeText: {
     fontSize: 12,
