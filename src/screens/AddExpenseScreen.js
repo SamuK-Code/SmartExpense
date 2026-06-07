@@ -42,19 +42,21 @@ export default function AddExpenseScreen({ navigation }) {
   // Helper: use contexto se disponível, senão local
   const cashTransactions = ctxCashTransactions || localCashTransactions;
   const addCashTransaction = (amount, description) => {
-    const newEntry = {
-      id: Date.now().toString(),
-      amount: amount,
-      description: description,
-      date: cashDate || getTodayDate(),
-      createdAt: new Date().toISOString(),
-    };
     if (ctxAddCashTransaction) {
-      ctxAddCashTransaction(newEntry);
+      // Context function expects (amount, description) as separate params
+      return ctxAddCashTransaction(amount, description);
     } else {
+      // Local fallback
+      const newEntry = {
+        id: Date.now().toString(),
+        amount: amount,
+        description: description,
+        date: cashDate || getTodayDate(),
+        createdAt: new Date().toISOString(),
+      };
       setLocalCashTransactions(prev => [newEntry, ...prev]);
+      return newEntry;
     }
-    return newEntry;
   };
 
   // FAB menu states
@@ -103,26 +105,34 @@ export default function AddExpenseScreen({ navigation }) {
   };
 
   const handleCashSubmit = () => {
+    console.log('handleCashSubmit called');
+    console.log('cashAmount:', cashAmount, 'type:', typeof cashAmount);
+    console.log('cashDescription:', cashDescription);
+
     if (!cashAmount || !cashDescription) {
       Alert.alert('Erro', 'Preencha o valor e a descrição');
       return;
     }
 
-    // Parse amount - remove non-numeric chars and convert
+    // Parse amount - cashAmount is stored as string of cents (e.g., "50000" for R$ 500,00)
     const numericValue = parseFloat(cashAmount);
+    console.log('numericValue:', numericValue);
+
     if (isNaN(numericValue) || numericValue <= 0) {
-      Alert.alert('Erro', 'Digite um valor válido');
+      Alert.alert('Erro', 'Valor inválido: ' + cashAmount);
       return;
     }
 
     // Convert to actual value (cashAmount is in cents)
     const finalAmount = numericValue / 100;
+    console.log('finalAmount:', finalAmount);
 
     try {
       const result = addCashTransaction(finalAmount, cashDescription.trim());
+      console.log('addCashTransaction result:', result);
 
-      if (result === null) {
-        Alert.alert('Erro', 'Não foi possível adicionar ao caixa');
+      if (result === null || result === undefined) {
+        Alert.alert('Erro', 'Não foi possível adicionar ao caixa (retornou null)');
         return;
       }
 
@@ -136,6 +146,7 @@ export default function AddExpenseScreen({ navigation }) {
         }}
       ]);
     } catch (error) {
+      console.error('Error in handleCashSubmit:', error);
       Alert.alert('Erro', 'Não foi possível adicionar: ' + error.message);
     }
   };
