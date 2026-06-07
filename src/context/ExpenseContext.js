@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeGetItem, safeSetItem, safeRemoveItem, STORAGE_KEYS } from '../utils/SafeStorage';
 import * as Crypto from 'expo-crypto';
 
 const ExpenseContext = createContext();
@@ -128,26 +128,30 @@ export function ExpenseProvider({ children }) {
   const loadData = async () => {
     try {
       const [storedExpenses, storedCards, storedLimits, storedCustomCategories] = await Promise.all([
-        AsyncStorage.getItem('@expenses'),
-        AsyncStorage.getItem('@cards'),
-        AsyncStorage.getItem('@categoryLimits'),
-        AsyncStorage.getItem('@customCategories'),
+        safeGetItem(STORAGE_KEYS.EXPENSES, []),
+        safeGetItem(STORAGE_KEYS.CARDS, []),
+        safeGetItem(STORAGE_KEYS.CATEGORY_LIMITS, {}),
+        safeGetItem(STORAGE_KEYS.CUSTOM_CATEGORIES, []),
       ]);
-      if (storedExpenses) setExpenses(JSON.parse(storedExpenses));
-      if (storedCards) setCards(JSON.parse(storedCards));
-      if (storedLimits) setCategoryLimits(JSON.parse(storedLimits));
-      if (storedCustomCategories) setCustomCategories(JSON.parse(storedCustomCategories));
-    } catch (error) { console.error('Erro ao carregar:', error); }
+
+      // Validate loaded data
+      if (Array.isArray(storedExpenses)) setExpenses(storedExpenses);
+      if (Array.isArray(storedCards)) setCards(storedCards);
+      if (storedLimits && typeof storedLimits === 'object') setCategoryLimits(storedLimits);
+      if (Array.isArray(storedCustomCategories)) setCustomCategories(storedCustomCategories);
+    } catch (error) { 
+      console.error('Erro ao carregar:', error); 
+    }
     finally { setLoading(false); }
   };
 
   const saveData = async () => {
     try {
       await Promise.all([
-        AsyncStorage.setItem('@expenses', JSON.stringify(expenses)),
-        AsyncStorage.setItem('@cards', JSON.stringify(cards)),
-        AsyncStorage.setItem('@categoryLimits', JSON.stringify(categoryLimits)),
-        AsyncStorage.setItem('@customCategories', JSON.stringify(customCategories)),
+        safeSetItem(STORAGE_KEYS.EXPENSES, expenses),
+        safeSetItem(STORAGE_KEYS.CARDS, cards),
+        safeSetItem(STORAGE_KEYS.CATEGORY_LIMITS, categoryLimits),
+        safeSetItem(STORAGE_KEYS.CUSTOM_CATEGORIES, customCategories),
       ]);
     } catch (error) { console.error('Erro ao salvar:', error); }
   };
@@ -190,13 +194,56 @@ export function ExpenseProvider({ children }) {
   }, [expenses, cards, categoryLimits]);
 
   const addExpense = (expense) => {
-    const newExpense = { id: generateUUID(), ...expense, createdAt: new Date().toISOString() };
+    // Validate required fields
+    if (!expense || typeof expense !== 'object') {
+      console.error('Invalid expense object');
+      return null;
+    }
+    if (!expense.amount || isNaN(parseFloat(expense.amount))) {
+      console.error('Invalid expense amount');
+      return null;
+    }
+    if (!expense.description || !expense.description.trim()) {
+      console.error('Invalid expense description');
+      return null;
+    }
+    if (!expense.category) {
+      console.error('Invalid expense category');
+      return null;
+    }
+
+    // Sanitize data
+    const sanitizedExpense = {
+      ...expense,
+      description: expense.description.trim().substring(0, 100),
+      amount: parseFloat(expense.amount),
+      date: expense.date || new Date().toISOString().split('T')[0],
+      cardId: expense.cardId || null,
+    };
+
+    const newExpense = { 
+      id: generateUUID(), 
+      ...sanitizedExpense, 
+      createdAt: new Date().toISOString() 
+    };
     setExpenses(prev => [newExpense, ...prev]);
     return newExpense;
   };
   const updateExpense = (id, updates) => { setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); };
   const deleteExpense = (id) => { setExpenses(prev => prev.filter(e => e.id !== id)); };
-  const addCard = (card) => { const newCard = { id: generateUUID(), ...card }; setCards(prev => [...prev, newCard]); };
+  const addCard = (card) => { 
+    if (!card || !card.bankId || !card.name) {
+      console.error('Invalid card data');
+      return null;
+    }
+    const newCard = { 
+      id: generateUUID(), 
+      ...card,
+      limit: parseFloat(card.limit) || 0,
+    }; 
+    setCards(prev => [...prev, newCard]); 
+    return newCard;
+  };
   const updateCard = (id, updates) => { setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c)); };
   const deleteCard = (id) => { setCards(prev => prev.filter(c => c.id !== id)); setExpenses(prev => prev.map(e => e.cardId === id ? { ...e, cardId: null } : e)); };
   const setCategoryLimit = (categoryId, limit) => { setCategoryLimits(prev => ({ ...prev, [categoryId]: limit })); };
