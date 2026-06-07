@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   DARK_MODE: '@darkMode',
   CASH_BALANCE: '@cashBalance',
   GOALS: '@goals',
+  ALERTS_ENABLED: '@alertsEnabled',
   BACKUP_PREFIX: '@backup_',
 };
 
