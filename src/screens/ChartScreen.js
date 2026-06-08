@@ -45,7 +45,6 @@ export default function ChartScreen({ navigation }) {
     navigation.navigate('ChartDetail', { type: 'card', id: cardId, name: cardName, period: period });
   };
 
-  // Preparar dados para o gráfico de pizza - SEM legendas
   const pieData = Object.entries(categoryTotals).map(([catId, amount]) => {
     const cat = CATEGORIES.find(c => c.id === catId);
     return {
@@ -87,16 +86,14 @@ export default function ChartScreen({ navigation }) {
     },
   };
 
-  // Função para filtrar lista ao clicar no gráfico
   const handlePiePress = (index) => {
     if (selectedCategory === index) {
-      setSelectedCategory(null); // Desselecionar se já estiver selecionado
+      setSelectedCategory(null);
     } else {
       setSelectedCategory(index);
     }
   };
 
-  // Filtrar dados para exibição
   const displayData = selectedCategory !== null 
     ? [pieData[selectedCategory]] 
     : pieData;
@@ -119,9 +116,9 @@ export default function ChartScreen({ navigation }) {
         {/* Summary Card */}
         <FadeInView>
           <View style={[styles.summaryCard, { backgroundColor: colors.header }]}>
-            <Text style={[styles.summaryLabel, { color: colors.headerText }]}>Total do Período</Text>
+            <Text style={[styles.summaryLabel, { color: colors.headerText }]}>Total do Periodo</Text>
             <Text style={[styles.summaryAmount, { color: colors.headerText }]}>{formatCurrency(totalGeral)}</Text>
-            <Text style={[styles.summaryCount, { color: colors.headerText }]}>{filteredExpenses.length} transações</Text>
+            <Text style={[styles.summaryCount, { color: colors.headerText }]}>{filteredExpenses.length} transacoes</Text>
           </View>
         </FadeInView>
 
@@ -155,19 +152,19 @@ export default function ChartScreen({ navigation }) {
               onPress={() => { setChartType('bar'); setSelectedCategory(null); }}
             >
               <Ionicons name="bar-chart" size={14} color={chartType === 'bar' ? '#fff' : colors.textSecondary} />
-              <Text style={[styles.toggleText, { color: chartType === 'bar' ? '#fff' : colors.textSecondary }]}>Mês</Text>
+              <Text style={[styles.toggleText, { color: chartType === 'bar' ? '#fff' : colors.textSecondary }]}>Mes</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.toggleButton, chartType === 'card' && { backgroundColor: colors.primary }]} 
               onPress={() => { setChartType('card'); setSelectedCategory(null); }}
             >
               <Ionicons name="card" size={14} color={chartType === 'card' ? '#fff' : colors.textSecondary} />
-              <Text style={[styles.toggleText, { color: chartType === 'card' ? '#fff' : colors.textSecondary }]}>Cartão</Text>
+              <Text style={[styles.toggleText, { color: chartType === 'card' ? '#fff' : colors.textSecondary }]}>Cartao</Text>
             </TouchableOpacity>
           </View>
         </SlideInView>
 
-        {/* Chart Container - Gráfico centralizado sem legendas laterais */}
+        {/* Chart Container */}
         <ScaleInView delay={200}>
           <View style={[styles.chartContainer, { backgroundColor: colors.card }]}>
             {chartType === 'pie' && pieData.length > 0 ? (
@@ -185,7 +182,6 @@ export default function ChartScreen({ navigation }) {
                   style={styles.pieChart}
                   onPress={(index) => handlePiePress(index)}
                 />
-                {/* Total no centro do gráfico */}
                 <View style={styles.pieCenterOverlay} pointerEvents="none">
                   <Text style={[styles.pieCenterLabel, { color: colors.textSecondary }]}>Total</Text>
                   <Text style={[styles.pieCenterValue, { color: colors.text }]}>
@@ -216,7 +212,7 @@ export default function ChartScreen({ navigation }) {
                   const bank = card ? getBankById(card.bankId) : null;
                   const isStandalone = cardId === 'no-card';
                   const pct = totalGeral > 0 ? ((amount / totalGeral) * 100).toFixed(1) : 0;
-                  const displayName = isStandalone ? 'Boleto/Avulso' : (card?.customName || card?.name || 'Sem cartão');
+                  const displayName = isStandalone ? 'Boleto/Avulso' : (card?.customName || card?.name || 'Sem cartao');
                   const displayColor = isStandalone ? colors.info : (bank?.color || card?.color || '#999');
 
                   return (
@@ -247,7 +243,7 @@ export default function ChartScreen({ navigation }) {
           </View>
         </ScaleInView>
 
-        {/* Lista de categorias abaixo do gráfico - Filtrada quando clicado */}
+        {/* Lista de categorias abaixo do grafico */}
         {(chartType === 'pie' || chartType === 'card') && displayData.length > 0 && (
           <View style={styles.legendSection}>
             <View style={styles.legendHeader}>
@@ -265,7 +261,7 @@ export default function ChartScreen({ navigation }) {
               )}
             </View>
             <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-              {selectedCategory !== null ? 'Toque na cor do gráfico para ver todas' : 'Toque na cor do gráfico para filtrar'}
+              {selectedCategory !== null ? 'Toque na cor do grafico para ver todas' : 'Toque na cor do grafico para filtrar'}
             </Text>
             <StaggeredList staggerDelay={60}>
               {displayData.map((item, index) => {
@@ -313,13 +309,13 @@ export default function ChartScreen({ navigation }) {
           </View>
         )}
 
-        {/* Resumo mensal com valores formatados corretamente */}
+        {/* Resumo mensal */}
         {chartType === 'bar' && last6Months.length > 0 && (
           <View style={styles.monthlySummarySection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Resumo por Mês</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Resumo por Mes</Text>
             <View style={[styles.monthlyTable, { backgroundColor: colors.card }]}>
               <View style={styles.monthlyTableHeader}>
-                <Text style={[styles.monthlyHeaderText, { color: colors.textSecondary, flex: 1 }]}>Mês</Text>
+                <Text style={[styles.monthlyHeaderText, { color: colors.textSecondary, flex: 1 }]}>Mes</Text>
                 <Text style={[styles.monthlyHeaderText, { color: colors.textSecondary, flex: 1, textAlign: 'right' }]}>Total</Text>
                 <Text style={[styles.monthlyHeaderText, { color: colors.textSecondary, flex: 1, textAlign: 'right' }]}>% do Ano</Text>
               </View>
@@ -361,7 +357,6 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
   emptySubtitle: { fontSize: 14, textAlign: 'center' },
 
-  // Summary Card
   summaryCard: { 
     margin: 16, padding: 24, borderRadius: 20, 
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, 
@@ -371,7 +366,6 @@ const styles = StyleSheet.create({
   summaryAmount: { fontSize: 32, fontWeight: 'bold', marginVertical: 8 },
   summaryCount: { fontSize: 14, opacity: 0.7 },
 
-  // Cash Alert
   cashAlert: {
     flexDirection: 'row', alignItems: 'center',
     marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: 12,
@@ -381,7 +375,6 @@ const styles = StyleSheet.create({
   cashAlertTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 2 },
   cashAlertText: { fontSize: 11 },
 
-  // Toggle
   toggleContainer: { 
     flexDirection: 'row', justifyContent: 'center', 
     marginHorizontal: 16, marginBottom: 16, borderRadius: 14, padding: 4, 
@@ -394,14 +387,12 @@ const styles = StyleSheet.create({
   },
   toggleText: { fontSize: 12, fontWeight: '600' },
 
-  // Chart Container
   chartContainer: { 
     marginHorizontal: 16, borderRadius: 20, padding: 16, 
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, 
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 
   },
 
-  // Pie Chart - Centralizado
   pieChartWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -434,7 +425,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Bar Chart
   barChartWrapper: {
     alignItems: 'center',
     paddingVertical: 10,
@@ -444,7 +434,6 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
 
-  // Card Chart
   cardChartContainer: { width: '100%', paddingVertical: 10 },
   cardChartItem: { marginBottom: 16 },
   cardChartHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
@@ -456,7 +445,6 @@ const styles = StyleSheet.create({
   cardChartAmount: { fontSize: 13, fontWeight: '600' },
   cardChartPct: { fontSize: 12 },
 
-  // Legend Section
   legendSection: { margin: 16, marginTop: 24 },
   legendHeader: {
     flexDirection: 'row',
@@ -502,7 +490,6 @@ const styles = StyleSheet.create({
   legendRight: { alignItems: 'flex-end', minWidth: 100 },
   legendAmount: { fontSize: 14, fontWeight: 'bold' },
 
-  // Monthly Summary
   monthlySummarySection: { margin: 16, marginTop: 24 },
   monthlyTable: {
     borderRadius: 16,
