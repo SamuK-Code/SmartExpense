@@ -21,14 +21,14 @@ const generateUUID = () => {
 };
 
 export const DEFAULT_CATEGORIES = [
-  { id: 'alimentacao', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant-outline', limit: 800 },
-  { id: 'transporte', name: 'Transporte', color: '#4ECDC4', icon: 'car-outline', limit: 500 },
-  { id: 'lazer', name: 'Lazer', color: '#45B7D1', icon: 'game-controller-outline', limit: 400 },
-  { id: 'saude', name: 'Saúde', color: '#96CEB4', icon: 'medical-outline', limit: 300 },
-  { id: 'moradia', name: 'Moradia', color: '#FFEAA7', icon: 'home-outline', limit: 1500 },
-  { id: 'educacao', name: 'Educação', color: '#DDA0DD', icon: 'school-outline', limit: 300 },
-  { id: 'compras', name: 'Compras', color: '#FDCB6E', icon: 'cart-outline', limit: 600 },
-  { id: 'outros', name: 'Outros', color: '#B2BEC3', icon: 'ellipsis-horizontal-outline', limit: 200 },
+  { id: 'alimentacao', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant-outline' },
+  { id: 'transporte', name: 'Transporte', color: '#4ECDC4', icon: 'car-outline' },
+  { id: 'lazer', name: 'Lazer', color: '#45B7D1', icon: 'game-controller-outline' },
+  { id: 'saude', name: 'Saúde', color: '#96CEB4', icon: 'medical-outline' },
+  { id: 'moradia', name: 'Moradia', color: '#FFEAA7', icon: 'home-outline' },
+  { id: 'educacao', name: 'Educação', color: '#DDA0DD', icon: 'school-outline' },
+  { id: 'compras', name: 'Compras', color: '#FDCB6E', icon: 'cart-outline' },
+  { id: 'outros', name: 'Outros', color: '#B2BEC3', icon: 'ellipsis-horizontal-outline' },
 ];
 
 export const AVAILABLE_ICONS = [
@@ -175,15 +175,18 @@ export function ExpenseProvider({ children }) {
     });
 
     CATEGORIES.forEach(cat => {
-      const catLimit = categoryLimits[cat.id] !== undefined ? categoryLimits[cat.id] : cat.limit;
-      const catTotal = expenses.filter(e => { const d = new Date(e.date); return e.category === cat.id && d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((sum, e) => sum + parseFloat(e.amount), 0);
-      const pct = catLimit > 0 ? (catTotal / catLimit) * 100 : 0;
-      if (pct >= 100) {
-        newAlerts.push({ id: `cat-${cat.id}-over`, type: 'danger', title: `Excesso: ${cat.name}`, message: `Gasto ${formatCurrency(catTotal)} ultrapassou o limite de ${formatCurrency(catLimit)}`, categoryId: cat.id });
-      } else if (pct >= 80) {
-        newAlerts.push({ id: `cat-${cat.id}-warning`, type: 'warning', title: `Atenção: ${cat.name}`, message: `Usou ${pct.toFixed(0)}% do orçamento`, categoryId: cat.id });
-      } else if (pct <= 20 && catTotal > 0) {
-        newAlerts.push({ id: `cat-${cat.id}-low`, type: 'info', title: `Economia: ${cat.name}`, message: `Só usou ${pct.toFixed(0)}% do orçamento. Ótimo controle!`, categoryId: cat.id });
+      const catLimit = categoryLimits[cat.id];
+      // So verificar alertas se houver um limite definido manualmente
+      if (catLimit !== undefined && catLimit > 0) {
+        const catTotal = expenses.filter(e => { const d = new Date(e.date); return e.category === cat.id && d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((sum, e) => sum + parseFloat(e.amount), 0);
+        const pct = (catTotal / catLimit) * 100;
+        if (pct >= 100) {
+          newAlerts.push({ id: `cat-${cat.id}-over`, type: 'danger', title: `Excesso: ${cat.name}`, message: `Gasto ${formatCurrency(catTotal)} ultrapassou o limite de ${formatCurrency(catLimit)}`, categoryId: cat.id });
+        } else if (pct >= 80) {
+          newAlerts.push({ id: `cat-${cat.id}-warning`, type: 'warning', title: `Atenção: ${cat.name}`, message: `Usou ${pct.toFixed(0)}% do orçamento`, categoryId: cat.id });
+        } else if (pct <= 20 && catTotal > 0) {
+          newAlerts.push({ id: `cat-${cat.id}-low`, type: 'info', title: `Economia: ${cat.name}`, message: `Só usou ${pct.toFixed(0)}% do orçamento. Ótimo controle!`, categoryId: cat.id });
+        }
       }
     });
 
@@ -390,15 +393,51 @@ export function ExpenseProvider({ children }) {
 
   const deleteCategory = (categoryId) => {
     const isUsed = expenses.some(e => e.category === categoryId);
-    if (isUsed) {
-      throw new Error('Cannot delete category that is used in expenses');
+
+    // Encontrar a melhor categoria substituta (fallback)
+    const fallbackCategory = findBestFallbackCategory(categoryId);
+
+    if (isUsed && fallbackCategory) {
+      // Atualizar todos os gastos que usavam a categoria deletada
+      console.log(`[ExpenseContext] Migrando gastos de ${categoryId} para ${fallbackCategory.id}`);
+      setExpenses(prev => prev.map(e => 
+        e.category === categoryId 
+          ? { ...e, category: fallbackCategory.id, _originalCategory: categoryId }
+          : e
+      ));
     }
+
     setCustomCategories(prev => prev.filter(c => c.id !== categoryId));
     setCategoryLimits(prev => {
       const newLimits = { ...prev };
       delete newLimits[categoryId];
       return newLimits;
     });
+  };
+
+  // Funcao para encontrar a melhor categoria substituta
+  const findBestFallbackCategory = (deletedCategoryId) => {
+    const deletedCat = CATEGORIES.find(c => c.id === deletedCategoryId);
+    if (!deletedCat) return DEFAULT_CATEGORIES[DEFAULT_CATEGORIES.length - 1]; // 'outros'
+
+    // Tentar encontrar categoria com nome similar ou cor similar
+    const allCategories = [...DEFAULT_CATEGORIES, ...customCategories].filter(c => c.id !== deletedCategoryId);
+
+    // 1. Tentar match por nome (palavras similares)
+    const nameMatches = allCategories.filter(c => {
+      const delWords = deletedCat.name.toLowerCase().split(/\s+/);
+      const catWords = c.name.toLowerCase().split(/\s+/);
+      return delWords.some(dw => catWords.some(cw => cw.includes(dw) || dw.includes(cw)));
+    });
+
+    if (nameMatches.length > 0) return nameMatches[0];
+
+    // 2. Tentar match por cor similar
+    const colorMatches = allCategories.filter(c => c.color === deletedCat.color);
+    if (colorMatches.length > 0) return colorMatches[0];
+
+    // 3. Fallback para 'outros' (sempre existe)
+    return DEFAULT_CATEGORIES.find(c => c.id === 'outros') || allCategories[0] || DEFAULT_CATEGORIES[0];
   };
 
   const updateCategory = (categoryId, updates) => {
