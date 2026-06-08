@@ -25,10 +25,16 @@ export default function AddExpenseScreen({ navigation }) {
     cards, 
     CATEGORIES, 
     deleteExpense, 
-    deleteCashTransaction, 
     cashTransactions: ctxCashTransactions, 
     addCashTransaction: ctxAddCashTransaction 
   } = useExpenses();
+
+  const { 
+    cashBalance, 
+    cashTransactions: planningCashTransactions,
+    deleteCashTransaction: planningDeleteCashTransaction,
+    updateCashTransaction: planningUpdateCashTransaction,
+  } = usePlanning();
 
   const { cashBalance } = usePlanning();
 
@@ -76,6 +82,13 @@ export default function AddExpenseScreen({ navigation }) {
   const [cashDate, setCashDate] = useState(getTodayDate());
   const [cashDescription, setCashDescription] = useState('');
   const [date, setDate] = useState(getTodayDate());
+
+  // Estados para edição de caixa
+  const [editingCashId, setEditingCashId] = useState(null);
+  const [editCashAmount, setEditCashAmount] = useState('');
+  const [editCashAmountDisplay, setEditCashAmountDisplay] = useState('');
+  const [editCashDescription, setEditCashDescription] = useState('');
+  const [editCashDate, setEditCashDate] = useState(getTodayDate());
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -277,10 +290,97 @@ export default function AddExpenseScreen({ navigation }) {
   };
 
   const renderCashItem = ({ item, index }) => {
+    const isEditing = editingCashId === item.id;
+
+    if (isEditing) {
+      return (
+        <SlideInView delay={index * 50}>
+          <View style={[styles.editCashForm, { backgroundColor: colors.card }]}>
+            <Text style={[styles.editTitle, { color: colors.text }]}>Editar Entrada</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
+              <TextInput
+                style={[styles.amountInput, { 
+                  backgroundColor: colors.inputBg, 
+                  color: colors.text,
+                }]}
+                placeholder="R$ 0,00"
+                keyboardType="numeric"
+                value={editCashAmountDisplay}
+                onChangeText={(text) => {
+                  const numeric = text.replace(/\D/g, '');
+                  setEditCashAmount(numeric);
+                  const number = parseInt(numeric) / 100;
+                  setEditCashAmountDisplay(
+                    new Intl.NumberFormat('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    }).format(number || 0)
+                  );
+                }}
+                placeholderTextColor={colors.textLight}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Descricao</Text>
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: colors.inputBg, 
+                  color: colors.text,
+                }]}
+                value={editCashDescription}
+                onChangeText={setEditCashDescription}
+                placeholderTextColor={colors.textLight}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
+              <TextInput
+                style={[styles.input, { 
+                  backgroundColor: colors.inputBg, 
+                  color: colors.text,
+                }]}
+                value={editCashDate}
+                onChangeText={setEditCashDate}
+                placeholderTextColor={colors.textLight}
+              />
+            </View>
+
+            <View style={styles.editButtonsRow}>
+              <TouchableOpacity 
+                style={[styles.editButton, { backgroundColor: colors.success }]} 
+                onPress={handleUpdateCash}
+              >
+                <Ionicons name="checkmark-outline" size={20} color="#fff" />
+                <Text style={styles.editButtonText}>Salvar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.editButton, { backgroundColor: colors.border }]} 
+                onPress={() => {
+                  setEditingCashId(null);
+                  setEditCashAmount('');
+                  setEditCashAmountDisplay('');
+                  setEditCashDescription('');
+                  setEditCashDate(getTodayDate());
+                }}
+              >
+                <Ionicons name="close-outline" size={20} color={colors.text} />
+                <Text style={[styles.editButtonText, { color: colors.text }]}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SlideInView>
+      );
+    }
+
     return (
       <SlideInView delay={index * 50}>
         <TouchableOpacity 
           style={[styles.expenseItem, { backgroundColor: colors.card }]}
+          onPress={() => handleEditCash(item)}
           onLongPress={() => handleDeleteCash(item)}
           activeOpacity={0.7}
         >
@@ -954,6 +1054,42 @@ const styles = StyleSheet.create({
     padding: 18, borderRadius: 16, marginTop: 12,
   },
   submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
+
+  // Edit Cash Form
+  editCashForm: {
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  editTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  editButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  editButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    gap: 6,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
   listContent: { padding: 16, paddingBottom: 80 },
   expenseItem: {
     flexDirection: 'row', alignItems: 'center',
