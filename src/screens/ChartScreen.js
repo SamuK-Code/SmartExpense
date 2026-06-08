@@ -7,7 +7,7 @@ import {
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
-import { PieChart, BarChart } from 'react-native-chart-kit';
+import { BarChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { usePlanning } from '../context/PlanningContext';
@@ -22,7 +22,7 @@ export default function ChartScreen({ navigation }) {
   const { expenses, cards, getFilteredExpenses, getTotalByCategory, getTotalByCard, getExpensesByMonth, CATEGORIES } = useExpenses();
   const { cashBalance } = usePlanning();
   const { colors, isDark } = useTheme();
-  const [chartType, setChartType] = useState('pie');
+  const [chartType, setChartType] = useState('category'); // 'category' ou 'payment'
   const [period, setPeriod] = useState('month');
   const [selectedCategory, setSelectedCategory] = useState(null);
 
@@ -45,27 +45,40 @@ export default function ChartScreen({ navigation }) {
     navigation.navigate('ChartDetail', { type: 'card', id: cardId, name: cardName, period: period });
   };
 
-  const pieData = Object.entries(categoryTotals).map(([catId, amount]) => {
-    const cat = CATEGORIES.find(c => c.id === catId);
+  // Dados para gráfico de barras por categoria
+  const categoryData = Object.entries(categoryTotals)
+    .map(([catId, amount]) => {
+      const cat = CATEGORIES.find(c => c.id === catId);
+      return {
+        id: catId,
+        name: cat?.name || catId,
+        amount: amount,
+        color: cat?.color || '#999',
+      };
+    })
+    .sort((a, b) => b.amount - a.amount);
+
+  // Dados para gráfico de pagamento (cartão vs avulso)
+  const paymentData = Object.entries(cardTotals).map(([cardId, amount]) => {
+    const card = cards.find(c => c.id === cardId);
+    const isStandalone = cardId === 'no-card';
+    const bank = card ? getBankById(card.bankId) : null;
     return {
-      name: cat?.name || catId,
+      id: cardId,
+      name: isStandalone ? 'Boleto/Avulso' : (card?.customName || card?.name || 'Sem cartão'),
       amount: amount,
-      color: cat?.color || '#999',
-      legendFontColor: 'transparent',
-      legendFontSize: 1,
+      color: isStandalone ? colors.info : (bank?.color || card?.color || '#999'),
     };
   }).sort((a, b) => b.amount - a.amount);
 
-  const sortedMonths = Object.keys(monthlyTotals).sort();
-  const last6Months = sortedMonths.slice(-6);
+  const currentData = chartType === 'category' ? categoryData : paymentData;
 
+  // Configuração do gráfico de barras
   const barData = {
-    labels: last6Months.map(m => { 
-      const [year, month] = m.split('-'); 
-      return `${month}/${year.slice(2)}`; 
-    }),
-    datasets: [{ 
-      data: last6Months.map(m => monthlyTotals[m]) 
+    labels: currentData.map(d => d.name.length > 8 ? d.name.substring(0, 8) + '...' : d.name),
+    datasets: [{
+      data: currentData.map(d => d.amount),
+      colors: currentData.map(d => (opacity = 1) => d.color),
     }],
   };
 
@@ -74,19 +87,22 @@ export default function ChartScreen({ navigation }) {
     backgroundGradientFrom: colors.chartBg,
     backgroundGradientTo: colors.chartBg,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
+    color: (opacity = 1, index) => {
+      if (index !== undefined && currentData[index]) {
+        return currentData[index].color;
+      }
+      return colors.primary;
+    },
     labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
     style: { borderRadius: 16 },
     propsForLabels: { fontSize: 10, fontWeight: '600' },
     propsForBackgroundLines: { stroke: isDark ? '#333' : '#e0e0e0', strokeWidth: 1 },
-    formatYLabel: (value) => {
-      const num = parseFloat(value);
-      if (num >= 1000) return `R$${(num/1000).toFixed(1)}k`;
-      return `R$${num.toFixed(0)}`;
-    },
+    barPercentage: 0.7,
+    fillShadowGradient: colors.primary,
+    fillShadowGradientOpacity: 0.8,
   };
 
-  const handlePiePress = (index) => {
+  const handleBarPress = (index) => {
     if (selectedCategory === index) {
       setSelectedCategory(null);
     } else {
@@ -95,13 +111,13 @@ export default function ChartScreen({ navigation }) {
   };
 
   const displayData = selectedCategory !== null 
-    ? [pieData[selectedCategory]] 
-    : pieData;
+    ? [currentData[selectedCategory]] 
+    : currentData;
 
   if (expenses.length === 0) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-        <Ionicons name="pie-chart-outline" size={64} color={colors.textLight} />
+        <Ionicons name="bar-chart-outline" size={64} color={colors.textLight} />
         <Text style={[styles.emptyTitle, { color: colors.text }]}>Sem dados para analisar</Text>
         <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Adicione gastos primeiro</Text>
       </View>
@@ -116,13 +132,13 @@ export default function ChartScreen({ navigation }) {
         {/* Summary Card */}
         <FadeInView>
           <View style={[styles.summaryCard, { backgroundColor: colors.header }]}>
-            <Text style={[styles.summaryLabel, { color: colors.headerText }]}>Total do Periodo</Text>
+            <Text style={[styles.summaryLabel, { color: colors.headerText }]}>Total do Período</Text>
             <Text style={[styles.summaryAmount, { color: colors.headerText }]}>{formatCurrency(totalGeral)}</Text>
-            <Text style={[styles.summaryCount, { color: colors.headerText }]}>{filteredExpenses.length} transacoes</Text>
+            <Text style={[styles.summaryCount, { color: colors.headerText }]}>{filteredExpenses.length} transações</Text>
           </View>
         </FadeInView>
 
-        {/* Cash vs Expenses Alert */}
+        {/* Cash Alert */}
         {isCashInsufficient && (
           <SlideInView delay={50}>
             <View style={[styles.cashAlert, { backgroundColor: colors.danger + '20' }]}>
@@ -141,114 +157,55 @@ export default function ChartScreen({ navigation }) {
         <SlideInView delay={100}>
           <View style={[styles.toggleContainer, { backgroundColor: colors.card }]}>
             <TouchableOpacity 
-              style={[styles.toggleButton, chartType === 'pie' && { backgroundColor: colors.primary }]} 
-              onPress={() => { setChartType('pie'); setSelectedCategory(null); }}
+              style={[styles.toggleButton, chartType === 'category' && { backgroundColor: colors.primary }]} 
+              onPress={() => { setChartType('category'); setSelectedCategory(null); }}
             >
-              <Ionicons name="pie-chart" size={14} color={chartType === 'pie' ? '#fff' : colors.textSecondary} />
-              <Text style={[styles.toggleText, { color: chartType === 'pie' ? '#fff' : colors.textSecondary }]}>Categoria</Text>
+              <Ionicons name="pie-chart" size={14} color={chartType === 'category' ? '#fff' : colors.textSecondary} />
+              <Text style={[styles.toggleText, { color: chartType === 'category' ? '#fff' : colors.textSecondary }]}>Por Categoria</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.toggleButton, chartType === 'bar' && { backgroundColor: colors.primary }]} 
-              onPress={() => { setChartType('bar'); setSelectedCategory(null); }}
+              style={[styles.toggleButton, chartType === 'payment' && { backgroundColor: colors.primary }]} 
+              onPress={() => { setChartType('payment'); setSelectedCategory(null); }}
             >
-              <Ionicons name="bar-chart" size={14} color={chartType === 'bar' ? '#fff' : colors.textSecondary} />
-              <Text style={[styles.toggleText, { color: chartType === 'bar' ? '#fff' : colors.textSecondary }]}>Mes</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.toggleButton, chartType === 'card' && { backgroundColor: colors.primary }]} 
-              onPress={() => { setChartType('card'); setSelectedCategory(null); }}
-            >
-              <Ionicons name="card" size={14} color={chartType === 'card' ? '#fff' : colors.textSecondary} />
-              <Text style={[styles.toggleText, { color: chartType === 'card' ? '#fff' : colors.textSecondary }]}>Cartao</Text>
+              <Ionicons name="card" size={14} color={chartType === 'payment' ? '#fff' : colors.textSecondary} />
+              <Text style={[styles.toggleText, { color: chartType === 'payment' ? '#fff' : colors.textSecondary }]}>Cartão/Avulso</Text>
             </TouchableOpacity>
           </View>
         </SlideInView>
 
-        {/* Chart Container */}
+        {/* Bar Chart */}
         <ScaleInView delay={200}>
           <View style={[styles.chartContainer, { backgroundColor: colors.card }]}>
-            {chartType === 'pie' && pieData.length > 0 ? (
-              <View style={styles.pieChartWrapper}>
-                <PieChart 
-                  data={pieData} 
-                  width={screenWidth - 60} 
-                  height={260} 
-                  chartConfig={chartConfig} 
-                  accessor="amount" 
-                  backgroundColor="transparent" 
-                  paddingLeft="0"
-                  hasOnPress={true}
-                  avoidFalseZero
-                  style={styles.pieChart}
-                  onPress={(index) => handlePiePress(index)}
-                />
-                <View style={styles.pieCenterOverlay} pointerEvents="none">
-                  <Text style={[styles.pieCenterLabel, { color: colors.textSecondary }]}>Total</Text>
-                  <Text style={[styles.pieCenterValue, { color: colors.text }]}>
-                    {formatCurrency(totalGeral)}
-                  </Text>
-                </View>
-              </View>
-            ) : chartType === 'bar' && barData.labels.length > 0 ? (
+            {currentData.length > 0 ? (
               <View style={styles.barChartWrapper}>
                 <BarChart 
                   data={barData} 
                   width={screenWidth - 48} 
                   height={220} 
                   chartConfig={chartConfig} 
-                  verticalLabelRotation={0} 
-                  fromZero 
-                  showValuesOnTopOfBars 
+                  verticalLabelRotation={0}
+                  fromZero
+                  showValuesOnTopOfBars
                   style={styles.barChart}
-                  yAxisLabel=""
-                  yAxisSuffix=""
+                  withInnerLines={true}
                   segments={4}
+                  onDataPointClick={({ index }) => handleBarPress(index)}
                 />
               </View>
-            ) : chartType === 'card' ? (
-              <View style={styles.cardChartContainer}>
-                {Object.entries(cardTotals).map(([cardId, amount]) => {
-                  const card = cards.find(c => c.id === cardId);
-                  const bank = card ? getBankById(card.bankId) : null;
-                  const isStandalone = cardId === 'no-card';
-                  const pct = totalGeral > 0 ? ((amount / totalGeral) * 100).toFixed(1) : 0;
-                  const displayName = isStandalone ? 'Boleto/Avulso' : (card?.customName || card?.name || 'Sem cartao');
-                  const displayColor = isStandalone ? colors.info : (bank?.color || card?.color || '#999');
-
-                  return (
-                    <TouchableOpacity 
-                      key={cardId} 
-                      style={styles.cardChartItem} 
-                      onPress={() => handleCardPress(cardId, displayName)}
-                    >
-                      <View style={styles.cardChartHeader}>
-                        <View style={[styles.cardDot, { backgroundColor: displayColor }]} />
-                        <Text style={[styles.cardChartName, { color: colors.text }]}>{displayName}</Text>
-                        {isStandalone && (
-                          <Ionicons name="receipt-outline" size={12} color={colors.info} style={{ marginLeft: 4 }} />
-                        )}
-                      </View>
-                      <View style={styles.cardChartBarContainer}>
-                        <View style={[styles.cardChartBar, { width: `${pct}%`, backgroundColor: displayColor }]} />
-                      </View>
-                      <View style={styles.cardChartValues}>
-                        <Text style={[styles.cardChartAmount, { color: colors.text }]}>{formatCurrency(amount)}</Text>
-                        <Text style={[styles.cardChartPct, { color: colors.textSecondary }]}>{pct}%</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+            ) : (
+              <View style={styles.noDataChart}>
+                <Text style={[styles.noDataText, { color: colors.textSecondary }]}>Sem dados para este período</Text>
               </View>
-            ) : null}
+            )}
           </View>
         </ScaleInView>
 
-        {/* Lista de categorias abaixo do grafico */}
-        {(chartType === 'pie' || chartType === 'card') && displayData.length > 0 && (
+        {/* Lista de Detalhamento */}
+        {displayData.length > 0 && (
           <View style={styles.legendSection}>
             <View style={styles.legendHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {selectedCategory !== null ? 'Categoria Selecionada' : 'Detalhamento por Categoria'}
+                {selectedCategory !== null ? 'Item Selecionado' : 'Detalhamento'}
               </Text>
               {selectedCategory !== null && (
                 <TouchableOpacity 
@@ -261,17 +218,16 @@ export default function ChartScreen({ navigation }) {
               )}
             </View>
             <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-              {selectedCategory !== null ? 'Toque na cor do grafico para ver todas' : 'Toque na cor do grafico para filtrar'}
+              {selectedCategory !== null ? 'Toque na barra para ver todos' : 'Toque na barra para filtrar'}
             </Text>
             <StaggeredList staggerDelay={60}>
               {displayData.map((item, index) => {
                 const percentage = totalGeral > 0 ? ((item.amount / totalGeral) * 100).toFixed(1) : 0;
-                const catId = Object.keys(categoryTotals)[index];
-                const isSelected = selectedCategory === index;
+                const isSelected = selectedCategory !== null;
 
                 return (
                   <TouchableOpacity 
-                    key={index} 
+                    key={item.id} 
                     style={[
                       styles.legendItem, 
                       { backgroundColor: colors.card },
@@ -282,8 +238,11 @@ export default function ChartScreen({ navigation }) {
                       }
                     ]} 
                     onPress={() => {
-                      setSelectedCategory(isSelected ? null : index);
-                      handleCategoryPress(catId, item.name);
+                      if (chartType === 'category') {
+                        handleCategoryPress(item.id, item.name);
+                      } else {
+                        handleCardPress(item.id, item.name);
+                      }
                     }}
                   >
                     <View style={styles.legendLeft}>
@@ -306,44 +265,6 @@ export default function ChartScreen({ navigation }) {
                 );
               })}
             </StaggeredList>
-          </View>
-        )}
-
-        {/* Resumo mensal */}
-        {chartType === 'bar' && last6Months.length > 0 && (
-          <View style={styles.monthlySummarySection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Resumo por Mes</Text>
-            <View style={[styles.monthlyTable, { backgroundColor: colors.card }]}>
-              <View style={styles.monthlyTableHeader}>
-                <Text style={[styles.monthlyHeaderText, { color: colors.textSecondary, flex: 1 }]}>Mes</Text>
-                <Text style={[styles.monthlyHeaderText, { color: colors.textSecondary, flex: 1, textAlign: 'right' }]}>Total</Text>
-                <Text style={[styles.monthlyHeaderText, { color: colors.textSecondary, flex: 1, textAlign: 'right' }]}>% do Ano</Text>
-              </View>
-              {last6Months.map((monthKey, index) => {
-                const amount = monthlyTotals[monthKey];
-                const yearTotal = last6Months.reduce((sum, m) => sum + monthlyTotals[m], 0);
-                const pct = yearTotal > 0 ? ((amount / yearTotal) * 100).toFixed(1) : 0;
-                const [year, month] = monthKey.split('-');
-                const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', { month: 'short' });
-
-                return (
-                  <View key={monthKey} style={[
-                    styles.monthlyRow,
-                    index < last6Months.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border || '#e0e0e0' }
-                  ]}>
-                    <Text style={[styles.monthlyMonthText, { color: colors.text, flex: 1 }]}>
-                      {monthName}/{year.slice(2)}
-                    </Text>
-                    <Text style={[styles.monthlyAmountText, { color: colors.text, flex: 1, textAlign: 'right' }]}>
-                      {formatCurrency(amount)}
-                    </Text>
-                    <Text style={[styles.monthlyPctText, { color: colors.primary, flex: 1, textAlign: 'right' }]}>
-                      {pct}%
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
           </View>
         )}
       </ScrollView>
@@ -393,38 +314,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 
   },
 
-  pieChartWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    height: 280,
-    width: '100%',
-    marginVertical: 10,
-  },
-  pieChart: {
-    borderRadius: 130,
-  },
-  pieCenterOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  pieCenterLabel: {
-    fontSize: 13,
-    opacity: 0.6,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  pieCenterValue: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-
   barChartWrapper: {
     alignItems: 'center',
     paddingVertical: 10,
@@ -433,17 +322,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginVertical: 8,
   },
-
-  cardChartContainer: { width: '100%', paddingVertical: 10 },
-  cardChartItem: { marginBottom: 16 },
-  cardChartHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  cardDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  cardChartName: { fontSize: 14, fontWeight: '600' },
-  cardChartBarContainer: { height: 8, backgroundColor: '#e0e0e0', borderRadius: 4, marginBottom: 6, overflow: 'hidden' },
-  cardChartBar: { height: '100%', borderRadius: 4 },
-  cardChartValues: { flexDirection: 'row', justifyContent: 'space-between' },
-  cardChartAmount: { fontSize: 13, fontWeight: '600' },
-  cardChartPct: { fontSize: 12 },
+  noDataChart: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  noDataText: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
 
   legendSection: { margin: 16, marginTop: 24 },
   legendHeader: {
@@ -489,44 +375,4 @@ const styles = StyleSheet.create({
   },
   legendRight: { alignItems: 'flex-end', minWidth: 100 },
   legendAmount: { fontSize: 14, fontWeight: 'bold' },
-
-  monthlySummarySection: { margin: 16, marginTop: 24 },
-  monthlyTable: {
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  monthlyTableHeader: {
-    flexDirection: 'row',
-    paddingBottom: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: '#e0e0e0',
-    marginBottom: 8,
-  },
-  monthlyHeaderText: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  monthlyRow: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  monthlyMonthText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  monthlyAmountText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  monthlyPctText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
 });
