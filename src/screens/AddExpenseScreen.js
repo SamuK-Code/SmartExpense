@@ -226,6 +226,64 @@ export default function AddExpenseScreen({ navigation }) {
     );
   };
 
+  const handleEditCash = (cashItem) => {
+    console.log('handleEditCash:', cashItem);
+    setEditingCashId(cashItem.id);
+
+    const amountInCents = Math.round(cashItem.amount * 100).toString();
+    setEditCashAmount(amountInCents);
+    setEditCashAmountDisplay(
+      new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }).format(cashItem.amount)
+    );
+    setEditCashDescription(cashItem.description);
+    setEditCashDate(cashItem.date || getTodayDate());
+  };
+
+  const handleUpdateCash = () => {
+    console.log('handleUpdateCash called');
+
+    if (!editCashAmount || !editCashDescription) {
+      Alert.alert('Erro', 'Preencha o valor e a descricao');
+      return;
+    }
+
+    const numericValue = parseFloat(editCashAmount);
+    if (isNaN(numericValue) || numericValue <= 0) {
+      Alert.alert('Erro', 'Valor invalido');
+      return;
+    }
+
+    const finalAmount = numericValue / 100;
+
+    try {
+      const result = updateCashTransaction(editingCashId, {
+        amount: finalAmount,
+        description: editCashDescription.trim(),
+        date: editCashDate,
+      });
+
+      if (result) {
+        Alert.alert('Sucesso', 'Entrada do caixa atualizada!', [
+          { text: 'OK', onPress: () => {
+            setEditingCashId(null);
+            setEditCashAmount('');
+            setEditCashAmountDisplay('');
+            setEditCashDescription('');
+            setEditCashDate(getTodayDate());
+          }}
+        ]);
+      } else {
+        Alert.alert('Erro', 'Nao foi possivel atualizar');
+      }
+    } catch (error) {
+      console.error('Error in handleUpdateCash:', error);
+      Alert.alert('Erro', 'Nao foi possivel atualizar: ' + error.message);
+    }
+  };
+
   const handleDeleteCash = (cashItem) => {
     Alert.alert(
       'Confirmar exclusão',
