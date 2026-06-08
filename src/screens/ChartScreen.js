@@ -45,14 +45,14 @@ export default function ChartScreen({ navigation }) {
     navigation.navigate('ChartDetail', { type: 'card', id: cardId, name: cardName, period: period });
   };
 
-  // Preparar dados para o gráfico de pizza (sem legendas embutidas)
+  // Preparar dados para o gráfico de pizza - SEM legendas
   const pieData = Object.entries(categoryTotals).map(([catId, amount]) => {
     const cat = CATEGORIES.find(c => c.id === catId);
     return {
       name: cat?.name || catId,
       amount: amount,
       color: cat?.color || '#999',
-      legendFontColor: 'transparent', // Esconde legendas do gráfico
+      legendFontColor: 'transparent',
       legendFontSize: 1,
     };
   }).sort((a, b) => b.amount - a.amount);
@@ -81,6 +81,20 @@ export default function ChartScreen({ navigation }) {
     propsForLabels: { fontSize: 10, fontWeight: '600' },
     propsForBackgroundLines: { stroke: isDark ? '#333' : '#e0e0e0', strokeWidth: 1 },
   };
+
+  // Função para filtrar lista ao clicar no gráfico
+  const handlePiePress = (index) => {
+    if (selectedCategory === index) {
+      setSelectedCategory(null); // Desselecionar se já estiver selecionado
+    } else {
+      setSelectedCategory(index);
+    }
+  };
+
+  // Filtrar dados para exibição
+  const displayData = selectedCategory !== null 
+    ? [pieData[selectedCategory]] 
+    : pieData;
 
   if (expenses.length === 0) {
     return (
@@ -126,21 +140,21 @@ export default function ChartScreen({ navigation }) {
           <View style={[styles.toggleContainer, { backgroundColor: colors.card }]}>
             <TouchableOpacity 
               style={[styles.toggleButton, chartType === 'pie' && { backgroundColor: colors.primary }]} 
-              onPress={() => setChartType('pie')}
+              onPress={() => { setChartType('pie'); setSelectedCategory(null); }}
             >
               <Ionicons name="pie-chart" size={14} color={chartType === 'pie' ? '#fff' : colors.textSecondary} />
               <Text style={[styles.toggleText, { color: chartType === 'pie' ? '#fff' : colors.textSecondary }]}>Categoria</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.toggleButton, chartType === 'bar' && { backgroundColor: colors.primary }]} 
-              onPress={() => setChartType('bar')}
+              onPress={() => { setChartType('bar'); setSelectedCategory(null); }}
             >
               <Ionicons name="bar-chart" size={14} color={chartType === 'bar' ? '#fff' : colors.textSecondary} />
               <Text style={[styles.toggleText, { color: chartType === 'bar' ? '#fff' : colors.textSecondary }]}>Mês</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.toggleButton, chartType === 'card' && { backgroundColor: colors.primary }]} 
-              onPress={() => setChartType('card')}
+              onPress={() => { setChartType('card'); setSelectedCategory(null); }}
             >
               <Ionicons name="card" size={14} color={chartType === 'card' ? '#fff' : colors.textSecondary} />
               <Text style={[styles.toggleText, { color: chartType === 'card' ? '#fff' : colors.textSecondary }]}>Cartão</Text>
@@ -148,25 +162,26 @@ export default function ChartScreen({ navigation }) {
           </View>
         </SlideInView>
 
-        {/* Chart Container */}
+        {/* Chart Container - Gráfico centralizado sem legendas laterais */}
         <ScaleInView delay={200}>
           <View style={[styles.chartContainer, { backgroundColor: colors.card }]}>
             {chartType === 'pie' && pieData.length > 0 ? (
               <View style={styles.pieChartWrapper}>
                 <PieChart 
                   data={pieData} 
-                  width={screenWidth - 48} 
-                  height={200} 
+                  width={screenWidth - 80} 
+                  height={220} 
                   chartConfig={chartConfig} 
                   accessor="amount" 
                   backgroundColor="transparent" 
                   paddingLeft="15"
-                  hasOnPress={false}
+                  hasOnPress={true}
                   avoidFalseZero
                   style={styles.pieChart}
+                  onPress={(index) => handlePiePress(index)}
                 />
                 {/* Total no centro do gráfico */}
-                <View style={styles.pieCenterOverlay}>
+                <View style={styles.pieCenterOverlay} pointerEvents="none">
                   <Text style={[styles.pieCenterLabel, { color: colors.textSecondary }]}>Total</Text>
                   <Text style={[styles.pieCenterValue, { color: colors.text }]}>
                     {formatCurrency(totalGeral)}
@@ -231,13 +246,28 @@ export default function ChartScreen({ navigation }) {
           </View>
         </ScaleInView>
 
-        {/* Legendas em lista abaixo do gráfico - SEMPRE visível para pie e card */}
-        {(chartType === 'pie' || chartType === 'card') && pieData.length > 0 && (
+        {/* Lista de categorias abaixo do gráfico - Filtrada quando clicado */}
+        {(chartType === 'pie' || chartType === 'card') && displayData.length > 0 && (
           <View style={styles.legendSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Detalhamento por Categoria</Text>
-            <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Toque para ver mais detalhes</Text>
+            <View style={styles.legendHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                {selectedCategory !== null ? 'Categoria Selecionada' : 'Detalhamento por Categoria'}
+              </Text>
+              {selectedCategory !== null && (
+                <TouchableOpacity 
+                  style={styles.clearFilterButton}
+                  onPress={() => setSelectedCategory(null)}
+                >
+                  <Text style={[styles.clearFilterText, { color: colors.primary }]}>Limpar filtro</Text>
+                  <Ionicons name="close-circle" size={16} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+              {selectedCategory !== null ? 'Toque na cor do gráfico para ver todas' : 'Toque na cor do gráfico para filtrar'}
+            </Text>
             <StaggeredList staggerDelay={60}>
-              {pieData.map((item, index) => {
+              {displayData.map((item, index) => {
                 const percentage = totalGeral > 0 ? ((item.amount / totalGeral) * 100).toFixed(1) : 0;
                 const catId = Object.keys(categoryTotals)[index];
                 const isSelected = selectedCategory === index;
@@ -248,7 +278,11 @@ export default function ChartScreen({ navigation }) {
                     style={[
                       styles.legendItem, 
                       { backgroundColor: colors.card },
-                      isSelected && { borderLeftColor: item.color, borderLeftWidth: 4 }
+                      isSelected && { 
+                        borderLeftColor: item.color, 
+                        borderLeftWidth: 4,
+                        backgroundColor: item.color + (isDark ? '20' : '10'),
+                      }
                     ]} 
                     onPress={() => {
                       setSelectedCategory(isSelected ? null : index);
@@ -366,12 +400,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 
   },
 
-  // Pie Chart
+  // Pie Chart - Centralizado
   pieChartWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    height: 220,
+    height: 240,
+    width: '100%',
   },
   pieChart: {
     borderRadius: 16,
@@ -384,14 +419,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    pointerEvents: 'none',
   },
   pieCenterLabel: {
     fontSize: 12,
     opacity: 0.7,
   },
   pieCenterValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginTop: 4,
   },
@@ -419,8 +453,23 @@ const styles = StyleSheet.create({
 
   // Legend Section
   legendSection: { margin: 16, marginTop: 24 },
+  legendHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   sectionTitle: { fontSize: 18, fontWeight: 'bold' },
   sectionSubtitle: { fontSize: 12, marginTop: 2, marginBottom: 16 },
+  clearFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  clearFilterText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
 
   legendItem: { 
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
