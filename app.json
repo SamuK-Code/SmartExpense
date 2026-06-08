@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Credit Card Tracker",
-    "slug": "credit-card-tracker",
-    "version": "2.0.0",
+    "name": "SmartExpense",
+    "slug": "smart-expense",
+    "version": "3.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
