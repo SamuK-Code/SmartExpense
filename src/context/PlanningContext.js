@@ -139,6 +139,72 @@ export function PlanningProvider({ children }) {
     };
   };
 
+  const updateCashTransaction = useCallback((id, updates) => {
+    console.log('[PlanningContext] updateCashTransaction:', { id, updates });
+
+    const transaction = cashTransactions.find(t => t.id === id);
+    if (!transaction) {
+      console.error('[PlanningContext] Transação não encontrada:', id);
+      return null;
+    }
+
+    // Calcular diferença no valor para ajustar o saldo
+    const oldAmount = transaction.amount;
+    const newAmount = updates.amount ? parseFloat(updates.amount) : oldAmount;
+    const amountDiff = newAmount - oldAmount;
+
+    const updatedTransaction = {
+      ...transaction,
+      ...updates,
+      amount: newAmount,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedTransactions = cashTransactions.map(t => 
+      t.id === id ? updatedTransaction : t
+    );
+
+    // Ajustar saldo se o valor mudou
+    const newBalance = cashBalance + amountDiff;
+
+    console.log('[PlanningContext] Atualizando transação:', {
+      oldAmount,
+      newAmount,
+      amountDiff,
+      newBalance,
+    });
+
+    setCashBalance(newBalance);
+    setCashTransactions(updatedTransactions);
+
+    return updatedTransaction;
+  }, [cashBalance, cashTransactions]);
+
+  const deleteCashTransaction = useCallback((id) => {
+    console.log('[PlanningContext] deleteCashTransaction:', id);
+
+    const transaction = cashTransactions.find(t => t.id === id);
+    if (!transaction) {
+      console.error('[PlanningContext] Transação não encontrada:', id);
+      return false;
+    }
+
+    // Reverter o valor do saldo
+    const newBalance = transaction.type === 'income'
+      ? cashBalance - transaction.amount
+      : cashBalance + transaction.amount;
+
+    console.log('[PlanningContext] Deletando transação:', {
+      transaction,
+      newBalance,
+    });
+
+    setCashBalance(newBalance);
+    setCashTransactions(prev => prev.filter(t => t.id !== id));
+
+    return true;
+  }, [cashBalance, cashTransactions]);
+
   const value = {
     cashBalance,
     cashTransactions,
@@ -146,6 +212,8 @@ export function PlanningProvider({ children }) {
     loading,
     updateCashBalance,
     addCashTransaction,
+    updateCashTransaction,
+    deleteCashTransaction,
     addGoal,
     updateGoal,
     deleteGoal,
