@@ -134,14 +134,15 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
+        {/* ORDEM CORRETA: PlanningProvider DEVE envolver ExpenseProvider */}
         <PlanningProvider>
           <ExpenseProvider>
             <NavigationContainer>
               <StatusBar style="auto" />
               <TabNavigator />
             </NavigationContainer>
-          </PlanningProvider>
-        </ExpenseProvider>
+          </ExpenseProvider>
+        </PlanningProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
