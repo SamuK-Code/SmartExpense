@@ -174,12 +174,12 @@ export default function ChartScreen({ navigation }) {
               <View style={styles.pieChartWrapper}>
                 <PieChart 
                   data={pieData} 
-                  width={screenWidth - 80} 
-                  height={220} 
+                  width={screenWidth - 60} 
+                  height={260} 
                   chartConfig={chartConfig} 
                   accessor="amount" 
                   backgroundColor="transparent" 
-                  paddingLeft="15"
+                  paddingLeft="0"
                   hasOnPress={true}
                   avoidFalseZero
                   style={styles.pieChart}
@@ -406,11 +406,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    height: 240,
+    height: 280,
     width: '100%',
+    marginVertical: 10,
   },
   pieChart: {
-    borderRadius: 16,
+    borderRadius: 130,
   },
   pieCenterOverlay: {
     position: 'absolute',
@@ -420,15 +421,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
   },
   pieCenterLabel: {
-    fontSize: 12,
-    opacity: 0.7,
+    fontSize: 13,
+    opacity: 0.6,
+    marginBottom: 4,
+    fontWeight: '500',
   },
   pieCenterValue: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginTop: 4,
   },
 
   // Bar Chart
