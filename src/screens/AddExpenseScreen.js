@@ -314,6 +314,7 @@ export default function AddExpenseScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <FadeInView>
+          <View style={styles.topSpacer} />
           <Text style={[styles.title, { color: colors.header }]}>Adicionar ao Caixa</Text>
         </FadeInView>
 
@@ -411,6 +412,7 @@ export default function AddExpenseScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <FadeInView>
+          <View style={styles.topSpacer} />
           <Text style={[styles.title, { color: colors.header }]}>Novo Gasto</Text>
         </FadeInView>
 
@@ -851,7 +853,8 @@ export default function AddExpenseScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20 },
+  scrollContent: { padding: 20, paddingTop: 40 },
+  topSpacer: { height: 20 },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 24 },
   balanceCard: {
     padding: 16,
