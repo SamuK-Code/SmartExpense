@@ -36,7 +36,7 @@ export default function AddExpenseScreen({ navigation }) {
     updateCashTransaction: planningUpdateCashTransaction,
   } = usePlanning();
 
-  const { cashBalance } = usePlanning();
+  
 
   const [localCashTransactions, setLocalCashTransactions] = useState([]);
   const { colors, isDark } = useTheme();
