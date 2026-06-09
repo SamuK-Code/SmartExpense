@@ -29,7 +29,7 @@ export default function HistoryScreen({ navigation }) {
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' });
 
-  const getCategoryInfo = (categoryId) => CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
+  const getCategoryInfo = (categoryId) => CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7] || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
 
   const handleDelete = (expense) => {
     Alert.alert(
