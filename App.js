@@ -18,7 +18,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { I18nProvider, useI18n } from './src/context/I18nContext';
 import ErrorBoundary from './src/utils/ErrorBoundary';
 
-import HomeScreen from './src/screens/HomeScreen';
+import DashboardScreen from './src/screens/DashboardScreen';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import EditExpenseScreen from './src/screens/EditExpenseScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
@@ -29,7 +29,7 @@ import PlanningScreen from './src/screens/PlanningScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import LanguageScreen from './src/screens/LanguageScreen';
 import CategoriesScreen from './src/screens/CategoriesScreen';
-import MenuScreen from './src/screens/MenuScreen';
+import MoreScreen from './src/screens/MoreScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -38,7 +38,7 @@ function HomeStack() {
   const { colors } = useTheme();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
-      <Stack.Screen name="HomeMain" component={HomeScreen} />
+      <Stack.Screen name="HomeMain" component={DashboardScreen} />
       <Stack.Screen name="EditExpense" component={EditExpenseScreen} />
     </Stack.Navigator>
   );
@@ -58,7 +58,7 @@ function MenuStack() {
   const { colors } = useTheme();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
-      <Stack.Screen name="MenuMain" component={MenuScreen} />
+      <Stack.Screen name="MenuMain" component={MoreScreen} />
       <Stack.Screen name="Language" component={LanguageScreen} />
       <Stack.Screen name="Categories" component={CategoriesScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
