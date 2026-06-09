@@ -226,6 +226,35 @@ export const translations = {
     cardExpensesCount: 'Gastos em Cartões',
     standaloneCount: 'Gastos Avulsos',
 
+    // Dívidas / Pagamento
+    pendingDebts: 'Dívidas Pendentes',
+    pay: 'Quitar',
+    paid: 'Pago',
+    unpaid: 'Pendente',
+    markAsPaid: 'Marcar como Pago',
+    markAsUnpaid: 'Marcar como Pendente',
+    confirmPay: 'Confirmar Pagamento',
+    wantToPay: 'Deseja quitar esta despesa?',
+    expensePaid: 'Despesa quitada!',
+    expenseUnpaid: 'Despesa marcada como pendente',
+    debts: 'Dívidas',
+    totalDebts: 'Total em Dívidas',
+
+    // Edição de Caixa
+    previousValue: 'Valor Anterior',
+    newValue: 'Novo Valor',
+    valueChanged: 'Valor Alterado',
+
+    // Menu
+    categories: 'Categorias',
+    manageCategories: 'Gerenciar Categorias',
+
+    // Gráficos
+    chartTitle: 'Gráficos',
+
+    // Histórico - Filtros
+    filterAll: 'Todos',
+
     // Períodos
     today: 'Hoje',
     week: '7 Dias',
@@ -468,6 +497,35 @@ export const translations = {
     avgExpense: 'Avg per Expense',
     cardExpensesCount: 'Card Expenses',
     standaloneCount: 'Standalone Expenses',
+
+    // Debts / Payment
+    pendingDebts: 'Pending Debts',
+    pay: 'Pay',
+    paid: 'Paid',
+    unpaid: 'Pending',
+    markAsPaid: 'Mark as Paid',
+    markAsUnpaid: 'Mark as Unpaid',
+    confirmPay: 'Confirm Payment',
+    wantToPay: 'Do you want to pay this expense?',
+    expensePaid: 'Expense paid!',
+    expenseUnpaid: 'Expense marked as pending',
+    debts: 'Debts',
+    totalDebts: 'Total Debts',
+
+    // Cash Edit
+    previousValue: 'Previous Value',
+    newValue: 'New Value',
+    valueChanged: 'Value Changed',
+
+    // Menu
+    categories: 'Categories',
+    manageCategories: 'Manage Categories',
+
+    // Charts
+    chartTitle: 'Charts',
+
+    // History - Filters
+    filterAll: 'All',
 
     // Periods
     today: 'Today',
