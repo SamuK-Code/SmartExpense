@@ -23,7 +23,7 @@ import AppHeader from '../components/AppHeader';
 export default function MenuScreen({ navigation }) {
   const { expenses, cards, deleteExpense, deleteCard, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
   const { colors, isDark, toggleTheme } = useTheme();
-  const { cashBalance } = useCash();
+  const { cashBalance, clearCash } = useCash();
   const { t } = useI18n();
 
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
