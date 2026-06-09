@@ -136,9 +136,16 @@ export function CashProvider({ children }) {
     return true;
   }, [cashBalance, cashTransactions]);
 
-  const clearCash = useCallback(() => {
+  const clearCash = useCallback(async () => {
     setCashBalance(0);
     setCashTransactions([]);
+    // Garantir que o AsyncStorage também seja limpo
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_KEYS.CASH_BALANCE, '0'),
+        AsyncStorage.setItem(STORAGE_KEYS.CASH_TRANSACTIONS, JSON.stringify([])),
+      ]);
+    } catch (e) { console.error('Error clearing cash storage:', e); }
   }, []);
 
   const value = {
