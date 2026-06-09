@@ -172,10 +172,10 @@ export default function MenuScreen({ navigation }) {
       color: colors.secondary,
     },
     {
-      id: 'limits',
-      icon: 'wallet',
-      title: t('limits'),
-      subtitle: t('configureBudget'),
+      id: 'categories',
+      icon: 'grid',
+      title: t('categories'),
+      subtitle: t('manageCategories'),
       action: 'navigate',
       screen: 'Settings',
       color: colors.warning,
@@ -220,7 +220,7 @@ export default function MenuScreen({ navigation }) {
     }
   };
 
-  const renderMenuItem = (item, index) => (
+  const renderMenuItem = (item) => (
     <TouchableOpacity
       key={item.id}
       style={[styles.menuItem, { backgroundColor: colors.card }]}
@@ -240,6 +240,20 @@ export default function MenuScreen({ navigation }) {
           onValueChange={toggleTheme}
           trackColor={{ false: '#767577', true: colors.primary }}
           thumbColor={isDark ? '#fff' : '#f4f3f4'}
+        />
+      ) : item.action === 'toggleSound' ? (
+        <Switch
+          value={soundEnabled}
+          onValueChange={toggleSoundSetting}
+          trackColor={{ false: '#767577', true: colors.secondary }}
+          thumbColor={soundEnabled ? '#fff' : '#f4f3f4'}
+        />
+      ) : item.action === 'toggleAlerts' ? (
+        <Switch
+          value={alertsEnabled}
+          onValueChange={toggleAlerts}
+          trackColor={{ false: '#767577', true: colors.info }}
+          thumbColor={alertsEnabled ? '#fff' : '#f4f3f4'}
         />
       ) : (
         <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
@@ -294,11 +308,11 @@ export default function MenuScreen({ navigation }) {
         {/* Menu Items */}
         <View style={styles.menuSection}>
           <Text style={[styles.sectionTitle, { color: colors.textLight }]}>{t('options').toUpperCase()}</Text>
-          {menuItems.map((item, index) => renderMenuItem(item, index))}
+          {menuItems.map((item) => renderMenuItem(item))}
         </View>
       </ScrollView>
 
-      {/* About Modal */}
+      {/* About Modal - Mais conciso */}
       <Modal visible={aboutModalVisible} transparent animationType="fade">
         <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
           <ScaleInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
@@ -307,7 +321,6 @@ export default function MenuScreen({ navigation }) {
             </View>
             <Text style={[styles.aboutTitle, { color: colors.text }]}>{t('appName')}</Text>
             <Text style={[styles.aboutVersion, { color: colors.textLight }]}>v2.0.0</Text>
-            <Text style={[styles.aboutText, { color: colors.textLight }]}>{t('appDescription')}</Text>
             <TouchableOpacity
               style={[styles.modalButton, { backgroundColor: colors.primary }]}
               onPress={() => setAboutModalVisible(false)}
@@ -385,8 +398,7 @@ const styles = StyleSheet.create({
   modalContent: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 10 },
   aboutIcon: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   aboutTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  aboutVersion: { fontSize: 14, marginBottom: 16 },
-  aboutText: { fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  aboutVersion: { fontSize: 14, marginBottom: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, alignSelf: 'flex-start' },
   statRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
   statRowLabel: { fontSize: 14 },
