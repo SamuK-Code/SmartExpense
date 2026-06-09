@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ExpenseContext = createContext();
@@ -22,7 +22,7 @@ const DEFAULT_CATEGORIES = [
   { id: 'cat-others', name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
 ];
 
-// Gerador de ID único — evita colisão com Date.now()
+// Gerador de ID único
 const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 };
@@ -92,6 +92,31 @@ function expenseReducer(state, action) {
       return { ...state, alerts: state.alerts.filter(a => a.id !== action.payload) };
     case 'CLEAR_ALL_DATA':
       return { ...initialState };
+    case 'GENERATE_BILL': {
+      const { billExpense, cardId } = action.payload;
+      return {
+        ...state,
+        expenses: [billExpense, ...state.expenses],
+        cards: state.cards.map(c => c.id === cardId ? {
+          ...c,
+          isPaused: true,
+          currentBillAmount: billExpense.amount,
+          lastBillDate: billExpense.date,
+        } : c),
+      };
+    }
+    case 'PAY_BILL': {
+      const { expenseId, cardId } = action.payload;
+      return {
+        ...state,
+        expenses: state.expenses.map(e => e.id === expenseId ? { ...e, paid: true } : e),
+        cards: state.cards.map(c => c.id === cardId ? {
+          ...c,
+          isPaused: false,
+          currentBillAmount: 0,
+        } : c),
+      };
+    }
     default:
       return state;
   }
@@ -99,6 +124,7 @@ function expenseReducer(state, action) {
 
 export function ExpenseProvider({ children }) {
   const [state, dispatch] = useReducer(expenseReducer, initialState);
+  const [loading, setLoading] = useState(true);
 
   // Carregar dados do AsyncStorage
   useEffect(() => {
@@ -114,7 +140,6 @@ export function ExpenseProvider({ children }) {
         if (expensesData) dispatch({ type: 'SET_EXPENSES', payload: JSON.parse(expensesData) });
         if (cardsData) dispatch({ type: 'SET_CARDS', payload: JSON.parse(cardsData) });
 
-        // Se não houver categorias salvas, salvar as padrão no AsyncStorage
         if (categoriesData) {
           dispatch({ type: 'SET_CATEGORIES', payload: JSON.parse(categoriesData) });
         } else {
@@ -125,10 +150,19 @@ export function ExpenseProvider({ children }) {
         if (cashData) dispatch({ type: 'SET_CASH_TRANSACTIONS', payload: JSON.parse(cashData) });
       } catch (error) {
         console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
       }
     };
     loadData();
   }, []);
+
+  // Verificar vencimentos de fatura quando os dados carregarem
+  useEffect(() => {
+    if (!loading && state.cards.length > 0) {
+      checkDueDates();
+    }
+  }, [loading, state.cards.length]);
 
   // Salvar dados no AsyncStorage
   const saveData = useCallback(async (key, data) => {
@@ -139,19 +173,116 @@ export function ExpenseProvider({ children }) {
     }
   }, []);
 
+  // ─── Verificar Vencimentos ───
+  const checkDueDates = useCallback(() => {
+    const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+
+    state.cards.forEach(card => {
+      if (!card.dueDate || card.isPaused) return;
+
+      if (card.dueDate === currentDay) {
+        const lastBill = card.lastBillDate ? new Date(card.lastBillDate) : null;
+        const alreadyGenerated = lastBill &&
+          lastBill.getMonth() === currentMonth &&
+          lastBill.getFullYear() === currentYear;
+
+        if (!alreadyGenerated) {
+          generateBill(card.id);
+        }
+      }
+    });
+  }, [state.cards]);
+
+  // ─── Gerar Fatura ───
+  const generateBill = useCallback((cardId) => {
+    const card = state.cards.find(c => c.id === cardId);
+    if (!card || !card.dueDate) return;
+
+    // Soma todos os gastos do cartão não quitados, não faturados e não são faturas
+    const cardExpenses = state.expenses.filter(
+      e => e.cardId === cardId && !e.paid && !e.isBill && !e.billed
+    );
+    const total = cardExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+    if (total <= 0) return;
+
+    const billExpense = {
+      id: generateId(),
+      amount: total,
+      description: `Fatura ${card.customName || card.name}`,
+      category: 'cat-others',
+      cardId: null,
+      parentCardId: cardId,
+      isBill: true,
+      paid: false,
+      billed: false,
+      date: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
+    };
+
+    // Marca os gastos antigos do cartão como billed
+    const updatedExpenses = state.expenses.map(e =>
+      e.cardId === cardId && !e.paid && !e.isBill ? { ...e, billed: true } : e
+    );
+
+    const updatedCards = state.cards.map(c =>
+      c.id === cardId ? {
+        ...c,
+        isPaused: true,
+        currentBillAmount: total,
+        lastBillDate: billExpense.date,
+      } : c
+    );
+
+    dispatch({ type: 'GENERATE_BILL', payload: { billExpense, cardId } });
+    saveData(STORAGE_KEYS.EXPENSES, [billExpense, ...updatedExpenses]);
+    saveData(STORAGE_KEYS.CARDS, updatedCards);
+  }, [state.cards, state.expenses, saveData]);
+
+  // ─── Quitar Fatura ───
+  const payBill = useCallback((expenseId) => {
+    const billExpense = state.expenses.find(e => e.id === expenseId);
+    if (!billExpense || !billExpense.isBill) return false;
+
+    const cardId = billExpense.parentCardId;
+    const updatedExpenses = state.expenses.map(e => e.id === expenseId ? { ...e, paid: true } : e);
+    const updatedCards = state.cards.map(c =>
+      c.id === cardId ? { ...c, isPaused: false, currentBillAmount: 0 } : c
+    );
+
+    dispatch({ type: 'PAY_BILL', payload: { expenseId, cardId } });
+    saveData(STORAGE_KEYS.EXPENSES, updatedExpenses);
+    saveData(STORAGE_KEYS.CARDS, updatedCards);
+    return true;
+  }, [state.expenses, state.cards, saveData]);
+
   // ─── Expenses ───
   const addExpense = useCallback((expense) => {
-    const newExpense = { 
-      ...expense, 
-      id: generateId(), 
-      paid: false, 
+    // Verifica se o cartão está pausado
+    if (expense.cardId) {
+      const card = state.cards.find(c => c.id === expense.cardId);
+      if (card && card.isPaused) {
+        return { success: false, error: 'CARD_PAUSED', cardName: card.customName || card.name };
+      }
+    }
+
+    const newExpense = {
+      ...expense,
+      id: generateId(),
+      paid: false,
+      billed: false,
+      isBill: false,
       originalAmount: expense.amount,
-      createdAt: new Date().toISOString() 
+      createdAt: new Date().toISOString(),
     };
     const updated = [newExpense, ...state.expenses];
     dispatch({ type: 'ADD_EXPENSE', payload: newExpense });
     saveData(STORAGE_KEYS.EXPENSES, updated);
-  }, [state.expenses, saveData]);
+    return { success: true, expense: newExpense };
+  }, [state.expenses, state.cards, saveData]);
 
   const updateExpense = useCallback((id, updates) => {
     const updated = state.expenses.map(e => e.id === id ? { ...e, ...updates } : e);
@@ -173,7 +304,13 @@ export function ExpenseProvider({ children }) {
 
   // ─── Cards ───
   const addCard = useCallback((card) => {
-    const newCard = { ...card, id: generateId() };
+    const newCard = {
+      ...card,
+      id: generateId(),
+      isPaused: false,
+      currentBillAmount: 0,
+      lastBillDate: null,
+    };
     const updated = [...state.cards, newCard];
     dispatch({ type: 'ADD_CARD', payload: newCard });
     saveData(STORAGE_KEYS.CARDS, updated);
@@ -241,7 +378,6 @@ export function ExpenseProvider({ children }) {
   // ─── Clear All Data ───
   const clearAllData = useCallback(async () => {
     dispatch({ type: 'CLEAR_ALL_DATA' });
-    // Limpar todas as chaves e recriar categorias padrão
     try {
       await Promise.all([
         AsyncStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify([])),
@@ -249,7 +385,6 @@ export function ExpenseProvider({ children }) {
         AsyncStorage.setItem(STORAGE_KEYS.CASH_TRANSACTIONS, JSON.stringify([])),
         AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES)),
       ]);
-      // Recarregar categorias padrão no estado
       dispatch({ type: 'SET_CATEGORIES', payload: DEFAULT_CATEGORIES });
     } catch (error) {
       console.error('Error clearing all data:', error);
@@ -307,11 +442,21 @@ export function ExpenseProvider({ children }) {
 
   const getCardUsage = useCallback((cardId) => {
     return state.expenses
-      .filter(e => e.cardId === cardId)
+      .filter(e => e.cardId === cardId && !e.billed && !e.isBill)
       .reduce((sum, e) => sum + parseFloat(e.amount), 0);
   }, [state.expenses]);
 
-  // Categorias disponíveis — sempre retorna o estado + padrão como fallback
+  const getCardBillAmount = useCallback((cardId) => {
+    const card = state.cards.find(c => c.id === cardId);
+    return card ? card.currentBillAmount || 0 : 0;
+  }, [state.cards]);
+
+  const isCardPaused = useCallback((cardId) => {
+    const card = state.cards.find(c => c.id === cardId);
+    return card ? card.isPaused || false : false;
+  }, [state.cards]);
+
+  // Categorias disponíveis
   const CATEGORIES = state.categories.length > 0 ? state.categories : DEFAULT_CATEGORIES;
 
   const value = {
@@ -320,6 +465,7 @@ export function ExpenseProvider({ children }) {
     categories: state.categories,
     cashTransactions: state.cashTransactions,
     alerts: state.alerts,
+    loading,
     CATEGORIES,
     addExpense,
     updateExpense,
@@ -335,6 +481,11 @@ export function ExpenseProvider({ children }) {
     updateCashTransaction,
     deleteCashTransaction,
     clearAllData,
+    generateBill,
+    payBill,
+    checkDueDates,
+    getCardBillAmount,
+    isCardPaused,
     addAlert,
     dismissAlert,
     getFilteredExpenses,
