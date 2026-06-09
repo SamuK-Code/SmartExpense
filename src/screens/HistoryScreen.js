@@ -43,72 +43,67 @@ export default function HistoryScreen({ navigation }) {
   const renderExpenseItem = ({ item, index }) => {
     const category = getCategoryInfo(item.category);
     return (
-      <SlideInView delay={index * 50}>
-        <TouchableOpacity 
-          style={[styles.expenseItem, { backgroundColor: colors.card }]} 
-          onPress={() => navigation.navigate('EditExpense', { expenseId: item.id })}
-          onLongPress={() => handleDelete(item)}
-        >
-          <View style={[styles.categoryIcon, { backgroundColor: category.color + (isDark ? '30' : '20') }]}>
-            <Ionicons name={category.icon} size={20} color={category.color} />
-          </View>
-          <View style={styles.expenseInfo}>
-            <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
-            <Text style={[styles.expenseCategory, { color: colors.textSecondary }]}>
-              {category.name} • {formatDate(item.date)}
-            </Text>
-          </View>
-          <View style={styles.expenseRight}>
-            <Text style={[styles.expenseAmount, { color: colors.danger }]}>{formatCurrency(parseFloat(item.amount))}</Text>
-            {item.cardId ? (
-              <View style={[styles.cardBadge, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="card-outline" size={10} color={colors.primary} />
-                <Text style={[styles.cardBadgeText, { color: colors.primary }]}>{t('card')}</Text>
-              </View>
-            ) : (
-              <View style={[styles.cardBadge, { backgroundColor: colors.info + '15' }]}>
-                <Ionicons name="receipt-outline" size={10} color={colors.info} />
-                <Text style={[styles.cardBadgeText, { color: colors.info }]}>{t('standalone')}</Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      </SlideInView>
+      <TouchableOpacity
+        style={[styles.expenseItem, { backgroundColor: colors.card }]}
+        onPress={() => navigation.navigate('EditExpense', { expenseId: item.id })}
+        onLongPress={() => handleDelete(item)}
+      >
+        <View style={[styles.categoryIcon, { backgroundColor: category.color + '15' }]}>
+          <Ionicons name={category.icon} size={22} color={category.color} />
+        </View>
+        <View style={styles.expenseInfo}>
+          <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
+          <Text style={[styles.expenseCategory, { color: colors.textLight }]}>{category.name} • {formatDate(item.date)}</Text>
+        </View>
+        <View style={styles.expenseRight}>
+          <Text style={[styles.expenseAmount, { color: colors.danger }]}>{formatCurrency(parseFloat(item.amount))}</Text>
+          {item.cardId ? (
+            <View style={[styles.cardBadge, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="card" size={10} color={colors.primary} />
+              <Text style={[styles.cardBadgeText, { color: colors.primary }]}>{t('card')}</Text>
+            </View>
+          ) : (
+            <View style={[styles.cardBadge, { backgroundColor: colors.warning + '15' }]}>
+              <Ionicons name="receipt" size={10} color={colors.warning} />
+              <Text style={[styles.cardBadgeText, { color: colors.warning }]}>{t('standalone')}</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
     );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title={t('history')} />
-
-      <PeriodFilter selected={period} onSelect={setPeriod} />
+      <PeriodFilter period={period} onChange={setPeriod} />
 
       <View style={[styles.filterContainer, { backgroundColor: colors.card }]}>
-        <TouchableOpacity 
-          style={[styles.filterButton, filterType === 'all' && { backgroundColor: colors.primary }]} 
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: filterType === 'all' ? colors.primary + '15' : 'transparent' }]}
           onPress={() => setFilterType('all')}
         >
-          <Text style={[styles.filterText, { color: filterType === 'all' ? '#fff' : colors.textSecondary }]}>{t('all')}</Text>
+          <Text style={[styles.filterText, { color: filterType === 'all' ? colors.primary : colors.text }]}>{t('all')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, filterType === 'expenses' && { backgroundColor: colors.danger }]} 
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: filterType === 'expenses' ? colors.primary + '15' : 'transparent' }]}
           onPress={() => setFilterType('expenses')}
         >
-          <Text style={[styles.filterText, { color: filterType === 'expenses' ? '#fff' : colors.textSecondary }]}>{t('expenses')}</Text>
+          <Text style={[styles.filterText, { color: filterType === 'expenses' ? colors.primary : colors.text }]}>{t('expenses')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.filterButton, filterType === 'cash' && { backgroundColor: colors.success }]} 
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: filterType === 'cash' ? colors.success + '15' : 'transparent' }]}
           onPress={() => setFilterType('cash')}
         >
-          <Text style={[styles.filterText, { color: filterType === 'cash' ? '#fff' : colors.textSecondary }]}>{t('cash')}</Text>
+          <Text style={[styles.filterText, { color: filterType === 'cash' ? colors.success : colors.text }]}>{t('cash')}</Text>
         </TouchableOpacity>
       </View>
 
       {filteredExpenses.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="receipt-outline" size={64} color={colors.textLight} />
+          <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noExpenses')}</Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('addFirstExpense')}</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstExpense')}</Text>
         </View>
       ) : (
         <FlatList
