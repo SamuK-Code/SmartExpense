@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { usePlanning } from '../context/PlanningContext';
 import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView, ScaleInView, StaggeredList } from '../components/AnimatedComponents';
 import Toast, { showToast } from '../components/Toast';
 import { safeGetItem, STORAGE_KEYS } from '../utils/SafeStorage';
@@ -14,15 +15,13 @@ export default function HomeScreen({ navigation }) {
   const { expenses, cards, alerts, dismissAlert, getFilteredExpenses, getMonthlyTotal, CATEGORIES } = useExpenses();
   const { cashBalance } = usePlanning();
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
   const [period, setPeriod] = useState('month');
-  
-  
 
   const filteredExpenses = getFilteredExpenses(period);
   const monthlyTotal = getMonthlyTotal(filteredExpenses);
   const recentExpenses = filteredExpenses.slice(0, 5);
 
-  // Check if cash is insufficient for expenses
   const isCashInsufficient = cashBalance > 0 && cashBalance < monthlyTotal;
   const cashDeficit = monthlyTotal - cashBalance;
 
@@ -30,14 +29,12 @@ export default function HomeScreen({ navigation }) {
     const checkAlertsEnabled = async () => {
       const enabled = await safeGetItem(STORAGE_KEYS.ALERTS_ENABLED, true);
       if (enabled && alerts.length > 0) {
-        // Show only the most important alert as toast
         const dangerAlert = alerts.find(a => a.type === 'danger');
         const warningAlert = alerts.find(a => a.type === 'warning');
         const alertToShow = dangerAlert || warningAlert || alerts[0];
         if (alertToShow) {
           const typeMap = { danger: 'danger', warning: 'warning', info: 'info' };
           showToast(alertToShow.message, typeMap[alertToShow.type] || 'info', 4000);
-          // Dismiss after showing
           setTimeout(() => dismissAlert(alertToShow.id), 4500);
         }
       }
@@ -49,49 +46,39 @@ export default function HomeScreen({ navigation }) {
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('pt-BR');
 
-  
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Cash Balance Header */}
-        <FadeInView>
-          <View style={[styles.headerCard, { backgroundColor: colors.header }]}>
-            <Text style={[styles.headerTitle, { color: colors.headerText }]}>Valor em Caixa</Text>
-            <Text style={[styles.headerAmount, { color: colors.headerText }]}>{formatCurrency(cashBalance)}</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.headerText }]}>
-              {filteredExpenses.length} {filteredExpenses.length === 1 ? 'transacao' : 'transacoes'} no periodo
-            </Text>
-          </View>
-        </FadeInView>
+        <View style={[styles.headerCard, { backgroundColor: colors.header }]}>
+          <Text style={[styles.headerTitle, { color: colors.headerText }]}>{t('availableCash')}</Text>
+          <Text style={[styles.headerAmount, { color: colors.headerText }]}>{formatCurrency(cashBalance)}</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.headerText }]}>
+            {filteredExpenses.length} {filteredExpenses.length === 1 ? t('transactions') : t('transactions')} {t('totalPeriod')}
+          </Text>
+        </View>
 
         {/* Insufficient Cash Alert */}
         {isCashInsufficient && (
-          <SlideInView delay={50}>
-            <View style={[styles.cashAlert, { backgroundColor: colors.danger + '20' }]}>
-              <Ionicons name="warning" size={20} color={colors.danger} />
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={[styles.cashAlertTitle, { color: colors.danger }]}>Caixa Insuficiente!</Text>
-                <Text style={[styles.cashAlertText, { color: colors.danger }]}>
-                  Gastos de {formatCurrency(monthlyTotal)} ultrapassam o caixa de {formatCurrency(cashBalance)}. Faltam {formatCurrency(cashDeficit)}.
-                </Text>
-              </View>
+          <View style={[styles.cashAlert, { backgroundColor: colors.danger + '20' }]}>
+            <Ionicons name="warning" size={20} color={colors.danger} />
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={[styles.cashAlertTitle, { color: colors.danger }]}>{t('insufficientCash')}</Text>
+              <Text style={[styles.cashAlertText, { color: colors.danger }]}>
+                {t('cashDeficit', { expenses: formatCurrency(monthlyTotal), cash: formatCurrency(cashBalance), deficit: formatCurrency(cashDeficit) })}
+              </Text>
             </View>
-          </SlideInView>
+          </View>
         )}
 
         {cashBalance <= 0 && (
-          <SlideInView delay={50}>
-            <View style={[styles.cashAlert, { backgroundColor: colors.danger + '20' }]}>
-              <Ionicons name="alert-circle" size={20} color={colors.danger} />
-              <View style={{ marginLeft: 10, flex: 1 }}>
-                <Text style={[styles.cashAlertTitle, { color: colors.danger }]}>Sem Dinheiro em Caixa!</Text>
-                <Text style={[styles.cashAlertText, { color: colors.danger }]}>
-                  Adicione seu valor em caixa para acompanhar seus gastos.
-                </Text>
-              </View>
+          <View style={[styles.cashAlert, { backgroundColor: colors.warning + '20' }]}>
+            <Ionicons name="cash-outline" size={20} color={colors.warning} />
+            <View style={{ marginLeft: 10, flex: 1 }}>
+              <Text style={[styles.cashAlertTitle, { color: colors.warning }]}>{t('noCash')}</Text>
+              <Text style={[styles.cashAlertText, { color: colors.warning }]}>{t('addFirstExpense')}</Text>
             </View>
-          </SlideInView>
+          </View>
         )}
 
         {/* Period Filter */}
@@ -99,71 +86,76 @@ export default function HomeScreen({ navigation }) {
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <StaggeredList staggerDelay={100} baseDelay={200}>
-            <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('AddExpense')}>
-              <ScaleInView><View style={[styles.actionIcon, { backgroundColor: colors.primary }]}><Ionicons name="add" size={24} color="#fff" /></View></ScaleInView>
-              <Text style={[styles.actionText, { color: colors.text }]}>Novo Gasto</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Graficos')}>
-              <ScaleInView><View style={[styles.actionIcon, { backgroundColor: colors.secondary }]}><Ionicons name="pie-chart" size={24} color="#fff" /></View></ScaleInView>
-              <Text style={[styles.actionText, { color: colors.text }]}>Análise</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Cartoes')}>
-              <ScaleInView><View style={[styles.actionIcon, { backgroundColor: colors.info }]}><Ionicons name="card" size={24} color="#fff" /></View></ScaleInView>
-              <Text style={[styles.actionText, { color: colors.text }]}>Cartões</Text>
-            </TouchableOpacity>
-          </StaggeredList>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('AddExpense')}>
+            <View style={[styles.actionIcon, { backgroundColor: colors.primary }]}>
+              <Ionicons name="add-outline" size={24} color="#fff" />
+            </View>
+            <Text style={[styles.actionText, { color: colors.text }]}>{t('newExpense')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Graficos')}>
+            <View style={[styles.actionIcon, { backgroundColor: colors.info }]}>
+              <Ionicons name="bar-chart-outline" size={24} color="#fff" />
+            </View>
+            <Text style={[styles.actionText, { color: colors.text }]}>{t('charts')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Cartoes')}>
+            <View style={[styles.actionIcon, { backgroundColor: colors.success }]}>
+              <Ionicons name="card-outline" size={24} color="#fff" />
+            </View>
+            <Text style={[styles.actionText, { color: colors.text }]}>{t('cards')}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Cards Summary */}
         {cards.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Resumo dos Cartões</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('myCards')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <StaggeredList staggerDelay={80}>
-                {cards.map(card => {
-                  const cardUsage = expenses.filter(e => e.cardId === card.id).reduce((sum, e) => sum + parseFloat(e.amount), 0);
-                  const pct = card.limit > 0 ? (cardUsage / card.limit) * 100 : 0;
-                  const bank = getBankById(card.bankId);
-                  return (
-                    <View key={card.id} style={[styles.cardSummary, { backgroundColor: colors.card, borderColor: card.color }]}>
-                      <View style={[styles.cardColorBar, { backgroundColor: card.color }]} />
-                      <View style={styles.cardBankRow}>
-                        <View style={[styles.cardBankIcon, { backgroundColor: (bank?.color || card.color) + '20' }]}>
-                          <Ionicons name={bank?.icon || 'card'} size={16} color={bank?.color || card.color} />
-                        </View>
-                        <Text style={[styles.cardBankName, { color: colors.textSecondary }]}>{bank?.name || card.name}</Text>
+              {cards.map(card => {
+                const cardUsage = expenses.filter(e => e.cardId === card.id).reduce((sum, e) => sum + parseFloat(e.amount), 0);
+                const pct = card.limit > 0 ? (cardUsage / card.limit) * 100 : 0;
+                const bank = getBankById(card.bankId);
+                return (
+                  <View key={card.id} style={[styles.cardSummary, { backgroundColor: colors.card, borderLeftColor: card.color }]}>
+                    <View style={[styles.cardColorBar, { backgroundColor: card.color }]} />
+                    <View style={styles.cardBankRow}>
+                      <View style={[styles.cardBankIcon, { backgroundColor: card.color + '20' }]}>
+                        <Ionicons name={card.icon} size={14} color={card.color} />
                       </View>
-                      <Text style={[styles.cardCustomName, { color: colors.text }]}>{card.customName || card.name}</Text>
-                      <Text style={[styles.cardUsage, { color: colors.text }]}>{formatCurrency(cardUsage)}</Text>
-                      <Text style={[styles.cardLimit, { color: colors.textSecondary }]}>Limite: {formatCurrency(card.limit)}</Text>
-                      <View style={styles.progressBar}>
-                        <View style={[styles.progressFill, { width: `${Math.min(pct, 100)}%`, backgroundColor: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary }]} />
-                      </View>
-                      <Text style={[styles.cardPct, { color: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary }]}>{pct.toFixed(0)}% usado</Text>
+                      <Text style={[styles.cardBankName, { color: colors.textSecondary }]}>{bank?.name || card.name}</Text>
                     </View>
-                  );
-                })}
-              </StaggeredList>
+                    <Text style={[styles.cardCustomName, { color: colors.text }]}>{card.customName || card.name}</Text>
+                    <Text style={[styles.cardUsage, { color: colors.text }]}>{formatCurrency(cardUsage)}</Text>
+                    <Text style={[styles.cardLimit, { color: colors.textSecondary }]}>{t('limit')}: {formatCurrency(card.limit)}</Text>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressFill, {
+                        width: `${Math.min(pct, 100)}%`,
+                        backgroundColor: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary,
+                      }]} />
+                    </View>
+                    <Text style={[styles.cardPct, { color: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary }]}>
+                      {pct.toFixed(0)}% {t('used')}
+                    </Text>
+                  </View>
+                );
+              })}
             </ScrollView>
           </View>
         )}
 
         {/* Recent Expenses */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Gastos Recentes</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('recentExpenses')}</Text>
           {recentExpenses.length === 0 ? (
-            <ScaleInView>
-              <View style={styles.emptyState}>
-                <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Nenhum gasto registrado</Text>
-                <TouchableOpacity style={[styles.emptyButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AddExpense')}>
-                  <Text style={styles.emptyButtonText}>Adicionar primeiro gasto</Text>
-                </TouchableOpacity>
-              </View>
-            </ScaleInView>
+            <View style={styles.emptyState}>
+              <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('noExpenses')}</Text>
+              <TouchableOpacity style={[styles.emptyButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AddExpense')}>
+                <Text style={styles.emptyButtonText}>{t('addFirstExpense')}</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            <StaggeredList staggerDelay={80}>
+            <StaggeredList staggerDelay={50}>
               {recentExpenses.map((expense) => {
                 const category = getCategoryInfo(expense.category);
                 const card = cards.find(c => c.id === expense.cardId);
@@ -190,8 +182,6 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
       </ScrollView>
-
-      <Toast />
     </View>
   );
 }
@@ -202,12 +192,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, opacity: 0.8 },
   headerAmount: { fontSize: 36, fontWeight: 'bold', marginTop: 8 },
   headerSubtitle: { fontSize: 14, opacity: 0.7, marginTop: 4 },
-  cashAlert: {
-    flexDirection: 'row', alignItems: 'center',
-    margin: 16, marginTop: 12, padding: 14, borderRadius: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
-  },
+  cashAlert: { flexDirection: 'row', alignItems: 'center', margin: 16, marginTop: 12, padding: 14, borderRadius: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   cashAlertTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 2 },
   cashAlertText: { fontSize: 12 },
   quickActions: { flexDirection: 'row', justifyContent: 'space-around', padding: 16, marginTop: -10 },
