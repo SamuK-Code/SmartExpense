@@ -2,13 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
-import { usePlanning } from '../context/PlanningContext';
+import { useCash } from '../context/CashContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 
 export default function AppHeader({ title, showStats = true }) {
   const { expenses, cards, getCardUsage } = useExpenses();
-  const { cashBalance } = usePlanning();
+  const { cashBalance } = useCash();
   const { colors } = useTheme();
   const { t } = useI18n();
 
