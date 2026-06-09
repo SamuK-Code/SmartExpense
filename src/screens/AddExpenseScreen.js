@@ -68,7 +68,7 @@ export default function AddExpenseScreen({ navigation }) {
   };
 
   const getCategoryInfo = (categoryId) => {
-    return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
+    return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7] || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
   };
 
   const handleAmountChange = (text) => {
