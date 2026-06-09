@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { usePlanning } from '../context/PlanningContext';
+import { useCash } from '../context/CashContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 import { FadeInView, StaggeredList } from '../components/AnimatedComponents';
@@ -13,7 +14,7 @@ import { getBankById } from '../utils/BanksData';
 
 export default function HomeScreen({ navigation }) {
   const { expenses, cards, alerts, dismissAlert, getFilteredExpenses, getMonthlyTotal, CATEGORIES, toggleExpensePaid } = useExpenses();
-  const { cashBalance } = usePlanning();
+  const { cashBalance } = useCash();
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
   const [period, setPeriod] = useState('month');
