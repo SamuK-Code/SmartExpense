@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { usePlanning } from '../context/PlanningContext';
+import { useCash } from '../context/CashContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView, ScaleInView, StaggeredList } from '../components/AnimatedComponents';
@@ -21,7 +22,8 @@ import AppHeader from '../components/AppHeader';
 
 export default function PlanningScreen() {
   const { expenses, getFilteredExpenses, getMonthlyTotal, cards, CATEGORIES } = useExpenses();
-  const { cashBalance, goals, updateCashBalance, addGoal, updateGoal, deleteGoal, toggleGoalComplete, checkGoalFeasibility, calculateDailyBudget } = usePlanning();
+  const { cashBalance } = useCash();
+  const { goals, addGoal, updateGoal, deleteGoal, toggleGoalComplete, checkGoalFeasibility, calculateDailyBudget } = usePlanning();
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
 
