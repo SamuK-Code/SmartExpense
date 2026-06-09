@@ -1,460 +1,301 @@
-import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
-import { safeGetItem, safeSetItem, safeRemoveItem, STORAGE_KEYS } from '../utils/SafeStorage';
-import * as Crypto from 'expo-crypto';
-import { usePlanning } from './PlanningContext';
+import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ExpenseContext = createContext();
 
-const generateUUID = () => {
-  try {
-    if (Crypto && Crypto.randomUUID) {
-      return Crypto.randomUUID();
-    }
-  } catch (e) {
-    console.log('expo-crypto não disponível, usando fallback');
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+const STORAGE_KEYS = {
+  EXPENSES: '@expenses',
+  CARDS: '@cards',
+  CATEGORIES: '@categories',
+  CASH_TRANSACTIONS: '@cash_transactions',
 };
 
-export const DEFAULT_CATEGORIES = [
-  { id: 'alimentacao', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant-outline' },
-  { id: 'transporte', name: 'Transporte', color: '#4ECDC4', icon: 'car-outline' },
-  { id: 'lazer', name: 'Lazer', color: '#45B7D1', icon: 'game-controller-outline' },
-  { id: 'saude', name: 'Saúde', color: '#96CEB4', icon: 'medical-outline' },
-  { id: 'moradia', name: 'Moradia', color: '#FFEAA7', icon: 'home-outline' },
-  { id: 'educacao', name: 'Educação', color: '#DDA0DD', icon: 'school-outline' },
-  { id: 'compras', name: 'Compras', color: '#FDCB6E', icon: 'cart-outline' },
-  { id: 'outros', name: 'Outros', color: '#B2BEC3', icon: 'ellipsis-horizontal-outline' },
-];
+const initialState = {
+  expenses: [],
+  cards: [],
+  categories: [],
+  cashTransactions: [],
+  alerts: [],
+};
 
-export const AVAILABLE_ICONS = [
-  'restaurant-outline', 'car-outline', 'game-controller-outline', 'medical-outline',
-  'home-outline', 'school-outline', 'cart-outline', 'ellipsis-horizontal-outline',
-  'airplane-outline', 'barbell-outline', 'beer-outline', 'book-outline',
-  'briefcase-outline', 'brush-outline', 'bus-outline', 'cafe-outline',
-  'call-outline', 'camera-outline', 'card-outline', 'cash-outline',
-  'chatbubble-outline', 'checkmark-circle-outline', 'clipboard-outline', 'cloud-outline',
-  'code-outline', 'color-palette-outline', 'desktop-outline', 'diamond-outline',
-  'earth-outline', 'egg-outline', 'eye-outline', 'film-outline',
-  'fitness-outline', 'flame-outline', 'flash-outline', 'flower-outline',
-  'football-outline', 'gift-outline', 'glasses-outline', 'globe-outline',
-  'golf-outline', 'grid-outline', 'hammer-outline', 'happy-outline',
-  'headset-outline', 'heart-outline', 'help-circle-outline', 'ice-cream-outline',
-  'image-outline', 'laptop-outline', 'leaf-outline', 'library-outline',
-  'link-outline', 'lock-closed-outline', 'log-out-outline', 'mail-outline',
-  'map-outline', 'mic-outline', 'moon-outline', 'musical-note-outline',
-  'navigate-outline', 'notifications-outline', 'nutrition-outline', 'paw-outline',
-  'pencil-outline', 'people-outline', 'person-outline', 'phone-portrait-outline',
-  'pizza-outline', 'planet-outline', 'pricetag-outline', 'print-outline',
-  'pulse-outline', 'rainy-outline', 'rocket-outline', 'rose-outline',
-  'sad-outline', 'save-outline', 'search-outline', 'send-outline',
-  'settings-outline', 'shield-checkmark-outline', 'shirt-outline', 'snow-outline',
-  'sparkles-outline', 'star-outline', 'storefront-outline', 'subway-outline',
-  'sunny-outline', 'sync-outline', 'tennisball-outline', 'thumbs-up-outline',
-  'ticket-outline', 'time-outline', 'train-outline', 'trash-outline',
-  'trophy-outline', 'umbrella-outline', 'videocam-outline', 'wallet-outline',
-  'warning-outline', 'water-outline', 'wifi-outline', 'wine-outline',
-  'woman-outline', 'bicycle-outline', 'boat-outline', 'bonfire-outline',
-  'bowling-ball-outline', 'basketball-outline', 'bed-outline', 'beaker-outline',
-  'build-outline', 'bug-outline', 'business-outline', 'calculator-outline',
-  'calendar-outline', 'camera-reverse-outline', 'car-sport-outline', 'cellular-outline',
-  'chatbox-outline', 'cloud-circle-outline', 'cloud-done-outline', 'compass-outline',
-  'construct-outline', 'copy-outline', 'cube-outline', 'cut-outline',
-  'disc-outline', 'document-outline', 'documents-outline', 'download-outline',
-  'ear-outline', 'easel-outline', 'exit-outline', 'expand-outline',
-  'extension-puzzle-outline', 'eyedrop-outline', 'fast-food-outline', 'female-outline',
-  'file-tray-full-outline', 'finger-print-outline', 'fish-outline', 'flag-outline',
-  'flask-outline', 'folder-open-outline', 'footsteps-outline', 'funnel-outline',
-  'hand-left-outline', 'hardware-chip-outline', 'hourglass-outline', 'id-card-outline',
-  'infinite-outline', 'information-circle-outline', 'journal-outline', 'key-outline',
-  'language-outline', 'layers-outline', 'list-outline', 'location-outline',
-  'magnet-outline', 'mail-open-outline', 'male-outline', 'man-outline',
-  'medal-outline', 'mic-off-outline', 'move-outline', 'newspaper-outline',
-  'open-outline', 'options-outline', 'paper-plane-outline', 'partly-sunny-outline',
-  'phone-landscape-outline', 'pie-chart-outline', 'pin-outline', 'pint-outline',
-  'play-circle-outline', 'power-outline', 'pricetags-outline', 'qr-code-outline',
-  'radio-outline', 'reader-outline', 'receipt-outline', 'reload-outline',
-  'remove-circle-outline', 'ribbon-outline', 'scan-outline', 'search-circle-outline',
-  'server-outline', 'share-outline', 'shield-outline', 'shuffle-outline',
-  'skull-outline', 'speedometer-outline', 'square-outline', 'stats-chart-outline',
-  'stopwatch-outline', 'sync-circle-outline', 'tablet-landscape-outline', 'tablet-portrait-outline',
-  'telescope-outline', 'thermometer-outline', 'thunderstorm-outline', 'timer-outline',
-  'today-outline', 'trail-sign-outline', 'transgender-outline', 'trash-bin-outline',
-  'trending-down-outline', 'trending-up-outline', 'triangle-outline', 'tv-outline',
-  'videocam-off-outline', 'volume-high-outline', 'volume-low-outline', 'volume-medium-outline',
-  'volume-mute-outline', 'walk-outline', 'watch-outline'
-];
-
-export const AVAILABLE_COLORS = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#FDCB6E', '#B2BEC3',
-  '#FF9F43', '#10AC84', '#EE5A24', '#009432', '#0652DD', '#9980FA', '#833471', '#F79F1F',
-  '#A3CB38', '#1289A7', '#D980FA', '#B53471', '#45AAF2', '#FD79A8', '#FDCB6E', '#6C5CE7',
-  '#A29BFE', '#74B9FF', '#00B894', '#00CEC9', '#FDCB6E', '#E17055', '#D63031', '#E84393',
-  '#2D3436', '#636E72', '#B2BEC3', '#DFE6E9', '#FF7675', '#FAB1A0', '#FD79A8', '#FDCB6E',
-  '#FDCB6E', '#55A3FF', '#26DE81', '#FC5C65', '#FD9644', '#F8B500', '#4B7BEC', '#A55EEA',
-  '#45AAF2', '#2BCBCA', '#778CA3', '#2D98DA', '#F7B731', '#8854D0', '#20BF6B', '#EB3B5A',
-  '#3867D6', '#0FB9B1', '#FA8231', '#FDCB6E', '#2BCBCA', '#45AAF2', '#4B6584', '#D1D8E0'
-];
+function expenseReducer(state, action) {
+  switch (action.type) {
+    case 'SET_EXPENSES':
+      return { ...state, expenses: action.payload };
+    case 'ADD_EXPENSE':
+      return { ...state, expenses: [action.payload, ...state.expenses] };
+    case 'UPDATE_EXPENSE':
+      return {
+        ...state,
+        expenses: state.expenses.map(e => e.id === action.payload.id ? action.payload : e),
+      };
+    case 'DELETE_EXPENSE':
+      return { ...state, expenses: state.expenses.filter(e => e.id !== action.payload) };
+    case 'TOGGLE_EXPENSE_PAID':
+      return {
+        ...state,
+        expenses: state.expenses.map(e => e.id === action.payload ? { ...e, paid: !e.paid } : e),
+      };
+    case 'SET_CARDS':
+      return { ...state, cards: action.payload };
+    case 'ADD_CARD':
+      return { ...state, cards: [...state.cards, action.payload] };
+    case 'UPDATE_CARD':
+      return {
+        ...state,
+        cards: state.cards.map(c => c.id === action.payload.id ? action.payload : c),
+      };
+    case 'DELETE_CARD':
+      return { ...state, cards: state.cards.filter(c => c.id !== action.payload) };
+    case 'SET_CATEGORIES':
+      return { ...state, categories: action.payload };
+    case 'ADD_CATEGORY':
+      return { ...state, categories: [...state.categories, action.payload] };
+    case 'UPDATE_CATEGORY':
+      return {
+        ...state,
+        categories: state.categories.map(c => c.id === action.payload.id ? action.payload : c),
+      };
+    case 'DELETE_CATEGORY':
+      return { ...state, categories: state.categories.filter(c => c.id !== action.payload) };
+    case 'SET_CASH_TRANSACTIONS':
+      return { ...state, cashTransactions: action.payload };
+    case 'ADD_CASH_TRANSACTION':
+      return { ...state, cashTransactions: [action.payload, ...state.cashTransactions] };
+    case 'UPDATE_CASH_TRANSACTION':
+      return {
+        ...state,
+        cashTransactions: state.cashTransactions.map(t => t.id === action.payload.id ? action.payload : t),
+      };
+    case 'DELETE_CASH_TRANSACTION':
+      return { ...state, cashTransactions: state.cashTransactions.filter(t => t.id !== action.payload) };
+    case 'SET_ALERTS':
+      return { ...state, alerts: action.payload };
+    case 'DISMISS_ALERT':
+      return { ...state, alerts: state.alerts.filter(a => a.id !== action.payload) };
+    default:
+      return state;
+  }
+}
 
 export function ExpenseProvider({ children }) {
-  const { addCashTransaction: planningAddCashTransaction } = usePlanning();
+  const [state, dispatch] = useReducer(expenseReducer, initialState);
 
-  const [expenses, setExpenses] = useState([]);
-  const [cards, setCards] = useState([]);
-  const [categoryLimits, setCategoryLimits] = useState({});
-  const [customCategories, setCustomCategories] = useState([]);
-  const [completedExpenses, setCompletedExpenses] = useState([]);
-  const [cashTransactions, setCashTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [alerts, setAlerts] = useState([]);
+  // Carregar dados do AsyncStorage
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [expensesData, cardsData, categoriesData, cashData] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.EXPENSES),
+          AsyncStorage.getItem(STORAGE_KEYS.CARDS),
+          AsyncStorage.getItem(STORAGE_KEYS.CATEGORIES),
+          AsyncStorage.getItem(STORAGE_KEYS.CASH_TRANSACTIONS),
+        ]);
 
-  const CATEGORIES = useMemo(() => [...DEFAULT_CATEGORIES, ...customCategories], [customCategories]);
-
-  useEffect(() => { loadData(); }, []);
-  useEffect(() => { if (!loading) { saveData(); checkAlerts(); } }, [expenses, cards, categoryLimits]);
-
-  const loadData = async () => {
-    try {
-      const [storedExpenses, storedCards, storedLimits, storedCustomCategories, storedCompleted, storedCashTx] = await Promise.all([
-        safeGetItem(STORAGE_KEYS.EXPENSES, []),
-        safeGetItem(STORAGE_KEYS.CARDS, []),
-        safeGetItem(STORAGE_KEYS.CATEGORY_LIMITS, {}),
-        safeGetItem(STORAGE_KEYS.CUSTOM_CATEGORIES, []),
-        safeGetItem(STORAGE_KEYS.COMPLETED_EXPENSES, []),
-        safeGetItem(STORAGE_KEYS.CASH_TRANSACTIONS, []),
-      ]);
-
-      if (Array.isArray(storedExpenses)) setExpenses(storedExpenses);
-      if (Array.isArray(storedCards)) setCards(storedCards);
-      if (storedLimits && typeof storedLimits === 'object') setCategoryLimits(storedLimits);
-      if (Array.isArray(storedCustomCategories)) setCustomCategories(storedCustomCategories);
-      if (Array.isArray(storedCompleted)) setCompletedExpenses(storedCompleted);
-      if (Array.isArray(storedCashTx)) setCashTransactions(storedCashTx);
-    } catch (error) { 
-      console.error('Erro ao carregar:', error); 
-    }
-    finally { setLoading(false); }
-  };
-
-  const saveData = async () => {
-    try {
-      await Promise.all([
-        safeSetItem(STORAGE_KEYS.EXPENSES, expenses),
-        safeSetItem(STORAGE_KEYS.CARDS, cards),
-        safeSetItem(STORAGE_KEYS.CATEGORY_LIMITS, categoryLimits),
-        safeSetItem(STORAGE_KEYS.CUSTOM_CATEGORIES, customCategories),
-        safeSetItem(STORAGE_KEYS.COMPLETED_EXPENSES, completedExpenses),
-        safeSetItem(STORAGE_KEYS.CASH_TRANSACTIONS, cashTransactions),
-      ]);
-    } catch (error) { console.error('Erro ao salvar:', error); }
-  };
-
-  const checkAlerts = useCallback(() => {
-    const newAlerts = [];
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    cards.forEach(card => {
-      const cardTotal = expenses
-        .filter(e => {
-          const d = new Date(e.date);
-          return e.cardId === card.id && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-        })
-        .reduce((sum, e) => sum + parseFloat(e.amount), 0);
-      const pct = card.limit > 0 ? (cardTotal / card.limit) * 100 : 0;
-      if (pct >= 100) {
-        newAlerts.push({ id: `card-${card.id}-over`, type: 'danger', title: `Limite excedido: ${card.customName || card.name}`, message: `Você gastou ${formatCurrency(cardTotal)} do limite de ${formatCurrency(card.limit)}`, cardId: card.id });
-      } else if (pct >= 80) {
-        newAlerts.push({ id: `card-${card.id}-warning`, type: 'warning', title: `Quase no limite: ${card.customName || card.name}`, message: `Você já usou ${pct.toFixed(0)}% do limite`, cardId: card.id });
+        if (expensesData) dispatch({ type: 'SET_EXPENSES', payload: JSON.parse(expensesData) });
+        if (cardsData) dispatch({ type: 'SET_CARDS', payload: JSON.parse(cardsData) });
+        if (categoriesData) dispatch({ type: 'SET_CATEGORIES', payload: JSON.parse(categoriesData) });
+        if (cashData) dispatch({ type: 'SET_CASH_TRANSACTIONS', payload: JSON.parse(cashData) });
+      } catch (error) {
+        console.error('Error loading data:', error);
       }
-    });
-
-    CATEGORIES.forEach(cat => {
-      const catLimit = categoryLimits[cat.id];
-      // So verificar alertas se houver um limite definido manualmente
-      if (catLimit !== undefined && catLimit > 0) {
-        const catTotal = expenses.filter(e => { const d = new Date(e.date); return e.category === cat.id && d.getMonth() === currentMonth && d.getFullYear() === currentYear; }).reduce((sum, e) => sum + parseFloat(e.amount), 0);
-        const pct = (catTotal / catLimit) * 100;
-        if (pct >= 100) {
-          newAlerts.push({ id: `cat-${cat.id}-over`, type: 'danger', title: `Excesso: ${cat.name}`, message: `Gasto ${formatCurrency(catTotal)} ultrapassou o limite de ${formatCurrency(catLimit)}`, categoryId: cat.id });
-        } else if (pct >= 80) {
-          newAlerts.push({ id: `cat-${cat.id}-warning`, type: 'warning', title: `Atenção: ${cat.name}`, message: `Usou ${pct.toFixed(0)}% do orçamento`, categoryId: cat.id });
-        } else if (pct <= 20 && catTotal > 0) {
-          newAlerts.push({ id: `cat-${cat.id}-low`, type: 'info', title: `Economia: ${cat.name}`, message: `Só usou ${pct.toFixed(0)}% do orçamento. Ótimo controle!`, categoryId: cat.id });
-        }
-      }
-    });
-
-    setAlerts(newAlerts);
-  }, [expenses, cards, categoryLimits]);
-
-  const completeExpense = (expenseId) => {
-    const expense = expenses.find(e => e.id === expenseId);
-    if (!expense) return;
-
-    const completedExpense = {
-      ...expense,
-      completedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     };
+    loadData();
+  }, []);
 
-    setCompletedExpenses(prev => [completedExpense, ...prev]);
-    deleteExpense(expenseId);
-  };
-
-  const getActiveCompletedExpenses = () => {
-    const now = new Date().toISOString();
-    return completedExpenses.filter(e => e.expiresAt > now);
-  };
-
-  const getExpiredCompletedExpenses = () => {
-    const now = new Date().toISOString();
-    return completedExpenses.filter(e => e.expiresAt <= now);
-  };
-
-  const addCashTransaction = useCallback((amount, description = 'Entrada de caixa') => {
-    console.log('[ExpenseContext] addCashTransaction chamado:', amount, typeof amount, description);
-
-    let numAmount;
-    if (typeof amount === 'string') {
-      numAmount = parseFloat(amount);
-    } else if (typeof amount === 'number') {
-      numAmount = amount;
-    } else {
-      console.error('[ExpenseContext] Tipo de amount inválido:', typeof amount);
-      return null;
+  // Salvar dados no AsyncStorage
+  const saveData = useCallback(async (key, data) => {
+    try {
+      await AsyncStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+      console.error('Error saving data:', error);
     }
+  }, []);
 
-    if (isNaN(numAmount) || numAmount <= 0) {
-      console.error('[ExpenseContext] Valor inválido:', numAmount, 'do input:', amount);
-      return null;
-    }
+  // ─── Expenses ───
+  const addExpense = useCallback((expense) => {
+    const newExpense = { ...expense, id: Date.now().toString(), paid: false, createdAt: new Date().toISOString() };
+    dispatch({ type: 'ADD_EXPENSE', payload: newExpense });
+    saveData(STORAGE_KEYS.EXPENSES, [...state.expenses, newExpense]);
+  }, [state.expenses, saveData]);
 
-    console.log('[ExpenseContext] Chamando PlanningContext.addCashTransaction...');
-    const result = planningAddCashTransaction(numAmount, 'income', {
-      description: description || 'Entrada de caixa',
-      source: 'expense_context',
-    });
+  const updateExpense = useCallback((id, updates) => {
+    const updated = state.expenses.map(e => e.id === id ? { ...e, ...updates } : e);
+    dispatch({ type: 'SET_EXPENSES', payload: updated });
+    saveData(STORAGE_KEYS.EXPENSES, updated);
+  }, [state.expenses, saveData]);
 
-    console.log('[ExpenseContext] Resultado do PlanningContext:', result);
+  const deleteExpense = useCallback((id) => {
+    const filtered = state.expenses.filter(e => e.id !== id);
+    dispatch({ type: 'DELETE_EXPENSE', payload: id });
+    saveData(STORAGE_KEYS.EXPENSES, filtered);
+  }, [state.expenses, saveData]);
 
-    const transaction = {
-      id: result?.id || generateUUID(),
-      amount: numAmount,
-      description: description || 'Entrada de caixa',
+  const toggleExpensePaid = useCallback((id) => {
+    dispatch({ type: 'TOGGLE_EXPENSE_PAID', payload: id });
+    const updated = state.expenses.map(e => e.id === id ? { ...e, paid: !e.paid } : e);
+    saveData(STORAGE_KEYS.EXPENSES, updated);
+  }, [state.expenses, saveData]);
+
+  // ─── Cards ───
+  const addCard = useCallback((card) => {
+    const newCard = { ...card, id: Date.now().toString() };
+    dispatch({ type: 'ADD_CARD', payload: newCard });
+    saveData(STORAGE_KEYS.CARDS, [...state.cards, newCard]);
+  }, [state.cards, saveData]);
+
+  const updateCard = useCallback((id, updates) => {
+    const updated = state.cards.map(c => c.id === id ? { ...c, ...updates } : c);
+    dispatch({ type: 'SET_CARDS', payload: updated });
+    saveData(STORAGE_KEYS.CARDS, updated);
+  }, [state.cards, saveData]);
+
+  const deleteCard = useCallback((id) => {
+    const filtered = state.cards.filter(c => c.id !== id);
+    dispatch({ type: 'DELETE_CARD', payload: id });
+    saveData(STORAGE_KEYS.CARDS, filtered);
+  }, [state.cards, saveData]);
+
+  // ─── Categories ───
+  const addCategory = useCallback((category) => {
+    const newCategory = { ...category, id: Date.now().toString() };
+    dispatch({ type: 'ADD_CATEGORY', payload: newCategory });
+    saveData(STORAGE_KEYS.CATEGORIES, [...state.categories, newCategory]);
+  }, [state.categories, saveData]);
+
+  const updateCategory = useCallback((id, updates) => {
+    const updated = state.categories.map(c => c.id === id ? { ...c, ...updates } : c);
+    dispatch({ type: 'SET_CATEGORIES', payload: updated });
+    saveData(STORAGE_KEYS.CATEGORIES, updated);
+  }, [state.categories, saveData]);
+
+  const deleteCategory = useCallback((id) => {
+    const filtered = state.categories.filter(c => c.id !== id);
+    dispatch({ type: 'DELETE_CATEGORY', payload: id });
+    saveData(STORAGE_KEYS.CATEGORIES, filtered);
+  }, [state.categories, saveData]);
+
+  // ─── Cash Transactions ───
+  const addCashTransaction = useCallback((amount, description) => {
+    const newTransaction = {
+      id: Date.now().toString(),
+      amount,
+      description,
       date: new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
-      type: 'cash_in',
     };
+    dispatch({ type: 'ADD_CASH_TRANSACTION', payload: newTransaction });
+    saveData(STORAGE_KEYS.CASH_TRANSACTIONS, [...state.cashTransactions, newTransaction]);
+    return newTransaction;
+  }, [state.cashTransactions, saveData]);
 
-    setCashTransactions(prev => [transaction, ...prev]);
-    console.log('[ExpenseContext] Transação local criada:', transaction);
+  const updateCashTransaction = useCallback((id, updates) => {
+    const updated = state.cashTransactions.map(t => t.id === id ? { ...t, ...updates } : t);
+    dispatch({ type: 'SET_CASH_TRANSACTIONS', payload: updated });
+    saveData(STORAGE_KEYS.CASH_TRANSACTIONS, updated);
+  }, [state.cashTransactions, saveData]);
 
-    return transaction;
-  }, [planningAddCashTransaction]);
+  const deleteCashTransaction = useCallback((id) => {
+    const filtered = state.cashTransactions.filter(t => t.id !== id);
+    dispatch({ type: 'DELETE_CASH_TRANSACTION', payload: id });
+    saveData(STORAGE_KEYS.CASH_TRANSACTIONS, filtered);
+  }, [state.cashTransactions, saveData]);
 
-  const addExpense = (expense) => {
-    if (!expense || typeof expense !== 'object') {
-      console.error('Invalid expense object');
-      return null;
-    }
-    if (!expense.amount || isNaN(parseFloat(expense.amount))) {
-      console.error('Invalid expense amount');
-      return null;
-    }
-    if (!expense.description || !expense.description.trim()) {
-      console.error('Invalid expense description');
-      return null;
-    }
-    if (!expense.category) {
-      console.error('Invalid expense category');
-      return null;
-    }
+  // ─── Alerts ───
+  const addAlert = useCallback((alert) => {
+    dispatch({ type: 'SET_ALERTS', payload: [...state.alerts, alert] });
+  }, [state.alerts]);
 
-    const sanitizedExpense = {
-      ...expense,
-      description: expense.description.trim().substring(0, 100),
-      amount: parseFloat(expense.amount),
-      date: expense.date || new Date().toISOString().split('T')[0],
-      cardId: expense.cardId || null,
-    };
+  const dismissAlert = useCallback((id) => {
+    dispatch({ type: 'DISMISS_ALERT', payload: id });
+  }, []);
 
-    const newExpense = { 
-      id: generateUUID(), 
-      ...sanitizedExpense, 
-      createdAt: new Date().toISOString() 
-    };
-    setExpenses(prev => [newExpense, ...prev]);
-
-    if (expense.paymentMethod === 'debit' || expense.paymentMethod === 'cash' || expense.paymentMethod === 'dinheiro') {
-      console.log('[ExpenseContext] Pagamento em dinheiro/débito detectado. Atualizando caixa...');
-      planningAddCashTransaction(
-        parseFloat(expense.amount),
-        'expense',
-        {
-          description: `Despesa: ${expense.description}`,
-          category: expense.category,
-          expenseId: newExpense.id,
-        }
-      );
-    }
-
-    return newExpense;
-  };
-
-  const updateExpense = (id, updates) => { 
-    setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); 
-  };
-
-  const deleteExpense = (id) => { 
-    const expenseToDelete = expenses.find(e => e.id === id);
-
-    if (expenseToDelete && (expenseToDelete.paymentMethod === 'debit' || expenseToDelete.paymentMethod === 'cash' || expenseToDelete.paymentMethod === 'dinheiro')) {
-      console.log('[ExpenseContext] Revertendo caixa para despesa removida:', id);
-      planningAddCashTransaction(
-        parseFloat(expenseToDelete.amount),
-        'income',
-        {
-          description: `Reversão: ${expenseToDelete.description}`,
-          category: 'reversal',
-          originalExpenseId: id,
-        }
-      );
-    }
-
-    setExpenses(prev => prev.filter(e => e.id !== id)); 
-  };
-
-  const addCard = (card) => { 
-    if (!card || !card.bankId || !card.name) {
-      console.error('Invalid card data');
-      return null;
-    }
-    const newCard = { 
-      id: generateUUID(), 
-      ...card,
-      limit: parseFloat(card.limit) || 0,
-    }; 
-    setCards(prev => [...prev, newCard]); 
-    return newCard;
-  };
-
-  const updateCard = (id, updates) => { setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c)); };
-
-  const deleteCard = (id) => { 
-    setCards(prev => prev.filter(c => c.id !== id)); 
-    setExpenses(prev => prev.map(e => e.cardId === id ? { ...e, cardId: null } : e)); 
-  };
-
-  const setCategoryLimit = (categoryId, limit) => { setCategoryLimits(prev => ({ ...prev, [categoryId]: limit })); };
-
-  const dismissAlert = (alertId) => { setAlerts(prev => prev.filter(a => a.id !== alertId)); };
-
-  const getFilteredExpenses = (period = 'all', customStart = null, customEnd = null) => {
-    const now = new Date(); let startDate, endDate;
-    switch (period) {
-      case 'today': startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1); break;
-      case 'week': startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7); endDate = now; break;
-      case 'month': startDate = new Date(now.getFullYear(), now.getMonth(), 1); endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0); break;
-      case 'year': startDate = new Date(now.getFullYear(), 0, 1); endDate = new Date(now.getFullYear() + 1, 0, 0); break;
-      case 'custom': startDate = customStart ? new Date(customStart) : new Date(0); endDate = customEnd ? new Date(customEnd) : now; break;
-      default: return expenses;
-    }
-    return expenses.filter(e => { const d = new Date(e.date); return d >= startDate && d <= endDate; });
-  };
-
-  const getTotalByCategory = (filteredExpenses = expenses) => {
-    const totals = {}; filteredExpenses.forEach(e => { if (!totals[e.category]) totals[e.category] = 0; totals[e.category] += parseFloat(e.amount); }); return totals;
-  };
-  const getTotalByCard = (filteredExpenses = expenses) => {
-    const totals = {}; filteredExpenses.forEach(e => { const cardId = e.cardId || 'no-card'; if (!totals[cardId]) totals[cardId] = 0; totals[cardId] += parseFloat(e.amount); }); return totals;
-  };
-  const getMonthlyTotal = (filteredExpenses = expenses) => filteredExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
-  const getExpensesByMonth = () => {
-    const grouped = {}; expenses.forEach(e => { const d = new Date(e.date); const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; if (!grouped[key]) grouped[key] = 0; grouped[key] += parseFloat(e.amount); }); return grouped;
-  };
-  const getCardUsage = (cardId) => {
-    const now = new Date(); return expenses.filter(e => { const d = new Date(e.date); return e.cardId === cardId && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((sum, e) => sum + parseFloat(e.amount), 0);
-  };
-  const getCategoryUsage = (categoryId) => {
-    const now = new Date(); return expenses.filter(e => { const d = new Date(e.date); return e.category === categoryId && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((sum, e) => sum + parseFloat(e.amount), 0);
-  };
-
-  const addCategory = (category) => {
-    const newCategory = { id: generateUUID(), ...category };
-    setCustomCategories(prev => [...prev, newCategory]);
-    return newCategory;
-  };
-
-  const deleteCategory = (categoryId) => {
-    const isUsed = expenses.some(e => e.category === categoryId);
-
-    // Encontrar a melhor categoria substituta (fallback)
-    const fallbackCategory = findBestFallbackCategory(categoryId);
-
-    if (isUsed && fallbackCategory) {
-      // Atualizar todos os gastos que usavam a categoria deletada
-      console.log(`[ExpenseContext] Migrando gastos de ${categoryId} para ${fallbackCategory.id}`);
-      setExpenses(prev => prev.map(e => 
-        e.category === categoryId 
-          ? { ...e, category: fallbackCategory.id, _originalCategory: categoryId }
-          : e
-      ));
-    }
-
-    setCustomCategories(prev => prev.filter(c => c.id !== categoryId));
-    setCategoryLimits(prev => {
-      const newLimits = { ...prev };
-      delete newLimits[categoryId];
-      return newLimits;
+  // ─── Filters ───
+  const getFilteredExpenses = useCallback((period) => {
+    const now = new Date();
+    return state.expenses.filter(e => {
+      const d = new Date(e.date);
+      if (period === 'today') return d.toDateString() === now.toDateString();
+      if (period === 'week') return d >= new Date(now - 7 * 24 * 60 * 60 * 1000);
+      if (period === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      if (period === 'year') return d.getFullYear() === now.getFullYear();
+      return true;
     });
-  };
+  }, [state.expenses]);
 
-  // Funcao para encontrar a melhor categoria substituta
-  const findBestFallbackCategory = (deletedCategoryId) => {
-    const deletedCat = CATEGORIES.find(c => c.id === deletedCategoryId);
-    if (!deletedCat) return DEFAULT_CATEGORIES[DEFAULT_CATEGORIES.length - 1]; // 'outros'
+  const getMonthlyTotal = useCallback((expenses) => {
+    return expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+  }, []);
 
-    // Tentar encontrar categoria com nome similar ou cor similar
-    const allCategories = [...DEFAULT_CATEGORIES, ...customCategories].filter(c => c.id !== deletedCategoryId);
+  const getTotalByCategory = useCallback((expenses) => {
+    return expenses.reduce((acc, e) => {
+      acc[e.category] = (acc[e.category] || 0) + parseFloat(e.amount);
+      return acc;
+    }, {});
+  }, []);
 
-    // 1. Tentar match por nome (palavras similares)
-    const nameMatches = allCategories.filter(c => {
-      const delWords = deletedCat.name.toLowerCase().split(/\s+/);
-      const catWords = c.name.toLowerCase().split(/\s+/);
-      return delWords.some(dw => catWords.some(cw => cw.includes(dw) || dw.includes(cw)));
-    });
+  const getTotalByCard = useCallback((expenses) => {
+    return expenses.reduce((acc, e) => {
+      const key = e.cardId || 'no-card';
+      acc[key] = (acc[key] || 0) + parseFloat(e.amount);
+      return acc;
+    }, {});
+  }, []);
 
-    if (nameMatches.length > 0) return nameMatches[0];
+  const getExpensesByMonth = useCallback(() => {
+    return state.expenses.reduce((acc, e) => {
+      const month = new Date(e.date).toLocaleString('pt-BR', { month: 'short', year: 'numeric' });
+      acc[month] = (acc[month] || 0) + parseFloat(e.amount);
+      return acc;
+    }, {});
+  }, [state.expenses]);
 
-    // 2. Tentar match por cor similar
-    const colorMatches = allCategories.filter(c => c.color === deletedCat.color);
-    if (colorMatches.length > 0) return colorMatches[0];
+  const getCardUsage = useCallback((cardId) => {
+    return state.expenses
+      .filter(e => e.cardId === cardId)
+      .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+  }, [state.expenses]);
 
-    // 3. Fallback para 'outros' (sempre existe)
-    return DEFAULT_CATEGORIES.find(c => c.id === 'outros') || allCategories[0] || DEFAULT_CATEGORIES[0];
-  };
-
-  const updateCategory = (categoryId, updates) => {
-    setCustomCategories(prev => prev.map(c => c.id === categoryId ? { ...c, ...updates } : c));
-  };
+  // Categorias padrão
+  const CATEGORIES = state.categories.length > 0 ? state.categories : [
+    { id: 'food', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+    { id: 'transport', name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+    { id: 'leisure', name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+    { id: 'health', name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+    { id: 'housing', name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+    { id: 'education', name: 'Educação', color: '#DDA0DD', icon: 'school' },
+    { id: 'shopping', name: 'Compras', color: '#98D8C8', icon: 'cart' },
+    { id: 'others', name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+  ];
 
   const value = {
-    expenses, cards, categoryLimits, customCategories, alerts, loading,
-    addExpense, updateExpense, deleteExpense,
-    addCard, updateCard, deleteCard,
-    setCategoryLimit, dismissAlert,
-    addCategory, deleteCategory, updateCategory,
-    getFilteredExpenses, getTotalByCategory, getTotalByCard,
-    getMonthlyTotal, getExpensesByMonth, getCardUsage, getCategoryUsage,
-    completeExpense, getActiveCompletedExpenses, getExpiredCompletedExpenses,
-    addCashTransaction, cashTransactions,
-    CATEGORIES, DEFAULT_CATEGORIES, AVAILABLE_ICONS, AVAILABLE_COLORS,
+    expenses: state.expenses,
+    cards: state.cards,
+    categories: state.categories,
+    cashTransactions: state.cashTransactions,
+    alerts: state.alerts,
+    CATEGORIES,
+    addExpense,
+    updateExpense,
+    deleteExpense,
+    toggleExpensePaid,
+    addCard,
+    updateCard,
+    deleteCard,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addCashTransaction,
+    updateCashTransaction,
+    deleteCashTransaction,
+    addAlert,
+    dismissAlert,
+    getFilteredExpenses,
+    getMonthlyTotal,
+    getTotalByCategory,
+    getTotalByCard,
+    getExpensesByMonth,
+    getCardUsage,
   };
 
   return <ExpenseContext.Provider value={value}>{children}</ExpenseContext.Provider>;
@@ -462,10 +303,6 @@ export function ExpenseProvider({ children }) {
 
 export function useExpenses() {
   const context = useContext(ExpenseContext);
-  if (!context) throw new Error('useExpenses must be inside ExpenseProvider');
+  if (!context) throw new Error('useExpenses must be used within ExpenseProvider');
   return context;
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
