@@ -32,6 +32,7 @@ export const translations = {
 
     // Navegação
     home: 'Início',
+    dashboard: 'Dashboard',
     addExpense: 'Adicionar',
     history: 'Histórico',
     charts: 'Gráficos',
@@ -304,6 +305,7 @@ export const translations = {
 
     // Navigation
     home: 'Home',
+    dashboard: 'Dashboard',
     addExpense: 'Add',
     history: 'History',
     charts: 'Charts',
