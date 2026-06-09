@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { usePlanning } from '../context/PlanningContext';
 import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView, ScaleInView, StaggeredList } from '../components/AnimatedComponents';
 import PeriodFilter from '../components/PeriodFilter';
 import { getBankById } from '../utils/BanksData';
@@ -22,6 +23,7 @@ export default function ChartScreen({ navigation }) {
   const { expenses, cards, getFilteredExpenses, getTotalByCategory, getTotalByCard, getExpensesByMonth, CATEGORIES } = useExpenses();
   const { cashBalance } = usePlanning();
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
   const [chartType, setChartType] = useState('category'); // 'category' ou 'payment'
   const [period, setPeriod] = useState('month');
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -205,7 +207,7 @@ export default function ChartScreen({ navigation }) {
           <View style={styles.legendSection}>
             <View style={styles.legendHeader}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                {selectedCategory !== null ? 'Item Selecionado' : 'Detalhamento'}
+                {selectedCategory !== null ? t('detail') : t('detail')}
               </Text>
               {selectedCategory !== null && (
                 <TouchableOpacity 
@@ -218,7 +220,7 @@ export default function ChartScreen({ navigation }) {
               )}
             </View>
             <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-              {selectedCategory !== null ? 'Toque na barra para ver todos' : 'Toque na barra para filtrar'}
+              {selectedCategory !== null ? t('tapToClear') : t('tapToFilter')}
             </Text>
             <StaggeredList staggerDelay={60}>
               {displayData.map((item, index) => {
