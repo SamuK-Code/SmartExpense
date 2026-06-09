@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
-import { usePlanning } from '../context/PlanningContext';
+import { useCash } from '../context/CashContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 import { useCashManager } from '../hooks/useCashManager';
@@ -28,10 +28,9 @@ export default function AddExpenseScreen({ navigation }) {
     CATEGORIES,
     deleteExpense,
     toggleExpensePaid,
-    cashTransactions: ctxCashTransactions,
   } = useExpenses();
 
-  const { cashBalance } = usePlanning();
+  const { cashBalance, cashTransactions } = useCash();
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
 
@@ -504,7 +503,7 @@ export default function AddExpenseScreen({ navigation }) {
   };
 
   const getFilteredCashList = () => {
-    let filtered = ctxCashTransactions || [];
+    let filtered = cashTransactions || [];
     if (filterDate !== 'all') {
       const now = new Date();
       filtered = filtered.filter(e => {
@@ -618,7 +617,7 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noExpenses')}</Text>
           <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstExpense')}</Text>
         </View>
-      ) : viewMode === 'cash' && (ctxCashTransactions || []).length === 0 ? (
+      ) : viewMode === 'cash' && (cashTransactions || []).length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="cash-outline" size={48} color={colors.textLight} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noCashEntries')}</Text>
