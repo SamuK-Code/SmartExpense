@@ -30,7 +30,7 @@ export default function AddExpenseScreen({ navigation }) {
     toggleExpensePaid,
   } = useExpenses();
 
-  const { cashBalance, cashTransactions } = useCash();
+  const { cashBalance, cashTransactions, addCashTransaction: cashAddTransaction } = useCash();
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
 
@@ -106,6 +106,14 @@ export default function AddExpenseScreen({ navigation }) {
         date,
         paymentMethod: expenseType === 'card' ? paymentMethod : null,
       });
+
+      // Se for débito, subtrair do caixa imediatamente
+      if (expenseType === 'card' && paymentMethod === 'debit') {
+        cashAddTransaction(numericAmount, 'expense', {
+          description: 'Débito: ' + description,
+          date: date,
+        });
+      }
 
       Alert.alert(t('success'), t('expenseAdded'), [
         { text: t('ok'), onPress: () => {
