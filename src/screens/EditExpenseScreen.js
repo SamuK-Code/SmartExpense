@@ -13,12 +13,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 
 export default function EditExpenseScreen({ navigation, route }) {
   const { expenseId } = route.params;
   const { expenses, updateExpense, deleteExpense, cards, CATEGORIES } = useExpenses();
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
 
   const expense = expenses.find(e => e.id === expenseId);
 
@@ -41,20 +43,21 @@ export default function EditExpenseScreen({ navigation, route }) {
   if (!expense) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: colors.text }}>Gasto não encontrado</Text>
+        <Ionicons name="alert-circle" size={48} color={colors.danger} />
+        <Text style={{ color: colors.text, fontSize: 18, marginTop: 16 }}>{t('expenseNotFound')}</Text>
       </View>
     );
   }
 
   const handleUpdate = () => {
     if (!amount || !description) {
-      Alert.alert('Erro', 'Preencha o valor e a descrição');
+      Alert.alert(t('error'), t('fillValueAndDesc'));
       return;
     }
 
     const numericAmount = parseFloat(amount.replace(',', '.'));
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Erro', 'Digite um valor válido');
+      Alert.alert(t('error'), t('enterValidValue'));
       return;
     }
 
@@ -66,24 +69,24 @@ export default function EditExpenseScreen({ navigation, route }) {
       date,
     });
 
-    Alert.alert('Sucesso', 'Gasto atualizado!', [
-      { text: 'OK', onPress: () => navigation.goBack() }
+    Alert.alert(t('success'), t('expenseUpdated'), [
+      { text: t('ok'), onPress: () => navigation.goBack() }
     ]);
   };
 
   const handleDelete = () => {
     Alert.alert(
-      'Confirmar exclusão',
-      `Deseja excluir "${expense.description}"?`,
+      t('confirmDelete'),
+      t('wantToDelete') + ' "' + expense.description + '"?',
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Excluir', 
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('delete'),
           style: 'destructive',
           onPress: () => {
             deleteExpense(expenseId);
-            Alert.alert('Excluído', 'Gasto removido com sucesso', [
-              { text: 'OK', onPress: () => navigation.goBack() }
+            Alert.alert(t('deleted'), t('expenseRemoved'), [
+              { text: t('ok'), onPress: () => navigation.goBack() }
             ]);
           }
         },
@@ -96,129 +99,85 @@ export default function EditExpenseScreen({ navigation, route }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <FadeInView>
-          <Text style={[styles.title, { color: colors.header }]}>Editar Gasto</Text>
-        </FadeInView>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={[styles.title, { color: colors.text }]}>{t('editExpense')}</Text>
 
-        <SlideInView delay={100}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
-            <TextInput
-              style={[styles.amountInput, { backgroundColor: colors.inputBg, color: colors.text }]}
-              placeholder="0,00"
-              keyboardType="decimal-pad"
-              value={amount}
-              onChangeText={setAmount}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
+        <Text style={[styles.label, { color: colors.text }]}>{t('amount')}</Text>
+        <TextInput
+          style={[styles.amountInput, { backgroundColor: colors.card, color: colors.text }]}
+          value={amount}
+          onChangeText={setAmount}
+          placeholder={t('amount')}
+          placeholderTextColor={colors.textLight}
+          keyboardType="numeric"
+        />
 
-        <SlideInView delay={200}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Descrição</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
-              placeholder="Ex: Supermercado Extra"
-              value={description}
-              onChangeText={setDescription}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
+        <Text style={[styles.label, { color: colors.text }]}>{t('description')}</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
+          value={description}
+          onChangeText={setDescription}
+          placeholder={t('description')}
+          placeholderTextColor={colors.textLight}
+        />
 
-        <SlideInView delay={300}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
-              placeholder="AAAA-MM-DD"
-              value={date}
-              onChangeText={setDate}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
+        <Text style={[styles.label, { color: colors.text }]}>{t('date')}</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
+          value={date}
+          onChangeText={setDate}
+          placeholder={t('date')}
+          placeholderTextColor={colors.textLight}
+        />
 
-        <SlideInView delay={350}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Cartão</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {cards.map(card => (
-                <TouchableOpacity
-                  key={card.id}
-                  style={[
-                    styles.cardButton,
-                    selectedCard === card.id && { 
-                      backgroundColor: card.color + '25',
-                      borderColor: card.color,
-                      borderWidth: 2,
-                    },
-                    { backgroundColor: colors.inputBg },
-                  ]}
-                  onPress={() => setSelectedCard(card.id)}
-                >
-                  <Ionicons name="card" size={18} color={card.color} />
-                  <Text style={[
-                    styles.cardText,
-                    { color: selectedCard === card.id ? card.color : colors.textSecondary },
-                  ]}>
-                    {card.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </SlideInView>
+        <Text style={[styles.label, { color: colors.text }]}>{t('selectCard')}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          {cards.map(card => (
+            <TouchableOpacity
+              key={card.id}
+              style={[styles.cardButton, { 
+                backgroundColor: selectedCard === card.id ? colors.primary + '15' : colors.card,
+                borderColor: selectedCard === card.id ? colors.primary : 'transparent'
+              }]}
+              onPress={() => setSelectedCard(card.id)}
+            >
+              <Ionicons name="card" size={16} color={selectedCard === card.id ? colors.primary : colors.textLight} />
+              <Text style={[styles.cardText, { color: selectedCard === card.id ? colors.primary : colors.text }]}>{card.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-        <SlideInView delay={400}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Categoria</Text>
-            <View style={styles.categoriesGrid}>
-              {CATEGORIES.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryButton,
-                    selectedCategory === category.id && {
-                      backgroundColor: category.color + (isDark ? '35' : '25'),
-                      borderColor: category.color,
-                      borderWidth: 2,
-                    },
-                    { backgroundColor: colors.inputBg },
-                  ]}
-                  onPress={() => setSelectedCategory(category.id)}
-                >
-                  <Ionicons name={category.icon} size={20} color={category.color} />
-                  <Text
-                    style={[
-                      styles.categoryText,
-                      selectedCategory === category.id && { color: category.color, fontWeight: 'bold' },
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </SlideInView>
+        <Text style={[styles.label, { color: colors.text }]}>{t('category')}</Text>
+        <View style={styles.categoriesGrid}>
+          {CATEGORIES.map((category) => (
+            <TouchableOpacity
+              key={category.id}
+              style={[styles.categoryButton, { 
+                backgroundColor: selectedCategory === category.id ? category.color + '15' : colors.card,
+                borderColor: selectedCategory === category.id ? category.color : 'transparent'
+              }]}
+              onPress={() => setSelectedCategory(category.id)}
+            >
+              <Ionicons name={category.icon} size={16} color={category.color} />
+              <Text style={[styles.categoryText, { color: selectedCategory === category.id ? category.color : colors.text }]}>{category.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        <ScaleInView delay={500}>
-          <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleUpdate}>
-            <Ionicons name="checkmark" size={24} color="#fff" />
-            <Text style={styles.submitText}>Atualizar Gasto</Text>
-          </TouchableOpacity>
-        </ScaleInView>
-
-        <ScaleInView delay={600}>
-          <TouchableOpacity style={[styles.deleteButton, { backgroundColor: colors.danger }]} onPress={handleDelete}>
-            <Ionicons name="trash" size={24} color="#fff" />
-            <Text style={styles.submitText}>Excluir Gasto</Text>
-          </TouchableOpacity>
-        </ScaleInView>
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: colors.primary }]}
+          onPress={handleUpdate}
+        >
+          <Ionicons name="save" size={22} color="#fff" />
+          <Text style={styles.submitText}>{t('updateExpense')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          onPress={handleDelete}
+        >
+          <Ionicons name="trash" size={22} color="#fff" />
+          <Text style={styles.submitText}>{t('deleteExpenseBtn')}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
