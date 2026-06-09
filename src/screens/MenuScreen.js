@@ -221,132 +221,145 @@ export default function MenuScreen({ navigation }) {
   };
 
   const renderMenuItem = (item, index) => (
-    <SlideInView key={item.id} delay={index * 50}>
-      <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.card }]} onPress={() => handleMenuPress(item)}>
-        <View style={[styles.iconContainer, { backgroundColor: item.color + '15' }]}>
-          <Ionicons name={item.icon} size={22} color={item.color} />
-        </View>
-        <View style={styles.menuInfo}>
-          <Text style={[styles.menuTitle, { color: colors.text }]}>{item.title}</Text>
-          <Text style={[styles.menuSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
-        </View>
-        {item.action === 'toggle' ? (
-          <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ false: '#767577', true: colors.primary }} thumbColor={isDark ? '#fff' : '#f4f3f4'} />
-        ) : (
-          <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-        )}
-      </TouchableOpacity>
-    </SlideInView>
+    <TouchableOpacity
+      key={item.id}
+      style={[styles.menuItem, { backgroundColor: colors.card }]}
+      onPress={() => handleMenuPress(item)}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.iconContainer, { backgroundColor: item.color + '15' }]}>
+        <Ionicons name={item.icon} size={22} color={item.color} />
+      </View>
+      <View style={styles.menuInfo}>
+        <Text style={[styles.menuTitle, { color: colors.text }]}>{item.title}</Text>
+        <Text style={[styles.menuSubtitle, { color: colors.textLight }]}>{item.subtitle}</Text>
+      </View>
+      {item.action === 'toggle' ? (
+        <Switch
+          value={isDark}
+          onValueChange={toggleTheme}
+          trackColor={{ false: '#767577', true: colors.primary }}
+          thumbColor={isDark ? '#fff' : '#f4f3f4'}
+        />
+      ) : (
+        <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+      )}
+    </TouchableOpacity>
   );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title={t('menu')} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Quick Stats */}
-        <FadeInView>
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.statIcon, { backgroundColor: colors.danger + '15' }]}>
-                <Ionicons name="wallet-outline" size={20} color={colors.danger} />
-              </View>
-              <Text style={[styles.statValue, { color: colors.text }]}>{formatCurrency(totalAmount)}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('totalSpent')}</Text>
+        <View style={styles.statsGrid}>
+          <FadeInView delay={100} style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.statIcon, { backgroundColor: colors.danger + '15' }]}>
+              <Ionicons name="cash-outline" size={20} color={colors.danger} />
             </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.statIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="card-outline" size={20} color={colors.primary} />
-              </View>
-              <Text style={[styles.statValue, { color: colors.text }]}>{totalCards}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('cards')}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{formatCurrency(totalAmount)}</Text>
+            <Text style={[styles.statLabel, { color: colors.textLight }]}>{t('totalSpent')}</Text>
+          </FadeInView>
+
+          <FadeInView delay={200} style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.statIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="card-outline" size={20} color={colors.primary} />
             </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.statIcon, { backgroundColor: colors.info + '15' }]}>
-                <Ionicons name="receipt-outline" size={20} color={colors.info} />
-              </View>
-              <Text style={[styles.statValue, { color: colors.text }]}>{totalExpenses}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('transactions')}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{totalCards}</Text>
+            <Text style={[styles.statLabel, { color: colors.textLight }]}>{t('cards')}</Text>
+          </FadeInView>
+
+          <FadeInView delay={300} style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.statIcon, { backgroundColor: colors.secondary + '15' }]}>
+              <Ionicons name="receipt-outline" size={20} color={colors.secondary} />
             </View>
-            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <View style={[styles.statIcon, { backgroundColor: colors.success + '15' }]}>
-                <Ionicons name="cash-outline" size={20} color={colors.success} />
-              </View>
-              <Text style={[styles.statValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('availableCash')}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{totalExpenses}</Text>
+            <Text style={[styles.statLabel, { color: colors.textLight }]}>{t('transactions')}</Text>
+          </FadeInView>
+
+          <FadeInView delay={400} style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.statIcon, { backgroundColor: colors.success + '15' }]}>
+              <Ionicons name="wallet-outline" size={20} color={colors.success} />
             </View>
-          </View>
-        </FadeInView>
+            <Text style={[styles.statValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
+            <Text style={[styles.statLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
+          </FadeInView>
+        </View>
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('options')}</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textLight }]}>{t('options').toUpperCase()}</Text>
           {menuItems.map((item, index) => renderMenuItem(item, index))}
         </View>
       </ScrollView>
 
       {/* About Modal */}
       <Modal visible={aboutModalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <ScaleInView>
-            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-              <View style={[styles.aboutIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="wallet" size={40} color={colors.primary} />
-              </View>
-              <Text style={[styles.aboutTitle, { color: colors.text }]}>{t('appName')}</Text>
-              <Text style={[styles.aboutVersion, { color: colors.textSecondary }]}>v2.0.0</Text>
-              <Text style={[styles.aboutText, { color: colors.textSecondary }]}>
-                {t('appDescription')}
-              </Text>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={() => setAboutModalVisible(false)}>
-                <Text style={styles.modalButtonText}>{t('close')}</Text>
-              </TouchableOpacity>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <ScaleInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={[styles.aboutIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="card" size={40} color={colors.primary} />
             </View>
+            <Text style={[styles.aboutTitle, { color: colors.text }]}>{t('appName')}</Text>
+            <Text style={[styles.aboutVersion, { color: colors.textLight }]}>v2.0.0</Text>
+            <Text style={[styles.aboutText, { color: colors.textLight }]}>{t('appDescription')}</Text>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.primary }]}
+              onPress={() => setAboutModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>{t('close')}</Text>
+            </TouchableOpacity>
           </ScaleInView>
         </View>
       </Modal>
 
       {/* Stats Modal */}
       <Modal visible={statsModalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <ScaleInView>
-            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('statistics')}</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <SlideInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('statistics')}</Text>
 
-              <View style={styles.statRow}>
-                <Text style={[styles.statRowLabel, { color: colors.textSecondary }]}>{t('totalExpenses')}</Text>
-                <Text style={[styles.statRowValue, { color: colors.text }]}>{totalExpenses}</Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statRowLabel, { color: colors.textSecondary }]}>{t('totalAmount')}</Text>
-                <Text style={[styles.statRowValue, { color: colors.text }]}>{formatCurrency(totalAmount)}</Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statRowLabel, { color: colors.textSecondary }]}>{t('avgExpense')}</Text>
-                <Text style={[styles.statRowValue, { color: colors.text }]}>{formatCurrency(avgExpense)}</Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statRowLabel, { color: colors.textSecondary }]}>{t('cards')}</Text>
-                <Text style={[styles.statRowValue, { color: colors.text }]}>{totalCards}</Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statRowLabel, { color: colors.textSecondary }]}>{t('cardExpenses')}</Text>
-                <Text style={[styles.statRowValue, { color: colors.text }]}>{cardExpensesCount}</Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statRowLabel, { color: colors.textSecondary }]}>{t('standalone')}</Text>
-                <Text style={[styles.statRowValue, { color: colors.text }]}>{standaloneCount}</Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statRowLabel, { color: colors.textSecondary }]}>{t('availableCash')}</Text>
-                <Text style={[styles.statRowValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
-              </View>
-
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary, marginTop: 16 }]} onPress={() => setStatsModalVisible(false)}>
-                <Text style={styles.modalButtonText}>{t('close')}</Text>
-              </TouchableOpacity>
+            <View style={styles.statRow}>
+              <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('totalExpenses')}</Text>
+              <Text style={[styles.statRowValue, { color: colors.text }]}>{totalExpenses}</Text>
             </View>
-          </ScaleInView>
+            <View style={styles.statRow}>
+              <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('totalAmount')}</Text>
+              <Text style={[styles.statRowValue, { color: colors.text }]}>{formatCurrency(totalAmount)}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('avgExpense')}</Text>
+              <Text style={[styles.statRowValue, { color: colors.text }]}>{formatCurrency(avgExpense)}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('cards')}</Text>
+              <Text style={[styles.statRowValue, { color: colors.text }]}>{totalCards}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('cardExpensesCount')}</Text>
+              <Text style={[styles.statRowValue, { color: colors.text }]}>{cardExpensesCount}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('standaloneCount')}</Text>
+              <Text style={[styles.statRowValue, { color: colors.text }]}>{standaloneCount}</Text>
+            </View>
+            <View style={styles.statRow}>
+              <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
+              <Text style={[styles.statRowValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colors.primary, marginTop: 16 }]}
+              onPress={() => setStatsModalVisible(false)}
+            >
+              <Text style={styles.modalButtonText}>{t('close')}</Text>
+            </TouchableOpacity>
+          </SlideInView>
         </View>
       </Modal>
     </View>
