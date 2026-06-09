@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
-import { FadeInView, SlideInView, ScaleInView, StaggeredList } from '../components/AnimatedComponents';
+import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 import SimpleList from '../components/SimpleList';
 import BankSelectorModal from '../components/BankSelectorModal';
@@ -25,7 +25,6 @@ export default function CardsScreen() {
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
 
-  // Modal de adicionar/editar cartão
   const [modalVisible, setModalVisible] = useState(false);
   const [bankSelectorVisible, setBankSelectorVisible] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
@@ -34,7 +33,6 @@ export default function CardsScreen() {
   const [cardLimitDisplay, setCardLimitDisplay] = useState('');
   const [customName, setCustomName] = useState('');
 
-  // NOVO: Modal de detalhes do cartão (gastos)
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedCardForDetail, setSelectedCardForDetail] = useState(null);
 
@@ -85,12 +83,12 @@ export default function CardsScreen() {
 
   const handleSave = () => {
     if (!selectedBank) {
-      Alert.alert('Erro', t('selectBank'));
+      Alert.alert(t('error'), t('selectBank'));
       return;
     }
 
     if (!cardLimit || cardLimit === '0') {
-      Alert.alert('Erro', t('invalidAmount'));
+      Alert.alert(t('error'), t('cardLimit'));
       return;
     }
 
@@ -98,7 +96,7 @@ export default function CardsScreen() {
     const limit = numericValue / 100;
 
     if (isNaN(limit) || limit <= 0) {
-      Alert.alert('Erro', t('invalidAmount'));
+      Alert.alert(t('error'), t('invalidAmount'));
       return;
     }
 
@@ -113,10 +111,10 @@ export default function CardsScreen() {
 
     if (editingCard) {
       updateCard(editingCard.id, cardData);
-      Alert.alert('Sucesso', t('cardUpdated'));
+      Alert.alert(t('success'), t('cardUpdated'));
     } else {
       addCard(cardData);
-      Alert.alert('Sucesso', t('cardAdded'));
+      Alert.alert(t('success'), t('cardAdded'));
     }
 
     setModalVisible(false);
@@ -130,9 +128,7 @@ export default function CardsScreen() {
   const handleDelete = (card) => {
     Alert.alert(
       t('confirm') + ' ' + t('delete'),
-      `Deseja excluir o cartão "${card.customName || card.name}"?
-
-Os gastos associados não serão excluídos.`,
+      t('confirmDeleteCard') + ' "' + (card.customName || card.name) + '"?\n\n' + t('cardExpensesWarning'),
       [
         { text: t('cancel'), style: 'cancel' },
         { text: t('delete'), style: 'destructive', onPress: () => deleteCard(card.id) },
@@ -140,7 +136,6 @@ Os gastos associados não serão excluídos.`,
     );
   };
 
-  // NOVO: Funções para o modal de detalhes
   const openDetailModal = (card) => {
     setSelectedCardForDetail(card);
     setDetailModalVisible(true);
@@ -186,7 +181,6 @@ Os gastos associados não serão excluídos.`,
 
     return (
       <View style={[styles.cardItem, { backgroundColor: colors.card, borderLeftColor: card.color }]}>
-        {/* Card Header com botões de ação */}
         <View style={styles.cardHeader}>
           <TouchableOpacity
             style={styles.cardTitleRow}
@@ -199,12 +193,11 @@ Os gastos associados não serão excluídos.`,
             <View style={styles.cardTitleInfo}>
               <Text style={[styles.cardName, { color: colors.text }]}>{card.customName || card.name}</Text>
               <Text style={[styles.cardLimit, { color: colors.textSecondary }]}>
-                Limite: {formatCurrency(card.limit)}
+                {t('limit')}: {formatCurrency(card.limit)}
               </Text>
             </View>
           </TouchableOpacity>
 
-          {/* Botões de ação: Editar e Deletar */}
           <View style={styles.cardActions}>
             <TouchableOpacity 
               style={[styles.actionBtn, { backgroundColor: colors.primary + '15' }]}
@@ -221,15 +214,14 @@ Os gastos associados não serão excluídos.`,
           </View>
         </View>
 
-        {/* Progresso e uso - clicável para abrir detalhes */}
         <TouchableOpacity onPress={() => openDetailModal(card)} activeOpacity={0.7}>
           <View style={styles.usageSection}>
             <View style={styles.usageRow}>
-              <Text style={[styles.usageLabel, { color: colors.textSecondary }]}>Usado</Text>
+              <Text style={[styles.usageLabel, { color: colors.textSecondary }]}>{t('used')}</Text>
               <Text style={[styles.usageValue, { color: colors.text }]}>{formatCurrency(usage)}</Text>
             </View>
             <View style={styles.usageRow}>
-              <Text style={[styles.usageLabel, { color: colors.textSecondary }]}>Disponível</Text>
+              <Text style={[styles.usageLabel, { color: colors.textSecondary }]}>{t('available')}</Text>
               <Text style={[styles.usageValue, { color: remaining < 0 ? colors.danger : colors.primary }]}>
                 {formatCurrency(remaining)}
               </Text>
@@ -246,29 +238,29 @@ Os gastos associados não serão excluídos.`,
             <Text style={[styles.progressText, {
               color: pct >= 100 ? colors.danger : pct >= 80 ? colors.warning : colors.primary,
             }]}>
-              {pct.toFixed(1)}% utilizado
+              {pct.toFixed(1)}% {t('used')}
             </Text>
           </View>
 
           {pct >= 100 && (
             <View style={[styles.alertBadge, { backgroundColor: colors.danger + '20' }]}>
               <Ionicons name="warning-outline" size={14} color={colors.danger} />
-              <Text style={[styles.alertText, { color: colors.danger }]}>Limite excedido!</Text>
+              <Text style={[styles.alertText, { color: colors.danger }]}>{t('limitExceeded')}</Text>
             </View>
           )}
           {pct >= 80 && pct < 100 && (
             <View style={[styles.alertBadge, { backgroundColor: colors.warning + '20' }]}>
               <Ionicons name="alert-circle-outline" size={14} color={colors.warning} />
-              <Text style={[styles.alertText, { color: colors.warning }]}>Quase no limite</Text>
+              <Text style={[styles.alertText, { color: colors.warning }]}>{t('nearLimit')}</Text>
             </View>
           )}
 
           <View style={styles.cardFooter}>
             <Text style={[styles.viewDetailsText, { color: colors.primary }]}>
-              Ver gastos <Ionicons name="chevron-forward" size={12} color={colors.primary} />
+              {t('viewExpenses')} <Ionicons name="chevron-forward" size={12} color={colors.primary} />
             </Text>
             <Text style={[styles.expenseCount, { color: colors.textSecondary }]}>
-              {getCardExpenses(card.id).length} gastos
+              {getCardExpenses(card.id).length} {t('transactions')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -278,22 +270,21 @@ Os gastos associados não serão excluídos.`,
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title="Meus Cartões" />
+      <AppHeader title={t('myCards')} />
 
       <View style={styles.content}>
         <SimpleList
           data={cards}
           renderItem={renderCardItem}
           keyExtractor={(item) => item.id}
-          emptyTitle="Nenhum cartão cadastrado"
-          emptySubtitle="Adicione seu primeiro cartão para começar a controlar os gastos"
+          emptyTitle={t('noCardExpenses')}
+          emptySubtitle={t('addFirstExpense')}
           emptyIcon="card-outline"
           onAddPress={openAddModal}
-          addButtonText="Adicionar Cartão"
+          addButtonText={t('add') + ' ' + t('card')}
         />
       </View>
 
-      {/* FAB */}
       {cards.length > 0 && (
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: colors.primary }]}
@@ -303,9 +294,7 @@ Os gastos associados não serão excluídos.`,
         </TouchableOpacity>
       )}
 
-      {/* ============================================ */}
-      {/* NOVO: Modal de Detalhes do Cartão (Gastos) */}
-      {/* ============================================ */}
+      {/* Modal de Detalhes */}
       <Modal
         visible={detailModalVisible}
         animationType="slide"
@@ -317,7 +306,6 @@ Os gastos associados não serão excluídos.`,
             <View style={[styles.detailModal, { backgroundColor: colors.background }]}>
               {selectedCardForDetail && (
                 <>
-                  {/* Header do Modal */}
                   <View style={[styles.detailHeader, { backgroundColor: colors.card }]}>
                     <View style={styles.detailHeaderLeft}>
                       <View style={[styles.detailIcon, { backgroundColor: selectedCardForDetail.color + '20' }]}>
@@ -337,25 +325,24 @@ Os gastos associados não serão excluídos.`,
                     </TouchableOpacity>
                   </View>
 
-                  {/* Resumo Financeiro */}
                   <View style={[styles.detailSummary, { backgroundColor: colors.card }]}>
                     <View style={styles.summaryRow}>
                       <View style={styles.summaryItem}>
-                        <Text style={[styles.summaryItemLabel, { color: colors.textSecondary }]}>Limite</Text>
+                        <Text style={[styles.summaryItemLabel, { color: colors.textSecondary }]}>{t('limit')}</Text>
                         <Text style={[styles.summaryItemValue, { color: colors.text }]}>
                           {formatCurrency(selectedCardForDetail.limit)}
                         </Text>
                       </View>
                       <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
                       <View style={styles.summaryItem}>
-                        <Text style={[styles.summaryItemLabel, { color: colors.textSecondary }]}>Usado</Text>
+                        <Text style={[styles.summaryItemLabel, { color: colors.textSecondary }]}>{t('used')}</Text>
                         <Text style={[styles.summaryItemValue, { color: colors.danger }]}>
                           {formatCurrency(getCardTotal(selectedCardForDetail.id))}
                         </Text>
                       </View>
                       <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
                       <View style={styles.summaryItem}>
-                        <Text style={[styles.summaryItemLabel, { color: colors.textSecondary }]}>Disponível</Text>
+                        <Text style={[styles.summaryItemLabel, { color: colors.textSecondary }]}>{t('available')}</Text>
                         <Text style={[styles.summaryItemValue, { color: colors.success }]}>
                           {formatCurrency(Math.max(0, selectedCardForDetail.limit - getCardTotal(selectedCardForDetail.id)))}
                         </Text>
@@ -363,7 +350,6 @@ Os gastos associados não serão excluídos.`,
                     </View>
                   </View>
 
-                  {/* Botões de Ação no Modal */}
                   <View style={styles.detailActions}>
                     <TouchableOpacity 
                       style={[styles.detailActionBtn, { backgroundColor: colors.primary }]} 
@@ -373,7 +359,7 @@ Os gastos associados não serão excluídos.`,
                       }}
                     >
                       <Ionicons name="create-outline" size={20} color="#fff" />
-                      <Text style={styles.detailActionText}>Editar Cartão</Text>
+                      <Text style={styles.detailActionText}>{t('editCard')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
                       style={[styles.detailActionBtn, { backgroundColor: colors.danger }]} 
@@ -383,20 +369,19 @@ Os gastos associados não serão excluídos.`,
                       }}
                     >
                       <Ionicons name="trash-outline" size={20} color="#fff" />
-                      <Text style={styles.detailActionText}>Excluir Cartão</Text>
+                      <Text style={styles.detailActionText}>{t('delete') + ' ' + t('card')}</Text>
                     </TouchableOpacity>
                   </View>
 
-                  {/* Lista de Gastos */}
                   <Text style={[styles.expensesSectionTitle, { color: colors.text }]}>
-                    Gastos do Cartão
+                    {t('cardExpenses')}
                   </Text>
 
                   {getCardExpenses(selectedCardForDetail.id).length === 0 ? (
                     <View style={styles.noExpenses}>
                       <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
                       <Text style={[styles.noExpensesText, { color: colors.textSecondary }]}>
-                        Nenhum gasto neste cartão
+                        {t('noCardExpenses')}
                       </Text>
                     </View>
                   ) : (
@@ -416,7 +401,7 @@ Os gastos associados não serão excluídos.`,
         </View>
       </Modal>
 
-      {/* Modal de Adicionar/Editar Cartão (existente) */}
+      {/* Modal de Adicionar/Editar */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
           <ScaleInView>
@@ -437,20 +422,20 @@ Os gastos associados não serão excluídos.`,
                     <View>
                       <Text style={[styles.selectedBankName, { color: colors.text }]}>{selectedBank.name}</Text>
                       <Text style={[styles.selectedBankType, { color: colors.textSecondary }]}>
-                        Toque para trocar
+                        {t('selectBank')}
                       </Text>
                     </View>
                   </View>
                 ) : (
                   <View style={styles.selectBankPlaceholder}>
                     <Ionicons name="card-outline" size={24} color={colors.textLight} />
-                    <Text style={[styles.selectBankText, { color: colors.textLight }]}>Selecionar banco...</Text>
+                    <Text style={[styles.selectBankText, { color: colors.textLight }]}>{t('selectBank')}</Text>
                   </View>
                 )}
                 <Ionicons name="chevron-forward-outline" size={20} color={colors.textLight} />
               </TouchableOpacity>
 
-              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Apelido (opcional)</Text>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('cardNickname')}</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
                 placeholder="Ex: Meu Nubank"
@@ -459,7 +444,7 @@ Os gastos associados não serão excluídos.`,
                 placeholderTextColor={colors.textLight}
               />
 
-              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Limite do cartão</Text>
+              <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('cardLimit')}</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
                 placeholder="R$ 0,00"
@@ -478,10 +463,10 @@ Os gastos associados não serão excluídos.`,
                   setCardLimitDisplay('');
                   setCustomName('');
                 }}>
-                  <Text style={[styles.modalButtonText, { color: colors.text }]}>Cancelar</Text>
+                  <Text style={[styles.modalButtonText, { color: colors.text }]}>{t('cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
-                  <Text style={styles.modalButtonText}>Salvar</Text>
+                  <Text style={styles.modalButtonText}>{t('save')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -503,7 +488,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
 
-  // Card Item
   cardItem: {
     marginHorizontal: 16,
     marginBottom: 12,
@@ -539,7 +523,6 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 16, fontWeight: 'bold' },
   cardLimit: { fontSize: 12, marginTop: 2 },
 
-  // Ações do cartão (Editar + Deletar)
   cardActions: {
     flexDirection: 'row',
     gap: 8,
@@ -552,7 +535,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Uso e Progresso
   usageSection: { marginBottom: 10 },
   usageRow: {
     flexDirection: 'row',
@@ -588,7 +570,6 @@ const styles = StyleSheet.create({
   },
   alertText: { fontSize: 12, fontWeight: '600', marginLeft: 6 },
 
-  // Footer do card
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -601,7 +582,6 @@ const styles = StyleSheet.create({
   viewDetailsText: { fontSize: 13, fontWeight: '600' },
   expenseCount: { fontSize: 12 },
 
-  // FAB
   fab: {
     position: 'absolute',
     right: 20,
@@ -618,9 +598,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
-  // ============================================
-  // ESTILOS DO MODAL DE DETALHES (NOVO)
-  // ============================================
   detailOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -731,9 +708,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
 
-  // ============================================
-  // ESTILOS DO MODAL DE ADICIONAR/EDITAR (existente)
-  // ============================================
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
