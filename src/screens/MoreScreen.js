@@ -177,7 +177,7 @@ export default function MenuScreen({ navigation }) {
       title: t('categories'),
       subtitle: t('manageCategories'),
       action: 'navigate',
-      screen: 'Settings',
+      screen: 'Categories',
       color: colors.warning,
     },
     {
@@ -238,22 +238,25 @@ export default function MenuScreen({ navigation }) {
         <Switch
           value={isDark}
           onValueChange={toggleTheme}
-          trackColor={{ false: '#767577', true: colors.primary }}
+          trackColor={{ false: isDark ? '#444' : '#767577', true: colors.primary + '80' }}
           thumbColor={isDark ? '#fff' : '#f4f3f4'}
+          ios_backgroundColor={isDark ? '#444' : '#767577'}
         />
       ) : item.action === 'toggleSound' ? (
         <Switch
           value={soundEnabled}
           onValueChange={toggleSoundSetting}
-          trackColor={{ false: '#767577', true: colors.secondary }}
-          thumbColor={soundEnabled ? '#fff' : '#f4f3f4'}
+          trackColor={{ false: isDark ? '#444' : '#767577', true: colors.secondary + '80' }}
+          thumbColor={isDark ? '#fff' : '#f4f3f4'}
+          ios_backgroundColor={isDark ? '#444' : '#767577'}
         />
       ) : item.action === 'toggleAlerts' ? (
         <Switch
           value={alertsEnabled}
           onValueChange={toggleAlerts}
-          trackColor={{ false: '#767577', true: colors.info }}
-          thumbColor={alertsEnabled ? '#fff' : '#f4f3f4'}
+          trackColor={{ false: isDark ? '#444' : '#767577', true: colors.info + '80' }}
+          thumbColor={isDark ? '#fff' : '#f4f3f4'}
+          ios_backgroundColor={isDark ? '#444' : '#767577'}
         />
       ) : (
         <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
