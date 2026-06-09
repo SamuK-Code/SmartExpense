@@ -171,23 +171,50 @@ export default function ChartScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Bar Chart */}
+        {/* Chart Visualization */}
         <View style={[styles.chartContainer, { backgroundColor: colors.card }]}>
           {currentData.length > 0 ? (
-            <View style={styles.barChartWrapper}>
-              <BarChart
-                data={barData}
-                width={screenWidth - 64}
-                height={220}
-                chartConfig={chartConfig}
-                style={styles.barChart}
-                showValuesOnTopOfBars
-                fromZero
-                withInnerLines={false}
-                segments={4}
-                onDataPointClick={({ index }) => handleBarPress(index)}
-              />
-            </View>
+            chartType === 'category' ? (
+              <View style={styles.barChartWrapper}>
+                <BarChart
+                  data={barData}
+                  width={screenWidth - 64}
+                  height={220}
+                  chartConfig={chartConfig}
+                  style={styles.barChart}
+                  showValuesOnTopOfBars
+                  fromZero
+                  withInnerLines={false}
+                  segments={4}
+                  onDataPointClick={({ index }) => handleBarPress(index)}
+                />
+              </View>
+            ) : (
+              <View style={styles.pieChartContainer}>
+                {currentData.map((item, index) => {
+                  const percentage = totalGeral > 0 ? ((item.amount / totalGeral) * 100).toFixed(1) : 0;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.pieItem}
+                      onPress={() => handleBarPress(index)}
+                    >
+                      <View style={styles.pieLeft}>
+                        <View style={[styles.pieDot, { backgroundColor: item.color }]} />
+                        <Text style={[styles.pieName, { color: colors.text }]}>{item.name}</Text>
+                      </View>
+                      <View style={styles.pieRight}>
+                        <View style={[styles.pieBar, { backgroundColor: item.color + '20' }]}>
+                          <View style={[styles.pieBarFill, { width: `${Math.min(percentage * 3, 100)}%`, backgroundColor: item.color }]} />
+                        </View>
+                        <Text style={[styles.piePercent, { color: item.color }]}>{percentage}%</Text>
+                        <Text style={[styles.pieAmount, { color: colors.text }]}>{formatCurrency(item.amount)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )
           ) : (
             <View style={styles.noDataChart}>
               <Text style={[styles.noDataText, { color: colors.textLight }]}>{t('noExpenses')}</Text>
@@ -277,6 +304,16 @@ const styles = StyleSheet.create({
   barChart: { borderRadius: 16, marginVertical: 8 },
   noDataChart: { alignItems: 'center', padding: 40 },
   noDataText: { fontSize: 14, opacity: 0.7 },
+  pieChartContainer: { width: '100%', paddingVertical: 10 },
+  pieItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  pieLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  pieDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
+  pieName: { fontSize: 14, fontWeight: '500' },
+  pieRight: { alignItems: 'flex-end', minWidth: 120 },
+  pieBar: { height: 6, borderRadius: 3, width: 100, overflow: 'hidden', marginBottom: 4 },
+  pieBarFill: { height: '100%', borderRadius: 3 },
+  piePercent: { fontSize: 12, fontWeight: 'bold' },
+  pieAmount: { fontSize: 13, marginTop: 2 },
   legendSection: { margin: 16, marginTop: 24 },
   legendHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold' },
