@@ -159,14 +159,18 @@ export default function CategoriesScreen() {
             [
               { text: 'Cancelar', style: 'cancel' },
               { text: 'Resetar', style: 'destructive', onPress: () => {
-                // 1. Deletar TODAS as categorias existentes primeiro
-                const allCats = categories || [];
+                // 1. Deletar TODAS as categorias existentes
+                const allCats = [...(categories || [])];
                 allCats.forEach(cat => {
-                  deleteCategory(cat.id);
+                  try { deleteCategory(cat.id); } catch(e) {}
                 });
-                // 2. Adicionar as padrões (com IDs fixos para evitar duplicatas)
-                defaultCategories.forEach(cat => {
-                  addCategory({ ...cat, id: cat.id });
+                // 2. Adicionar as padrões com IDs únicos baseados no timestamp
+                const now = Date.now();
+                defaultCategories.forEach((cat, idx) => {
+                  addCategory({
+                    ...cat,
+                    id: 'default_' + cat.id + '_' + (now + idx),
+                  });
                 });
               }},
             ]
