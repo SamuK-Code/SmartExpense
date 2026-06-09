@@ -10,6 +10,23 @@ const STORAGE_KEYS = {
   CASH_TRANSACTIONS: '@cash_transactions',
 };
 
+// Categorias padrão — IDs fixos para evitar duplicatas
+const DEFAULT_CATEGORIES = [
+  { id: 'cat-food', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+  { id: 'cat-transport', name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+  { id: 'cat-leisure', name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+  { id: 'cat-health', name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+  { id: 'cat-housing', name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+  { id: 'cat-education', name: 'Educação', color: '#DDA0DD', icon: 'school' },
+  { id: 'cat-shopping', name: 'Compras', color: '#98D8C8', icon: 'cart' },
+  { id: 'cat-others', name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+];
+
+// Gerador de ID único — evita colisão com Date.now()
+const generateId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+};
+
 const initialState = {
   expenses: [],
   cards: [],
@@ -96,7 +113,15 @@ export function ExpenseProvider({ children }) {
 
         if (expensesData) dispatch({ type: 'SET_EXPENSES', payload: JSON.parse(expensesData) });
         if (cardsData) dispatch({ type: 'SET_CARDS', payload: JSON.parse(cardsData) });
-        if (categoriesData) dispatch({ type: 'SET_CATEGORIES', payload: JSON.parse(categoriesData) });
+
+        // Se não houver categorias salvas, salvar as padrão no AsyncStorage
+        if (categoriesData) {
+          dispatch({ type: 'SET_CATEGORIES', payload: JSON.parse(categoriesData) });
+        } else {
+          dispatch({ type: 'SET_CATEGORIES', payload: DEFAULT_CATEGORIES });
+          await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES));
+        }
+
         if (cashData) dispatch({ type: 'SET_CASH_TRANSACTIONS', payload: JSON.parse(cashData) });
       } catch (error) {
         console.error('Error loading data:', error);
@@ -118,13 +143,14 @@ export function ExpenseProvider({ children }) {
   const addExpense = useCallback((expense) => {
     const newExpense = { 
       ...expense, 
-      id: Date.now().toString(), 
+      id: generateId(), 
       paid: false, 
       originalAmount: expense.amount,
       createdAt: new Date().toISOString() 
     };
+    const updated = [newExpense, ...state.expenses];
     dispatch({ type: 'ADD_EXPENSE', payload: newExpense });
-    saveData(STORAGE_KEYS.EXPENSES, [...state.expenses, newExpense]);
+    saveData(STORAGE_KEYS.EXPENSES, updated);
   }, [state.expenses, saveData]);
 
   const updateExpense = useCallback((id, updates) => {
@@ -140,16 +166,17 @@ export function ExpenseProvider({ children }) {
   }, [state.expenses, saveData]);
 
   const toggleExpensePaid = useCallback((id) => {
-    dispatch({ type: 'TOGGLE_EXPENSE_PAID', payload: id });
     const updated = state.expenses.map(e => e.id === id ? { ...e, paid: !e.paid } : e);
+    dispatch({ type: 'SET_EXPENSES', payload: updated });
     saveData(STORAGE_KEYS.EXPENSES, updated);
   }, [state.expenses, saveData]);
 
   // ─── Cards ───
   const addCard = useCallback((card) => {
-    const newCard = { ...card, id: Date.now().toString() };
+    const newCard = { ...card, id: generateId() };
+    const updated = [...state.cards, newCard];
     dispatch({ type: 'ADD_CARD', payload: newCard });
-    saveData(STORAGE_KEYS.CARDS, [...state.cards, newCard]);
+    saveData(STORAGE_KEYS.CARDS, updated);
   }, [state.cards, saveData]);
 
   const updateCard = useCallback((id, updates) => {
@@ -166,9 +193,10 @@ export function ExpenseProvider({ children }) {
 
   // ─── Categories ───
   const addCategory = useCallback((category) => {
-    const newCategory = { ...category, id: Date.now().toString() };
+    const newCategory = { ...category, id: generateId() };
+    const updated = [...state.categories, newCategory];
     dispatch({ type: 'ADD_CATEGORY', payload: newCategory });
-    saveData(STORAGE_KEYS.CATEGORIES, [...state.categories, newCategory]);
+    saveData(STORAGE_KEYS.CATEGORIES, updated);
   }, [state.categories, saveData]);
 
   const updateCategory = useCallback((id, updates) => {
@@ -186,14 +214,15 @@ export function ExpenseProvider({ children }) {
   // ─── Cash Transactions ───
   const addCashTransaction = useCallback((amount, description) => {
     const newTransaction = {
-      id: Date.now().toString(),
+      id: generateId(),
       amount,
       description,
       date: new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
     };
+    const updated = [newTransaction, ...state.cashTransactions];
     dispatch({ type: 'ADD_CASH_TRANSACTION', payload: newTransaction });
-    saveData(STORAGE_KEYS.CASH_TRANSACTIONS, [...state.cashTransactions, newTransaction]);
+    saveData(STORAGE_KEYS.CASH_TRANSACTIONS, updated);
     return newTransaction;
   }, [state.cashTransactions, saveData]);
 
@@ -210,15 +239,21 @@ export function ExpenseProvider({ children }) {
   }, [state.cashTransactions, saveData]);
 
   // ─── Clear All Data ───
-  const clearAllData = useCallback(() => {
+  const clearAllData = useCallback(async () => {
     dispatch({ type: 'CLEAR_ALL_DATA' });
-    // Limpar todas as chaves do AsyncStorage relacionadas a despesas
-    Promise.all([
-      AsyncStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify([])),
-      AsyncStorage.setItem(STORAGE_KEYS.CARDS, JSON.stringify([])),
-      AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify([])),
-      AsyncStorage.setItem(STORAGE_KEYS.CASH_TRANSACTIONS, JSON.stringify([])),
-    ]).catch(error => console.error('Error clearing all data:', error));
+    // Limpar todas as chaves e recriar categorias padrão
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify([])),
+        AsyncStorage.setItem(STORAGE_KEYS.CARDS, JSON.stringify([])),
+        AsyncStorage.setItem(STORAGE_KEYS.CASH_TRANSACTIONS, JSON.stringify([])),
+        AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES)),
+      ]);
+      // Recarregar categorias padrão no estado
+      dispatch({ type: 'SET_CATEGORIES', payload: DEFAULT_CATEGORIES });
+    } catch (error) {
+      console.error('Error clearing all data:', error);
+    }
   }, []);
 
   // ─── Alerts ───
@@ -276,17 +311,8 @@ export function ExpenseProvider({ children }) {
       .reduce((sum, e) => sum + parseFloat(e.amount), 0);
   }, [state.expenses]);
 
-  // Categorias padrão
-  const CATEGORIES = state.categories.length > 0 ? state.categories : [
-    { id: 'food', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
-    { id: 'transport', name: 'Transporte', color: '#4ECDC4', icon: 'car' },
-    { id: 'leisure', name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
-    { id: 'health', name: 'Saúde', color: '#96CEB4', icon: 'medical' },
-    { id: 'housing', name: 'Moradia', color: '#FFEAA7', icon: 'home' },
-    { id: 'education', name: 'Educação', color: '#DDA0DD', icon: 'school' },
-    { id: 'shopping', name: 'Compras', color: '#98D8C8', icon: 'cart' },
-    { id: 'others', name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
-  ];
+  // Categorias disponíveis — sempre retorna o estado + padrão como fallback
+  const CATEGORIES = state.categories.length > 0 ? state.categories : DEFAULT_CATEGORIES;
 
   const value = {
     expenses: state.expenses,
