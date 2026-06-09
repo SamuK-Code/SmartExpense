@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
-import { usePlanning } from '../context/PlanningContext';
+import { useCash } from '../context/CashContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView, StaggeredList } from '../components/AnimatedComponents';
@@ -19,7 +19,7 @@ import PeriodFilter from '../components/PeriodFilter';
 
 export default function HistoryScreen({ navigation }) {
   const { expenses, deleteExpense, getFilteredExpenses, CATEGORIES, toggleExpensePaid } = useExpenses();
-  const { cashTransactions } = usePlanning();
+  const { cashTransactions } = useCash();
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
   const [period, setPeriod] = useState('month');
