@@ -113,9 +113,8 @@ export default function EditExpenseScreen({ navigation, route }) {
 
   // ─── Detail Modal (quando pago) ───
   const renderDetailModal = () => (
-    <Modal visible={showDetailModal} transparent animationType="fade">
-      <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-        <ScaleInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+      <ScaleInView style={[styles.detailCard, { backgroundColor: colors.card }]}>
           <View style={[styles.paidIcon, { backgroundColor: colors.success + '15' }]}>
             <Ionicons name="checkmark-circle" size={48} color={colors.success} />
           </View>
@@ -173,25 +172,27 @@ export default function EditExpenseScreen({ navigation, route }) {
 
           <TouchableOpacity
             style={[styles.modalButton, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              setShowDetailModal(false);
-              navigation.goBack();
-            }}
+            onPress={() => navigation.goBack()}
           >
             <Text style={styles.modalButtonText}>{t('close')}</Text>
           </TouchableOpacity>
         </ScaleInView>
       </View>
-    </Modal>
   );
+
+  if (isPaid) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        {renderDetailModal()}
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      {isPaid && renderDetailModal()}
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.title, { color: colors.text }]}>{t('editExpense')}</Text>
 
@@ -307,4 +308,5 @@ const styles = StyleSheet.create({
   detailHint: { fontSize: 12, textAlign: 'center', marginTop: 12, marginBottom: 16, fontStyle: 'italic' },
   modalButton: { width: '100%', padding: 14, borderRadius: 12, alignItems: 'center' },
   modalButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  detailCard: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 10 },
 });
