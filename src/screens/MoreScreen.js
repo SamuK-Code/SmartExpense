@@ -109,7 +109,7 @@ export default function MenuScreen({ navigation }) {
                   style: 'destructive',
                   onPress: async () => {
                     // Limpar todos os dados: despesas, cartões, categorias, transações em caixa
-                    clearAllData();
+                    await clearAllData();
                     // Limpar saldo em caixa e transações de caixa
                     clearCash();
                     // Limpar metas/planejamento
