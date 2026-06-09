@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView, ScaleInView, StaggeredList } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 import SimpleList from '../components/SimpleList';
@@ -22,6 +23,7 @@ import { getBankById } from '../utils/BanksData';
 export default function CardsScreen() {
   const { cards, expenses, addCard, updateCard, deleteCard, getCardUsage } = useExpenses();
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
 
   // Modal de adicionar/editar cartão
   const [modalVisible, setModalVisible] = useState(false);
@@ -83,12 +85,12 @@ export default function CardsScreen() {
 
   const handleSave = () => {
     if (!selectedBank) {
-      Alert.alert('Erro', 'Selecione um banco');
+      Alert.alert('Erro', t('selectBank'));
       return;
     }
 
     if (!cardLimit || cardLimit === '0') {
-      Alert.alert('Erro', 'Preencha o limite do cartão');
+      Alert.alert('Erro', t('invalidAmount'));
       return;
     }
 
@@ -96,7 +98,7 @@ export default function CardsScreen() {
     const limit = numericValue / 100;
 
     if (isNaN(limit) || limit <= 0) {
-      Alert.alert('Erro', 'Digite um limite válido');
+      Alert.alert('Erro', t('invalidAmount'));
       return;
     }
 
@@ -111,10 +113,10 @@ export default function CardsScreen() {
 
     if (editingCard) {
       updateCard(editingCard.id, cardData);
-      Alert.alert('Sucesso', 'Cartão atualizado!');
+      Alert.alert('Sucesso', t('cardUpdated'));
     } else {
       addCard(cardData);
-      Alert.alert('Sucesso', 'Cartão adicionado!');
+      Alert.alert('Sucesso', t('cardAdded'));
     }
 
     setModalVisible(false);
@@ -127,13 +129,13 @@ export default function CardsScreen() {
 
   const handleDelete = (card) => {
     Alert.alert(
-      'Confirmar exclusão',
+      t('confirm') + ' ' + t('delete'),
       `Deseja excluir o cartão "${card.customName || card.name}"?
 
 Os gastos associados não serão excluídos.`,
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: () => deleteCard(card.id) },
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('delete'), style: 'destructive', onPress: () => deleteCard(card.id) },
       ]
     );
   };
@@ -326,7 +328,7 @@ Os gastos associados não serão excluídos.`,
                           {selectedCardForDetail.customName || selectedCardForDetail.name}
                         </Text>
                         <Text style={[styles.detailSubtitle, { color: colors.textSecondary }]}>
-                          {getBankById(selectedCardForDetail.bankId)?.name || 'Banco'}
+                          {getBankById(selectedCardForDetail.bankId)?.name || t('cardBank')}
                         </Text>
                       </View>
                     </View>
@@ -420,7 +422,7 @@ Os gastos associados não serão excluídos.`,
           <ScaleInView>
             <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>
-                {editingCard ? 'Editar Cartão' : 'Novo Cartão'}
+                {editingCard ? t('editCard') : t('newCard')}
               </Text>
 
               <TouchableOpacity
