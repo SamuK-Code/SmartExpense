@@ -136,6 +136,11 @@ export function CashProvider({ children }) {
     return true;
   }, [cashBalance, cashTransactions]);
 
+  const clearCash = useCallback(() => {
+    setCashBalance(0);
+    setCashTransactions([]);
+  }, []);
+
   const value = {
     cashBalance,
     cashTransactions,
@@ -143,6 +148,7 @@ export function CashProvider({ children }) {
     addCashTransaction,
     updateCashTransaction,
     deleteCashTransaction,
+    clearCash,
   };
 
   return <CashContext.Provider value={value}>{children}</CashContext.Provider>;
