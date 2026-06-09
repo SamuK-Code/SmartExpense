@@ -25,9 +25,7 @@ export default function PlanningScreen() {
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
 
-  const [cashModalVisible, setCashModalVisible] = useState(false);
-  const [cashInput, setCashInput] = useState(cashBalance.toString());
-  const [goalModalVisible, setGoalModalVisible] = useState(false);
+      const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [goalName, setGoalName] = useState('');
   const [goalAmount, setGoalAmount] = useState('');
@@ -41,16 +39,6 @@ export default function PlanningScreen() {
   const expensePercent = cashBalance > 0 ? (totalExpenses / cashBalance) * 100 : 0;
   const dailyBudget = calculateDailyBudget(cashBalance, totalExpenses);
   const isCashSufficient = cashBalance >= totalExpenses;
-
-  const handleSaveCash = () => {
-    const amount = parseFloat(cashInput.replace(',', '.'));
-    if (isNaN(amount) || amount < 0) {
-      Alert.alert(t('error'), t('invalidAmount'));
-      return;
-    }
-    updateCashBalance(amount);
-    setCashModalVisible(false);
-  };
 
   const openAddGoal = () => {
     setEditingGoal(null);
@@ -160,7 +148,7 @@ export default function PlanningScreen() {
       <AppHeader title={t('planning')} />
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Cash Balance Card */}
-        <TouchableOpacity style={[styles.cashCard, { backgroundColor: colors.card }]} onPress={() => setCashModalVisible(true)}>
+        <View style={[styles.cashCard, { backgroundColor: colors.card }]}>
           <View style={styles.cashRow}>
             <View>
               <Text style={[styles.cashLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
@@ -170,8 +158,8 @@ export default function PlanningScreen() {
               <Ionicons name="wallet" size={24} color={colors.primary} />
             </View>
           </View>
-          <Text style={[styles.cashHint, { color: colors.textLight }]}>{t('tapToUpdate')}</Text>
-        </TouchableOpacity>
+          
+        </View>
 
         {/* Budget Overview */}
         <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
@@ -268,32 +256,6 @@ export default function PlanningScreen() {
           )}
         </View>
       </ScrollView>
-
-      {/* Cash Modal */}
-      <Modal visible={cashModalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-          <ScaleInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('availableCash')}</Text>
-            <Text style={[styles.modalSubtitle, { color: colors.textLight }]}>{t('howMuchCash')}</Text>
-            <TextInput
-              style={[styles.modalInput, { backgroundColor: colors.background, color: colors.text }]}
-              value={cashInput}
-              onChangeText={setCashInput}
-              placeholder="0,00"
-              placeholderTextColor={colors.textLight}
-              keyboardType="numeric"
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.danger }]} onPress={() => setCashModalVisible(false)}>
-                <Text style={styles.modalButtonText}>{t('cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={handleSaveCash}>
-                <Text style={styles.modalButtonText}>{t('save')}</Text>
-              </TouchableOpacity>
-            </View>
-          </ScaleInView>
-        </View>
-      </Modal>
 
       {/* Goal Modal */}
       <Modal visible={goalModalVisible} transparent animationType="fade">
