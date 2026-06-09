@@ -20,24 +20,22 @@ import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComp
 import AppHeader from '../components/AppHeader';
 
 export default function AddExpenseScreen({ navigation }) {
-  const { 
-    addExpense, 
-    expenses, 
-    cards, 
-    CATEGORIES, 
-    deleteExpense, 
-    cashTransactions: ctxCashTransactions, 
-    addCashTransaction: ctxAddCashTransaction 
+  const {
+    addExpense,
+    expenses,
+    cards,
+    CATEGORIES,
+    deleteExpense,
+    cashTransactions: ctxCashTransactions,
+    addCashTransaction: ctxAddCashTransaction
   } = useExpenses();
 
-  const { 
-    cashBalance, 
+  const {
+    cashBalance,
     cashTransactions: planningCashTransactions,
     deleteCashTransaction: planningDeleteCashTransaction,
     updateCashTransaction: planningUpdateCashTransaction,
   } = usePlanning();
-
-  
 
   const [localCashTransactions, setLocalCashTransactions] = useState([]);
   const { colors, isDark } = useTheme();
@@ -134,7 +132,7 @@ export default function AddExpenseScreen({ navigation }) {
     console.log('cashDescription:', cashDescription);
 
     if (!cashAmount || !cashDescription) {
-      Alert.alert('Erro', t('invalidAmount') + ' / ' + t('invalidDescription'));
+      Alert.alert(t('error'), t('invalidAmount') + ' / ' + t('invalidDescription'));
       return;
     }
 
@@ -142,7 +140,7 @@ export default function AddExpenseScreen({ navigation }) {
     console.log('numericValue:', numericValue);
 
     if (isNaN(numericValue) || numericValue <= 0) {
-      Alert.alert('Erro', t('invalidAmount'));
+      Alert.alert(t('error'), t('invalidAmount'));
       return;
     }
 
@@ -154,12 +152,12 @@ export default function AddExpenseScreen({ navigation }) {
       console.log('addCashTransaction result:', result);
 
       if (result === null || result === undefined) {
-        Alert.alert('Erro', t('error'));
+        Alert.alert(t('error'), t('error'));
         return;
       }
 
-      Alert.alert('Sucesso', t('cashAdded'), [
-        { text: 'OK', onPress: () => {
+      Alert.alert(t('success'), t('cashAdded'), [
+        { text: t('ok'), onPress: () => {
           setShowCashForm(false);
           setCashAmount('');
           setCashAmountDisplay('');
@@ -169,24 +167,24 @@ export default function AddExpenseScreen({ navigation }) {
       ]);
     } catch (error) {
       console.error('Error in handleCashSubmit:', error);
-      Alert.alert('Erro', t('error'));
+      Alert.alert(t('error'), t('error'));
     }
   };
 
   const handleSubmit = () => {
     if (!amount || !description) {
-      Alert.alert('Erro', t('invalidAmount') + ' / ' + t('invalidDescription'));
+      Alert.alert(t('error'), t('invalidAmount') + ' / ' + t('invalidDescription'));
       return;
     }
 
     const numericAmount = parseInt(amount) / 100;
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Erro', t('invalidAmount'));
+      Alert.alert(t('error'), t('invalidAmount'));
       return;
     }
 
     if (expenseType === 'card' && cards.length > 0 && !selectedCard) {
-      Alert.alert('Erro', t('invalidCard'));
+      Alert.alert(t('error'), t('invalidCard'));
       return;
     }
 
@@ -200,8 +198,8 @@ export default function AddExpenseScreen({ navigation }) {
         paymentMethod: expenseType === 'card' ? paymentMethod : null,
       });
 
-      Alert.alert('Sucesso', t('expenseAdded'), [
-        { text: 'OK', onPress: () => {
+      Alert.alert(t('success'), t('expenseAdded'), [
+        { text: t('ok'), onPress: () => {
           setShowForm(false);
           setAmount('');
           setAmountDisplay('');
@@ -213,17 +211,17 @@ export default function AddExpenseScreen({ navigation }) {
         }}
       ]);
     } catch (error) {
-      Alert.alert('Erro', t('error'));
+      Alert.alert(t('error'), t('error'));
     }
   };
 
   const handleDeleteExpense = (expense) => {
     Alert.alert(
       t('confirm') + ' ' + t('delete'),
-      `Deseja excluir "${expense.description}"?`,
+      t('confirmDeleteExpense') + ' "' + expense.description + '"?',
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: () => deleteExpense(expense.id) },
+        { text: t('delete'), style: 'destructive', onPress: () => deleteExpense(expense.id) },
       ]
     );
   };
@@ -248,28 +246,29 @@ export default function AddExpenseScreen({ navigation }) {
     console.log('handleUpdateCash called');
 
     if (!editCashAmount || !editCashDescription) {
-      Alert.alert('Erro', 'Preencha o valor e a descricao');
+      Alert.alert(t('error'), t('requiredField'));
       return;
     }
 
     const numericValue = parseFloat(editCashAmount);
     if (isNaN(numericValue) || numericValue <= 0) {
-      Alert.alert('Erro', 'Valor invalido');
+      Alert.alert(t('error'), t('invalidAmount'));
       return;
     }
 
     const finalAmount = numericValue / 100;
 
     try {
-      const result = updateCashTransaction(editingCashId, {
+      // CORREÇÃO: usar planningUpdateCashTransaction em vez de updateCashTransaction
+      const result = planningUpdateCashTransaction(editingCashId, {
         amount: finalAmount,
         description: editCashDescription.trim(),
         date: editCashDate,
       });
 
       if (result) {
-        Alert.alert('Sucesso', t('cashUpdated'), [
-          { text: 'OK', onPress: () => {
+        Alert.alert(t('success'), t('cashUpdated'), [
+          { text: t('ok'), onPress: () => {
             setEditingCashId(null);
             setEditCashAmount('');
             setEditCashAmountDisplay('');
@@ -278,23 +277,24 @@ export default function AddExpenseScreen({ navigation }) {
           }}
         ]);
       } else {
-        Alert.alert('Erro', 'Nao foi possivel atualizar');
+        Alert.alert(t('error'), t('error'));
       }
     } catch (error) {
       console.error('Error in handleUpdateCash:', error);
-      Alert.alert('Erro', 'Nao foi possivel atualizar: ' + error.message);
+      Alert.alert(t('error'), t('error') + ': ' + error.message);
     }
   };
 
   const handleDeleteCash = (cashItem) => {
     Alert.alert(
       t('confirm') + ' ' + t('delete'),
-      `Deseja excluir "${cashItem.description}"?`,
+      t('wantToDelete') + ' "' + cashItem.description + '"?',
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: () => {
-          if (ctxAddCashTransaction && typeof deleteCashTransaction === 'function') {
-            deleteCashTransaction(cashItem.id);
+        { text: t('delete'), style: 'destructive', onPress: () => {
+          // CORREÇÃO: usar planningDeleteCashTransaction em vez de deleteCashTransaction
+          if (ctxAddCashTransaction && typeof planningDeleteCashTransaction === 'function') {
+            planningDeleteCashTransaction(cashItem.id);
           } else {
             setLocalCashTransactions(prev => prev.filter(item => item.id !== cashItem.id));
           }
@@ -309,43 +309,37 @@ export default function AddExpenseScreen({ navigation }) {
     const isStandalone = !item.cardId;
 
     return (
-      <SlideInView delay={index * 50}>
-        <TouchableOpacity 
-          style={[styles.expenseItem, { backgroundColor: colors.card }]}
-          onPress={() => navigation.navigate('EditExpense', { expenseId: item.id })}
-          onLongPress={() => handleDeleteExpense(item)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.categoryIcon, { backgroundColor: category.color + (isDark ? '30' : '20') }]}>
-            <Ionicons name={category.icon} size={20} color={category.color} />
+      <TouchableOpacity
+        style={[styles.expenseItem, { backgroundColor: colors.card }]}
+        onPress={() => navigation.navigate('EditExpense', { expenseId: item.id })}
+        onLongPress={() => handleDeleteExpense(item)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.categoryIcon, { backgroundColor: category.color + '15' }]}>
+          <Ionicons name={category.icon} size={22} color={category.color} />
+        </View>
+        <View style={styles.expenseInfo}>
+          <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
+          <View style={styles.expenseMeta}>
+            <Text style={[styles.expenseCategory, { color: category.color }]}>{category.name}</Text>
+            {isStandalone ? (
+              <View style={[styles.standaloneBadge, { backgroundColor: colors.warning + '15' }]}>
+                <Ionicons name="receipt-outline" size={10} color={colors.warning} />
+                <Text style={[styles.standaloneText, { color: colors.warning }]}>{t('standalone')}</Text>
+              </View>
+            ) : card ? (
+              <View style={[styles.cardBadge, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="card-outline" size={10} color={colors.primary} />
+                <Text style={[styles.cardBadgeText, { color: colors.primary }]}>{card.name}</Text>
+              </View>
+            ) : null}
           </View>
-          <View style={styles.expenseInfo}>
-            <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
-            <View style={styles.expenseMeta}>
-              <Text style={[styles.expenseCategory, { color: colors.textSecondary }]}>
-                {category.name}
-              </Text>
-              {isStandalone ? (
-                <View style={[styles.standaloneBadge, { backgroundColor: colors.info + (isDark ? '30' : '20') }]}>
-                  <Ionicons name="receipt-outline" size={10} color={colors.info} />
-                  <Text style={[styles.standaloneText, { color: colors.info }]}>Boleto/Avulso</Text>
-                </View>
-              ) : card ? (
-                <View style={[styles.cardBadge, { backgroundColor: card.color + '20' }]}>
-                  <Ionicons name="card-outline" size={10} color={card.color} />
-                  <Text style={[styles.cardBadgeText, { color: card.color }]}>{card.name}</Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
-          </View>
-          <View style={styles.expenseRight}>
-            <Text style={[styles.expenseAmount, { color: colors.danger }]}>
-              {formatCurrency(parseFloat(item.amount))}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </SlideInView>
+          <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
+        </View>
+        <View style={styles.expenseRight}>
+          <Text style={[styles.expenseAmount, { color: colors.danger }]}>{formatCurrency(parseFloat(item.amount))}</Text>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -354,116 +348,82 @@ export default function AddExpenseScreen({ navigation }) {
 
     if (isEditing) {
       return (
-        <SlideInView delay={index * 50}>
-          <View style={[styles.editCashForm, { backgroundColor: colors.card }]}>
-            <Text style={[styles.editTitle, { color: colors.text }]}>Editar Entrada</Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
-              <TextInput
-                style={[styles.amountInput, { 
-                  backgroundColor: colors.inputBg, 
-                  color: colors.text,
-                }]}
-                placeholder="R$ 0,00"
-                keyboardType="numeric"
-                value={editCashAmountDisplay}
-                onChangeText={(text) => {
-                  const numeric = text.replace(/\D/g, '');
-                  setEditCashAmount(numeric);
-                  const number = parseInt(numeric) / 100;
-                  setEditCashAmountDisplay(
-                    new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(number || 0)
-                  );
-                }}
-                placeholderTextColor={colors.textLight}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Descricao</Text>
-              <TextInput
-                style={[styles.input, { 
-                  backgroundColor: colors.inputBg, 
-                  color: colors.text,
-                }]}
-                value={editCashDescription}
-                onChangeText={setEditCashDescription}
-                placeholderTextColor={colors.textLight}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
-              <TextInput
-                style={[styles.input, { 
-                  backgroundColor: colors.inputBg, 
-                  color: colors.text,
-                }]}
-                value={editCashDate}
-                onChangeText={setEditCashDate}
-                placeholderTextColor={colors.textLight}
-              />
-            </View>
-
-            <View style={styles.editButtonsRow}>
-              <TouchableOpacity 
-                style={[styles.editButton, { backgroundColor: colors.success }]} 
-                onPress={handleUpdateCash}
-              >
-                <Ionicons name="checkmark-outline" size={20} color="#fff" />
-                <Text style={styles.editButtonText}>Salvar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.editButton, { backgroundColor: colors.border }]} 
-                onPress={() => {
-                  setEditingCashId(null);
-                  setEditCashAmount('');
-                  setEditCashAmountDisplay('');
-                  setEditCashDescription('');
-                  setEditCashDate(getTodayDate());
-                }}
-              >
-                <Ionicons name="close-outline" size={20} color={colors.text} />
-                <Text style={[styles.editButtonText, { color: colors.text }]}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
+        <View style={[styles.editCashForm, { backgroundColor: colors.card }]}>
+          <Text style={[styles.editTitle, { color: colors.text }]}>{t('editCash')}</Text>
+          <TextInput
+            style={[styles.amountInput, { backgroundColor: colors.background, color: colors.text }]}
+            value={editCashAmountDisplay}
+            onChangeText={(text) => {
+              const numeric = text.replace(/\D/g, '');
+              setEditCashAmount(numeric);
+              const number = parseInt(numeric) / 100;
+              setEditCashAmountDisplay(
+                new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(number || 0)
+              );
+            }}
+            placeholder={t('amount')}
+            placeholderTextColor={colors.textLight}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
+            value={editCashDescription}
+            onChangeText={setEditCashDescription}
+            placeholder={t('description')}
+            placeholderTextColor={colors.textLight}
+          />
+          <TextInput
+            style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
+            value={editCashDate}
+            onChangeText={setEditCashDate}
+            placeholder={t('date')}
+            placeholderTextColor={colors.textLight}
+          />
+          <View style={styles.editButtonsRow}>
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: colors.success }]}
+              onPress={handleUpdateCash}
+            >
+              <Ionicons name="checkmark" size={18} color="#fff" />
+              <Text style={styles.editButtonText}>{t('save')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: colors.danger }]}
+              onPress={() => {
+                setEditingCashId(null);
+                setEditCashAmount('');
+                setEditCashAmountDisplay('');
+                setEditCashDescription('');
+                setEditCashDate(getTodayDate());
+              }}
+            >
+              <Ionicons name="close" size={18} color="#fff" />
+              <Text style={styles.editButtonText}>{t('cancel')}</Text>
+            </TouchableOpacity>
           </View>
-        </SlideInView>
+        </View>
       );
     }
 
     return (
-      <SlideInView delay={index * 50}>
-        <TouchableOpacity 
-          style={[styles.expenseItem, { backgroundColor: colors.card }]}
-          onPress={() => handleEditCash(item)}
-          onLongPress={() => handleDeleteCash(item)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.categoryIcon, { backgroundColor: colors.success + (isDark ? '30' : '20') }]}>
-            <Ionicons name="cash-outline" size={20} color={colors.success} />
-          </View>
-          <View style={styles.expenseInfo}>
-            <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
-            <View style={styles.expenseMeta}>
-              <View style={[styles.cashBadge, { backgroundColor: colors.success + (isDark ? '30' : '20') }]}>
-                <Ionicons name="arrow-up-outline" size={10} color={colors.success} />
-                <Text style={[styles.cashBadgeText, { color: colors.success }]}>Entrada</Text>
-              </View>
-            </View>
-            <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
-          </View>
-          <View style={styles.expenseRight}>
-            <Text style={[styles.cashAmount, { color: colors.success }]}>
-              + {formatCurrency(parseFloat(item.amount))}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </SlideInView>
+      <TouchableOpacity
+        style={[styles.expenseItem, { backgroundColor: colors.card }]}
+        onPress={() => handleEditCash(item)}
+        onLongPress={() => handleDeleteCash(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.expenseInfo}>
+          <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
+          <Text style={[styles.expenseCategory, { color: colors.textLight }]}>{t('cash')}</Text>
+          <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
+        </View>
+        <View style={styles.expenseRight}>
+          <Text style={[styles.cashAmount, { color: colors.success }]}>+ {formatCurrency(parseFloat(item.amount))}</Text>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -472,95 +432,56 @@ export default function AddExpenseScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <FadeInView>
-          <View style={styles.topSpacer} />
-          <Text style={[styles.title, { color: colors.header }]}>Adicionar ao Caixa</Text>
-        </FadeInView>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <AppHeader title={t('addCash')} />
+        <Text style={[styles.title, { color: colors.text }]}>{t('addCash')}</Text>
 
-        <SlideInView delay={50}>
-          <View style={[styles.balanceCard, { backgroundColor: colors.success + (isDark ? '25' : '15') }]}>
-            <Text style={[styles.balanceLabel, { color: colors.success }]}>Saldo Atual do Caixa</Text>
-            <Text style={[styles.balanceValue, { color: colors.success }]}>
-              {formatCurrency(cashBalance)}
-            </Text>
-          </View>
-        </SlideInView>
+        <View style={[styles.balanceCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.balanceLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
+          <Text style={[styles.balanceValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
+        </View>
 
-        <SlideInView delay={100}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
-            <TextInput
-              style={[styles.amountInput, { 
-                backgroundColor: colors.inputBg, 
-                color: colors.text,
-                shadowColor: isDark ? '#000' : '#ccc',
-              }]}
-              placeholder="R$ 0,00"
-              keyboardType="numeric"
-              value={cashAmountDisplay}
-              onChangeText={handleCashAmountChange}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
-
-        <SlideInView delay={200}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Descrição</Text>
-            <TextInput
-              style={[styles.input, { 
-                backgroundColor: colors.inputBg, 
-                color: colors.text,
-                shadowColor: isDark ? '#000' : '#ccc',
-              }]}
-              placeholder="Ex: Salário, Pix recebido..."
-              value={cashDescription}
-              onChangeText={setCashDescription}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
-
-        <SlideInView delay={300}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
-            <TextInput
-              style={[styles.input, { 
-                backgroundColor: colors.inputBg, 
-                color: colors.text,
-                shadowColor: isDark ? '#000' : '#ccc',
-              }]}
-              placeholder="AAAA-MM-DD"
-              value={cashDate}
-              onChangeText={setCashDate}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
-
-        <ScaleInView delay={400}>
-          <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.success }]} onPress={handleCashSubmit}>
-            <Ionicons name="checkmark-outline" size={24} color="#fff" />
-            <Text style={styles.submitText}>Adicionar ao Caixa</Text>
-          </TouchableOpacity>
-        </ScaleInView>
-
-        <ScaleInView delay={450}>
-          <TouchableOpacity 
-            style={[styles.cancelButton, { backgroundColor: colors.border }]} 
-            onPress={() => {
-              setShowCashForm(false);
-              setCashAmount('');
-              setCashAmountDisplay('');
-              setCashDate(getTodayDate());
-              setCashDescription('');
-            }}
-          >
-            <Ionicons name="close-outline" size={24} color={colors.text} />
-            <Text style={[styles.submitText, { color: colors.text }]}>Cancelar</Text>
-          </TouchableOpacity>
-        </ScaleInView>
+        <TextInput
+          style={[styles.amountInput, { backgroundColor: colors.card, color: colors.text }]}
+          value={cashAmountDisplay}
+          onChangeText={handleCashAmountChange}
+          placeholder={t('amount')}
+          placeholderTextColor={colors.textLight}
+          keyboardType="numeric"
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
+          value={cashDescription}
+          onChangeText={setCashDescription}
+          placeholder={t('description')}
+          placeholderTextColor={colors.textLight}
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
+          value={cashDate}
+          onChangeText={setCashDate}
+          placeholder={t('date')}
+          placeholderTextColor={colors.textLight}
+        />
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: colors.success }]}
+          onPress={handleCashSubmit}
+        >
+          <Ionicons name="add-circle" size={22} color="#fff" />
+          <Text style={styles.submitText}>{t('addCash')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.cancelButton, { backgroundColor: colors.danger + '15' }]}
+          onPress={() => {
+            setShowCashForm(false);
+            setCashAmount('');
+            setCashAmountDisplay('');
+            setCashDate(getTodayDate());
+            setCashDescription('');
+          }}
+        >
+          <Text style={[styles.submitText, { color: colors.danger }]}>{t('cancel')}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -570,218 +491,127 @@ export default function AddExpenseScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <FadeInView>
-          <View style={styles.topSpacer} />
-          <Text style={[styles.title, { color: colors.header }]}>Novo Gasto</Text>
-        </FadeInView>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <AppHeader title={t('newExpense')} />
+        <Text style={[styles.title, { color: colors.text }]}>{t('newExpense')}</Text>
 
-        <SlideInView delay={25}>
-          <View style={[styles.balanceCard, { backgroundColor: colors.primary + (isDark ? '25' : '15') }]}>
-            <Text style={[styles.balanceLabel, { color: colors.primary }]}>Saldo Atual do Caixa</Text>
-            <Text style={[styles.balanceValue, { color: colors.primary }]}>
-              {formatCurrency(cashBalance)}
-            </Text>
-          </View>
-        </SlideInView>
+        <View style={[styles.balanceCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.balanceLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
+          <Text style={[styles.balanceValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
+        </View>
 
-        <SlideInView delay={50}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Tipo de Gasto</Text>
-            <View style={styles.typeToggleContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.typeToggleButton,
-                  expenseType === 'card' && { backgroundColor: colors.primary },
-                  { backgroundColor: expenseType === 'card' ? colors.primary : colors.inputBg }
-                ]}
-                onPress={() => { setExpenseType('card'); setSelectedCard(null); }}
-              >
-                <Ionicons name="card" size={16} color={expenseType === 'card' ? '#fff' : colors.textSecondary} />
-                <Text style={[styles.typeToggleText, { color: expenseType === 'card' ? '#fff' : colors.textSecondary }]}>Cartão</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.typeToggleButton,
-                  expenseType === 'standalone' && { backgroundColor: colors.info },
-                  { backgroundColor: expenseType === 'standalone' ? colors.info : colors.inputBg }
-                ]}
-                onPress={() => { setExpenseType('standalone'); setSelectedCard(null); }}
-              >
-                <Ionicons name="receipt" size={16} color={expenseType === 'standalone' ? '#fff' : colors.textSecondary} />
-                <Text style={[styles.typeToggleText, { color: expenseType === 'standalone' ? '#fff' : colors.textSecondary }]}>Boleto/Avulso</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </SlideInView>
+        <Text style={[styles.label, { color: colors.text }]}>{t('expenseType')}</Text>
+        <View style={styles.typeToggleContainer}>
+          <TouchableOpacity
+            style={[styles.typeToggleButton, { backgroundColor: expenseType === 'card' ? colors.primary : colors.card }]}
+            onPress={() => { setExpenseType('card'); setSelectedCard(null); }}
+          >
+            <Ionicons name="card" size={18} color={expenseType === 'card' ? '#fff' : colors.text} />
+            <Text style={[styles.typeToggleText, { color: expenseType === 'card' ? '#fff' : colors.text }]}>{t('card')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeToggleButton, { backgroundColor: expenseType === 'standalone' ? colors.warning : colors.card }]}
+            onPress={() => { setExpenseType('standalone'); setSelectedCard(null); }}
+          >
+            <Ionicons name="receipt" size={18} color={expenseType === 'standalone' ? '#fff' : colors.text} />
+            <Text style={[styles.typeToggleText, { color: expenseType === 'standalone' ? '#fff' : colors.text }]}>{t('standalone')}</Text>
+          </TouchableOpacity>
+        </View>
 
         {expenseType === 'card' && (
-          <SlideInView delay={75}>
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Forma de Pagamento</Text>
-              <View style={styles.typeToggleContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.typeToggleButton,
-                    paymentMethod === 'credit' && { backgroundColor: colors.warning },
-                    { backgroundColor: paymentMethod === 'credit' ? colors.warning : colors.inputBg }
-                  ]}
-                  onPress={() => setPaymentMethod('credit')}
-                >
-                  <Ionicons name="timer-outline" size={16} color={paymentMethod === 'credit' ? '#fff' : colors.textSecondary} />
-                  <Text style={[styles.typeToggleText, { color: paymentMethod === 'credit' ? '#fff' : colors.textSecondary }]}>Crédito</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.typeToggleButton,
-                    paymentMethod === 'debit' && { backgroundColor: colors.primary },
-                    { backgroundColor: paymentMethod === 'debit' ? colors.primary : colors.inputBg }
-                  ]}
-                  onPress={() => setPaymentMethod('debit')}
-                >
-                  <Ionicons name="cash-outline" size={16} color={paymentMethod === 'debit' ? '#fff' : colors.textSecondary} />
-                  <Text style={[styles.typeToggleText, { color: paymentMethod === 'debit' ? '#fff' : colors.textSecondary }]}>Débito</Text>
-                </TouchableOpacity>
-              </View>
+          <>
+            <Text style={[styles.label, { color: colors.text }]}>{t('paymentMethod')}</Text>
+            <View style={styles.typeToggleContainer}>
+              <TouchableOpacity
+                style={[styles.typeToggleButton, { backgroundColor: paymentMethod === 'credit' ? colors.primary : colors.card }]}
+                onPress={() => setPaymentMethod('credit')}
+              >
+                <Text style={[styles.typeToggleText, { color: paymentMethod === 'credit' ? '#fff' : colors.text }]}>{t('credit')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeToggleButton, { backgroundColor: paymentMethod === 'debit' ? colors.primary : colors.card }]}
+                onPress={() => setPaymentMethod('debit')}
+              >
+                <Text style={[styles.typeToggleText, { color: paymentMethod === 'debit' ? '#fff' : colors.text }]}>{t('debit')}</Text>
+              </TouchableOpacity>
             </View>
-          </SlideInView>
+          </>
         )}
 
-        <SlideInView delay={100}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Valor (R$)</Text>
-            <TextInput
-              style={[styles.amountInput, { 
-                backgroundColor: colors.inputBg, 
-                color: colors.text,
-                shadowColor: isDark ? '#000' : '#ccc',
-              }]}
-              placeholder="R$ 0,00"
-              keyboardType="numeric"
-              value={amountDisplay}
-              onChangeText={handleAmountChange}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
-
-        <SlideInView delay={200}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Descrição</Text>
-            <TextInput
-              style={[styles.input, { 
-                backgroundColor: colors.inputBg, 
-                color: colors.text,
-                shadowColor: isDark ? '#000' : '#ccc',
-              }]}
-              placeholder="Ex: Conta de luz, Boleto escola..."
-              value={description}
-              onChangeText={setDescription}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
-
-        <SlideInView delay={300}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Data</Text>
-            <TextInput
-              style={[styles.input, { 
-                backgroundColor: colors.inputBg, 
-                color: colors.text,
-                shadowColor: isDark ? '#000' : '#ccc',
-              }]}
-              placeholder="AAAA-MM-DD"
-              value={date}
-              onChangeText={setDate}
-              placeholderTextColor={colors.textLight}
-            />
-          </View>
-        </SlideInView>
+        <TextInput
+          style={[styles.amountInput, { backgroundColor: colors.card, color: colors.text }]}
+          value={amountDisplay}
+          onChangeText={handleAmountChange}
+          placeholder={t('amount')}
+          placeholderTextColor={colors.textLight}
+          keyboardType="numeric"
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
+          value={description}
+          onChangeText={setDescription}
+          placeholder={t('description')}
+          placeholderTextColor={colors.textLight}
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
+          value={date}
+          onChangeText={setDate}
+          placeholder={t('date')}
+          placeholderTextColor={colors.textLight}
+        />
 
         {expenseType === 'card' && cards.length > 0 && (
-          <SlideInView delay={350}>
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>Cartão</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {cards.map(card => (
-                  <TouchableOpacity
-                    key={card.id}
-                    style={[
-                      styles.cardButton,
-                      selectedCard === card.id && { 
-                        backgroundColor: card.color + '25',
-                        borderColor: card.color,
-                        borderWidth: 2,
-                      },
-                      { backgroundColor: colors.inputBg },
-                    ]}
-                    onPress={() => setSelectedCard(card.id)}
-                  >
-                    <Ionicons name="card-outline" size={18} color={card.color} />
-                    <Text style={[
-                      styles.cardText,
-                      { color: selectedCard === card.id ? card.color : colors.textSecondary },
-                    ]}>
-                      {card.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </SlideInView>
-        )}
-
-        <SlideInView delay={400}>
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Categoria</Text>
-            <View style={styles.categoriesGrid}>
-              {CATEGORIES.map((category) => (
+          <>
+            <Text style={[styles.label, { color: colors.text }]}>{t('selectCard')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              {cards.map(card => (
                 <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryButton,
-                    selectedCategory === category.id && {
-                      backgroundColor: category.color + (isDark ? '35' : '25'),
-                      borderColor: category.color,
-                      borderWidth: 2,
-                    },
-                    { backgroundColor: colors.inputBg },
-                  ]}
-                  onPress={() => setSelectedCategory(category.id)}
+                  key={card.id}
+                  style={[styles.cardButton, { 
+                    backgroundColor: selectedCard === card.id ? colors.primary + '15' : colors.card,
+                    borderColor: selectedCard === card.id ? colors.primary : 'transparent'
+                  }]}
+                  onPress={() => setSelectedCard(card.id)}
                 >
-                  <Ionicons name={category.icon} size={20} color={category.color} />
-                  <Text
-                    style={[
-                      styles.categoryText,
-                      selectedCategory === category.id && { color: category.color, fontWeight: 'bold' },
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    {category.name}
-                  </Text>
+                  <Ionicons name="card" size={16} color={selectedCard === card.id ? colors.primary : colors.textLight} />
+                  <Text style={[styles.cardText, { color: selectedCard === card.id ? colors.primary : colors.text }]}>{card.name}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
-          </View>
-        </SlideInView>
+            </ScrollView>
+          </>
+        )}
 
-        <ScaleInView delay={500}>
-          <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleSubmit}>
-            <Ionicons name="checkmark-outline" size={24} color="#fff" />
-            <Text style={styles.submitText}>Salvar Gasto</Text>
-          </TouchableOpacity>
-        </ScaleInView>
+        <Text style={[styles.label, { color: colors.text }]}>{t('category')}</Text>
+        <View style={styles.categoriesGrid}>
+          {CATEGORIES.map((category) => (
+            <TouchableOpacity
+              key={category.id}
+              style={[styles.categoryButton, { 
+                backgroundColor: selectedCategory === category.id ? category.color + '15' : colors.card,
+                borderColor: selectedCategory === category.id ? category.color : 'transparent'
+              }]}
+              onPress={() => setSelectedCategory(category.id)}
+            >
+              <Ionicons name={category.icon} size={16} color={category.color} />
+              <Text style={[styles.categoryText, { color: selectedCategory === category.id ? category.color : colors.text }]}>{category.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        <ScaleInView delay={550}>
-          <TouchableOpacity 
-            style={[styles.cancelButton, { backgroundColor: colors.border }]} 
-            onPress={() => setShowForm(false)}
-          >
-            <Ionicons name="close-outline" size={24} color={colors.text} />
-            <Text style={[styles.submitText, { color: colors.text }]}>Cancelar</Text>
-          </TouchableOpacity>
-        </ScaleInView>
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: colors.primary }]}
+          onPress={handleSubmit}
+        >
+          <Ionicons name="save" size={22} color="#fff" />
+          <Text style={styles.submitText}>{t('addExpenseBtn')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.cancelButton, { backgroundColor: colors.danger + '15' }]}
+          onPress={() => setShowForm(false)}
+        >
+          <Text style={[styles.submitText, { color: colors.danger }]}>{t('cancel')}</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -844,88 +674,90 @@ export default function AddExpenseScreen({ navigation }) {
 
   const renderList = () => (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={viewMode === 'expenses' ? t('expenses') : t('cash')} />
+      <AppHeader title={t('addExpense')} />
 
-      <View style={[styles.viewModeContainer, { backgroundColor: colors.card }]}>
+      <View style={styles.viewModeContainer}>
         <View style={styles.viewModeToggle}>
           <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              viewMode === 'expenses' && { backgroundColor: colors.danger },
-              { backgroundColor: viewMode === 'expenses' ? colors.danger : colors.inputBg }
-            ]}
+            style={[styles.viewModeButton, { backgroundColor: viewMode === 'expenses' ? colors.primary : colors.card }]}
             onPress={() => setViewMode('expenses')}
           >
-            <Ionicons name="receipt-outline" size={16} color={viewMode === 'expenses' ? '#fff' : colors.textSecondary} />
-            <Text style={[styles.viewModeText, { color: viewMode === 'expenses' ? '#fff' : colors.textSecondary }]}>Despesas</Text>
+            <Ionicons name="receipt" size={16} color={viewMode === 'expenses' ? '#fff' : colors.text} />
+            <Text style={[styles.viewModeText, { color: viewMode === 'expenses' ? '#fff' : colors.text }]}>{t('expenses')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              viewMode === 'cash' && { backgroundColor: colors.success },
-              { backgroundColor: viewMode === 'cash' ? colors.success : colors.inputBg }
-            ]}
+            style={[styles.viewModeButton, { backgroundColor: viewMode === 'cash' ? colors.success : colors.card }]}
             onPress={() => setViewMode('cash')}
           >
-            <Ionicons name="cash-outline" size={16} color={viewMode === 'cash' ? '#fff' : colors.textSecondary} />
-            <Text style={[styles.viewModeText, { color: viewMode === 'cash' ? '#fff' : colors.textSecondary }]}>Caixa</Text>
+            <Ionicons name="cash" size={16} color={viewMode === 'cash' ? '#fff' : colors.text} />
+            <Text style={[styles.viewModeText, { color: viewMode === 'cash' ? '#fff' : colors.text }]}>{t('cash')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {viewMode === 'expenses' && (
-        <View style={[styles.filtersContainer, { backgroundColor: colors.card }]}>
+        <View style={styles.filtersContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
             <View style={styles.filterGroup}>
-              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Data</Text>
+              <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('date')}</Text>
               <View style={styles.filterButtons}>
                 {['all', 'today', 'week', 'month'].map(f => (
                   <TouchableOpacity
                     key={f}
-                    style={[styles.filterBtn, filterDate === f && { backgroundColor: colors.primary }]}
+                    style={[styles.filterBtn, { 
+                      backgroundColor: filterDate === f ? colors.primary + '15' : colors.card,
+                      borderColor: filterDate === f ? colors.primary : colors.border
+                    }]}
                     onPress={() => setFilterDate(f)}
                   >
-                    <Text style={[styles.filterBtnText, { color: filterDate === f ? '#fff' : colors.textSecondary }]}>
+                    <Text style={[styles.filterBtnText, { color: filterDate === f ? colors.primary : colors.text }]}>
                       {f === 'all' ? t('all') : f === 'today' ? t('today') : f === 'week' ? t('week') : t('month')}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
-
             <View style={styles.filterGroup}>
-              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Tipo</Text>
+              <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('expenseType')}</Text>
               <View style={styles.filterButtons}>
                 {['all', 'card', 'standalone'].map(f => (
                   <TouchableOpacity
                     key={f}
-                    style={[styles.filterBtn, filterType === f && { backgroundColor: colors.primary }]}
+                    style={[styles.filterBtn, { 
+                      backgroundColor: filterType === f ? colors.primary + '15' : colors.card,
+                      borderColor: filterType === f ? colors.primary : colors.border
+                    }]}
                     onPress={() => setFilterType(f)}
                   >
-                    <Text style={[styles.filterBtnText, { color: filterType === f ? '#fff' : colors.textSecondary }]}>
+                    <Text style={[styles.filterBtnText, { color: filterType === f ? colors.primary : colors.text }]}>
                       {f === 'all' ? t('all') : f === 'card' ? t('card') : t('standalone')}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </View>
-
             <View style={styles.filterGroup}>
-              <Text style={[styles.filterLabel, { color: colors.textSecondary }]}>Cartão</Text>
+              <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('card')}</Text>
               <View style={styles.filterButtons}>
                 <TouchableOpacity
-                  style={[styles.filterBtn, filterCard === 'all' && { backgroundColor: colors.primary }]}
+                  style={[styles.filterBtn, { 
+                    backgroundColor: filterCard === 'all' ? colors.primary + '15' : colors.card,
+                    borderColor: filterCard === 'all' ? colors.primary : colors.border
+                  }]}
                   onPress={() => setFilterCard('all')}
                 >
-                  <Text style={[styles.filterBtnText, { color: filterCard === 'all' ? '#fff' : colors.textSecondary }]}>Todos</Text>
+                  <Text style={[styles.filterBtnText, { color: filterCard === 'all' ? colors.primary : colors.text }]}>{t('all')}</Text>
                 </TouchableOpacity>
                 {cards.map(c => (
                   <TouchableOpacity
                     key={c.id}
-                    style={[styles.filterBtn, filterCard === c.id && { backgroundColor: c.color }]}
+                    style={[styles.filterBtn, { 
+                      backgroundColor: filterCard === c.id ? colors.primary + '15' : colors.card,
+                      borderColor: filterCard === c.id ? colors.primary : colors.border
+                    }]}
                     onPress={() => setFilterCard(c.id)}
                   >
-                    <Text style={[styles.filterBtnText, { color: filterCard === c.id ? '#fff' : colors.textSecondary }]}>{c.name}</Text>
+                    <Text style={[styles.filterBtnText, { color: filterCard === c.id ? colors.primary : colors.text }]}>{c.name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -935,21 +767,17 @@ export default function AddExpenseScreen({ navigation }) {
       )}
 
       {viewMode === 'expenses' && expenses.length === 0 ? (
-        <FadeInView>
-          <View style={styles.emptyContainer}>
-            <Ionicons name="receipt-outline" size={64} color={colors.textLight} />
-            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Nenhum gasto registrado</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>Adicione seu primeiro gasto</Text>
-          </View>
-        </FadeInView>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noExpenses')}</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstExpense')}</Text>
+        </View>
       ) : viewMode === 'cash' && (cashTransactions || []).length === 0 ? (
-        <FadeInView>
-          <View style={styles.emptyContainer}>
-            <Ionicons name="cash-outline" size={64} color={colors.textLight} />
-            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Nenhuma entrada no caixa</Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>Adicione sua primeira entrada</Text>
-          </View>
-        </FadeInView>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="cash-outline" size={48} color={colors.textLight} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noCashEntries')}</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstExpense')}</Text>
+        </View>
       ) : (
         <FlatList
           data={viewMode === 'expenses' ? getFilteredExpensesList() : getFilteredCashList()}
@@ -961,48 +789,50 @@ export default function AddExpenseScreen({ navigation }) {
       )}
 
       {fabMenuOpen && (
-        <View style={styles.fabMenuOverlay}>
-          <TouchableOpacity style={styles.fabMenuOverlayTouchable} onPress={() => setFabMenuOpen(false)} />
+        <>
+          <View style={styles.fabMenuOverlay}>
+            <TouchableOpacity style={styles.fabMenuOverlayTouchable} onPress={() => setFabMenuOpen(false)} />
+          </View>
           <View style={[styles.fabMenu, { backgroundColor: colors.card }]}>
             <TouchableOpacity
-              style={[styles.fabMenuItem, { backgroundColor: colors.primary + '15' }]}
+              style={styles.fabMenuItem}
               onPress={() => {
                 setFabMenuOpen(false);
                 setShowForm(true);
               }}
             >
-              <View style={[styles.fabMenuIcon, { backgroundColor: colors.primary }]}>
-                <Ionicons name="receipt-outline" size={20} color="#fff" />
+              <View style={[styles.fabMenuIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="receipt" size={20} color={colors.primary} />
               </View>
               <View>
-                <Text style={[styles.fabMenuTitle, { color: colors.text }]}>Novo Gasto</Text>
-                <Text style={[styles.fabMenuSubtitle, { color: colors.textSecondary }]}>Adicionar despesa</Text>
+                <Text style={[styles.fabMenuTitle, { color: colors.text }]}>{t('newExpense')}</Text>
+                <Text style={[styles.fabMenuSubtitle, { color: colors.textLight }]}>{t('addExpense')}</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.fabMenuItem, { backgroundColor: colors.success + '15' }]}
+              style={styles.fabMenuItem}
               onPress={() => {
                 setFabMenuOpen(false);
                 setShowCashForm(true);
               }}
             >
-              <View style={[styles.fabMenuIcon, { backgroundColor: colors.success }]}>
-                <Ionicons name="cash-outline" size={20} color="#fff" />
+              <View style={[styles.fabMenuIcon, { backgroundColor: colors.success + '15' }]}>
+                <Ionicons name="cash" size={20} color={colors.success} />
               </View>
               <View>
-                <Text style={[styles.fabMenuTitle, { color: colors.text }]}>Adicionar Caixa</Text>
-                <Text style={[styles.fabMenuSubtitle, { color: colors.textSecondary }]}>Entrada de dinheiro</Text>
+                <Text style={[styles.fabMenuTitle, { color: colors.text }]}>{t('addCash')}</Text>
+                <Text style={[styles.fabMenuSubtitle, { color: colors.textLight }]}>{t('cash')}</Text>
               </View>
             </TouchableOpacity>
           </View>
-        </View>
+        </>
       )}
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => setFabMenuOpen(!fabMenuOpen)}
       >
-        <Ionicons name={fabMenuOpen ? "close-outline" : "add-outline"} size={28} color="#fff" />
+        <Ionicons name={fabMenuOpen ? 'close' : 'add'} size={28} color="#fff" />
       </TouchableOpacity>
     </View>
   );
