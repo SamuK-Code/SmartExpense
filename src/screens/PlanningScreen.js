@@ -29,7 +29,17 @@ export default function PlanningScreen() {
   const [editingGoal, setEditingGoal] = useState(null);
   const [goalName, setGoalName] = useState('');
   const [goalAmount, setGoalAmount] = useState('');
+  const [goalAmountDisplay, setGoalAmountDisplay] = useState('');
   const [goalCategory, setGoalCategory] = useState(CATEGORIES[0]?.id || 'outros');
+
+  const handleGoalAmountChange = (text) => {
+    const numeric = text.replace(/[^\d]/g, '');
+    setGoalAmount(numeric);
+    const number = parseInt(numeric) / 100;
+    setGoalAmountDisplay(
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number || 0)
+    );
+  };
 
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -51,7 +61,8 @@ export default function PlanningScreen() {
   const openEditGoal = (goal) => {
     setEditingGoal(goal);
     setGoalName(goal.name);
-    setGoalAmount(goal.amount.toString());
+    const amountInCents = Math.round(goal.amount * 100).toString();
+    setGoalAmount(amountInCents);
     setGoalCategory(goal.category || (CATEGORIES[0]?.id || 'outros'));
     setGoalModalVisible(true);
   };
@@ -61,13 +72,14 @@ export default function PlanningScreen() {
       Alert.alert(t('error'), t('requiredField'));
       return;
     }
-    const amount = parseFloat(goalAmount.replace(',', '.'));
+    const numericValue = goalAmount.replace(/[^\d]/g, '');
+    const amount = parseFloat(numericValue) / 100;
     if (isNaN(amount) || amount <= 0) {
       Alert.alert(t('error'), t('invalidAmount'));
       return;
     }
 
-    const goalData = { name: goalName, amount, category: goalCategory };
+    const goalData = { name: goalName.trim(), amount, category: goalCategory };
     if (editingGoal) updateGoal(editingGoal.id, goalData);
     else addGoal(goalData);
     setGoalModalVisible(false);
@@ -276,8 +288,8 @@ export default function PlanningScreen() {
               <Text style={[styles.modalLabel, { color: colors.text }]}>{t('totalValue')}</Text>
               <TextInput
                 style={[styles.modalInput, { backgroundColor: colors.background, color: colors.text }]}
-                value={goalAmount}
-                onChangeText={setGoalAmount}
+                value={goalAmountDisplay}
+                onChangeText={handleGoalAmountChange}
                 placeholder="0,00"
                 placeholderTextColor={colors.textLight}
                 keyboardType="numeric"
