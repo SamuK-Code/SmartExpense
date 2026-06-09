@@ -67,7 +67,7 @@ export default function AddExpenseScreen({ navigation }) {
         id: Date.now().toString(),
         amount: amount,
         description: description,
-        date: cashDate || getTodayDate(),
+        date: getTodayDate(),
         createdAt: new Date().toISOString(),
       };
       setLocalCashTransactions(prev => [newEntry, ...prev]);
