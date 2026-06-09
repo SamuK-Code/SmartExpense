@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useExpenses } from '../context/ExpenseContext';
 import { usePlanning } from '../context/PlanningContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
+import { useCashManager } from '../hooks/useCashManager';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 
@@ -27,20 +28,22 @@ export default function AddExpenseScreen({ navigation }) {
     CATEGORIES,
     deleteExpense,
     cashTransactions: ctxCashTransactions,
-    addCashTransaction: ctxAddCashTransaction
   } = useExpenses();
 
-  const {
-    cashBalance,
-    cashTransactions: planningCashTransactions,
-    deleteCashTransaction: planningDeleteCashTransaction,
-    updateCashTransaction: planningUpdateCashTransaction,
-  } = usePlanning();
-
-  const [localCashTransactions, setLocalCashTransactions] = useState([]);
+  const { cashBalance } = usePlanning();
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
+
+  // Hook de gerenciamento de caixa (centraliza toda lógica)
+  const cashManager = useCashManager();
+
+  // Estados da tela
   const [showForm, setShowForm] = useState(false);
+  const [showCashForm, setShowCashForm] = useState(false);
+  const [fabMenuOpen, setFabMenuOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('expenses');
+
+  // Estados do formulário de despesa
   const [amount, setAmount] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
   const [description, setDescription] = useState('');
@@ -48,47 +51,17 @@ export default function AddExpenseScreen({ navigation }) {
   const [selectedCard, setSelectedCard] = useState(null);
   const [expenseType, setExpenseType] = useState('card');
   const [paymentMethod, setPaymentMethod] = useState('credit');
+  const [date, setDate] = useState(getTodayDate());
+
+  // Filtros
   const [filterDate, setFilterDate] = useState('all');
   const [filterCard, setFilterCard] = useState('all');
   const [filterType, setFilterType] = useState('all');
-  const [viewMode, setViewMode] = useState('expenses');
 
-  const getTodayDate = () => {
+  function getTodayDate() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  };
-
-  const cashTransactions = ctxCashTransactions || localCashTransactions;
-  const addCashTransaction = (amount, description) => {
-    if (ctxAddCashTransaction) {
-      return ctxAddCashTransaction(amount, description);
-    } else {
-      const newEntry = {
-        id: Date.now().toString(),
-        amount: amount,
-        description: description,
-        date: getTodayDate(),
-        createdAt: new Date().toISOString(),
-      };
-      setLocalCashTransactions(prev => [newEntry, ...prev]);
-      return newEntry;
-    }
-  };
-
-  const [fabMenuOpen, setFabMenuOpen] = useState(false);
-  const [showCashForm, setShowCashForm] = useState(false);
-  const [cashAmount, setCashAmount] = useState('');
-  const [cashAmountDisplay, setCashAmountDisplay] = useState('');
-  const [cashDate, setCashDate] = useState(getTodayDate());
-  const [cashDescription, setCashDescription] = useState('');
-  const [date, setDate] = useState(getTodayDate());
-
-  // Estados para edição de caixa
-  const [editingCashId, setEditingCashId] = useState(null);
-  const [editCashAmount, setEditCashAmount] = useState('');
-  const [editCashAmountDisplay, setEditCashAmountDisplay] = useState('');
-  const [editCashDescription, setEditCashDescription] = useState('');
-  const [editCashDate, setEditCashDate] = useState(getTodayDate());
+  }
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -102,73 +75,15 @@ export default function AddExpenseScreen({ navigation }) {
     return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
   };
 
-  const handleCashAmountChange = (text) => {
-    const numeric = text.replace(/\D/g, '');
-    setCashAmount(numeric);
-    const number = parseInt(numeric) / 100;
-    setCashAmountDisplay(
-      new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(number || 0)
-    );
-  };
+  // ─── Handlers de Despesa ───
 
   const handleAmountChange = (text) => {
     const numeric = text.replace(/\D/g, '');
     setAmount(numeric);
     const number = parseInt(numeric) / 100;
     setAmountDisplay(
-      new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(number || 0)
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number || 0)
     );
-  };
-
-  const handleCashSubmit = () => {
-    console.log('handleCashSubmit called');
-    console.log('cashAmount:', cashAmount, 'type:', typeof cashAmount);
-    console.log('cashDescription:', cashDescription);
-
-    if (!cashAmount || !cashDescription) {
-      Alert.alert(t('error'), t('invalidAmount') + ' / ' + t('invalidDescription'));
-      return;
-    }
-
-    const numericValue = parseFloat(cashAmount);
-    console.log('numericValue:', numericValue);
-
-    if (isNaN(numericValue) || numericValue <= 0) {
-      Alert.alert(t('error'), t('invalidAmount'));
-      return;
-    }
-
-    const finalAmount = numericValue / 100;
-    console.log('finalAmount:', finalAmount);
-
-    try {
-      const result = addCashTransaction(finalAmount, cashDescription.trim());
-      console.log('addCashTransaction result:', result);
-
-      if (result === null || result === undefined) {
-        Alert.alert(t('error'), t('error'));
-        return;
-      }
-
-      Alert.alert(t('success'), t('cashAdded'), [
-        { text: t('ok'), onPress: () => {
-          setShowCashForm(false);
-          setCashAmount('');
-          setCashAmountDisplay('');
-          setCashDate(getTodayDate());
-          setCashDescription('');
-        }}
-      ]);
-    } catch (error) {
-      console.error('Error in handleCashSubmit:', error);
-      Alert.alert(t('error'), t('error'));
-    }
   };
 
   const handleSubmit = () => {
@@ -207,7 +122,7 @@ export default function AddExpenseScreen({ navigation }) {
           setSelectedCategory(CATEGORIES[0]?.id || 'outros');
           setSelectedCard(null);
           setExpenseType('card');
-          setDate(new Date().toISOString().split('T')[0]);
+          setDate(getTodayDate());
         }}
       ]);
     } catch (error) {
@@ -226,84 +141,27 @@ export default function AddExpenseScreen({ navigation }) {
     );
   };
 
-  const handleEditCash = (cashItem) => {
-    console.log('handleEditCash:', cashItem);
-    setEditingCashId(cashItem.id);
+  // ─── Handlers de Caixa (delegados ao hook) ───
 
-    const amountInCents = Math.round(cashItem.amount * 100).toString();
-    setEditCashAmount(amountInCents);
-    setEditCashAmountDisplay(
-      new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(cashItem.amount)
-    );
-    setEditCashDescription(cashItem.description);
-    setEditCashDate(cashItem.date || getTodayDate());
+  const handleCashSubmit = () => {
+    cashManager.submitCash(() => setShowCashForm(false));
   };
 
   const handleUpdateCash = () => {
-    console.log('handleUpdateCash called');
-
-    if (!editCashAmount || !editCashDescription) {
-      Alert.alert(t('error'), t('requiredField'));
-      return;
-    }
-
-    const numericValue = parseFloat(editCashAmount);
-    if (isNaN(numericValue) || numericValue <= 0) {
-      Alert.alert(t('error'), t('invalidAmount'));
-      return;
-    }
-
-    const finalAmount = numericValue / 100;
-
-    try {
-      // CORREÇÃO: usar planningUpdateCashTransaction em vez de updateCashTransaction
-      const result = planningUpdateCashTransaction(editingCashId, {
-        amount: finalAmount,
-        description: editCashDescription.trim(),
-        date: editCashDate,
-      });
-
-      if (result) {
-        Alert.alert(t('success'), t('cashUpdated'), [
-          { text: t('ok'), onPress: () => {
-            setEditingCashId(null);
-            setEditCashAmount('');
-            setEditCashAmountDisplay('');
-            setEditCashDescription('');
-            setEditCashDate(getTodayDate());
-          }}
-        ]);
-      } else {
-        Alert.alert(t('error'), t('error'));
-      }
-    } catch (error) {
-      console.error('Error in handleUpdateCash:', error);
-      Alert.alert(t('error'), t('error') + ': ' + error.message);
-    }
+    cashManager.updateCash();
   };
 
   const handleDeleteCash = (cashItem) => {
-    Alert.alert(
-      t('confirm') + ' ' + t('delete'),
-      t('wantToDelete') + ' "' + cashItem.description + '"?',
-      [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => {
-          // CORREÇÃO: usar planningDeleteCashTransaction em vez de deleteCashTransaction
-          if (ctxAddCashTransaction && typeof planningDeleteCashTransaction === 'function') {
-            planningDeleteCashTransaction(cashItem.id);
-          } else {
-            setLocalCashTransactions(prev => prev.filter(item => item.id !== cashItem.id));
-          }
-        }},
-      ]
-    );
+    cashManager.deleteCash(cashItem);
   };
 
-  const renderExpenseItem = ({ item, index }) => {
+  const handleEditCash = (cashItem) => {
+    cashManager.startEditing(cashItem);
+  };
+
+  // ─── Renderização ───
+
+  const renderExpenseItem = ({ item }) => {
     const category = getCategoryInfo(item.category);
     const card = cards.find(c => c.id === item.cardId);
     const isStandalone = !item.cardId;
@@ -343,8 +201,8 @@ export default function AddExpenseScreen({ navigation }) {
     );
   };
 
-  const renderCashItem = ({ item, index }) => {
-    const isEditing = editingCashId === item.id;
+  const renderCashItem = ({ item }) => {
+    const isEditing = cashManager.editingCashId === item.id;
 
     if (isEditing) {
       return (
@@ -352,33 +210,23 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.editTitle, { color: colors.text }]}>{t('editCash')}</Text>
           <TextInput
             style={[styles.amountInput, { backgroundColor: colors.background, color: colors.text }]}
-            value={editCashAmountDisplay}
-            onChangeText={(text) => {
-              const numeric = text.replace(/\D/g, '');
-              setEditCashAmount(numeric);
-              const number = parseInt(numeric) / 100;
-              setEditCashAmountDisplay(
-                new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(number || 0)
-              );
-            }}
+            value={cashManager.editCashAmountDisplay}
+            onChangeText={cashManager.handleEditCashAmountChange}
             placeholder={t('amount')}
             placeholderTextColor={colors.textLight}
             keyboardType="numeric"
           />
           <TextInput
             style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
-            value={editCashDescription}
-            onChangeText={setEditCashDescription}
+            value={cashManager.editCashDescription}
+            onChangeText={cashManager.setEditCashDescription}
             placeholder={t('description')}
             placeholderTextColor={colors.textLight}
           />
           <TextInput
             style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
-            value={editCashDate}
-            onChangeText={setEditCashDate}
+            value={cashManager.editCashDate}
+            onChangeText={cashManager.setEditCashDate}
             placeholder={t('date')}
             placeholderTextColor={colors.textLight}
           />
@@ -392,13 +240,7 @@ export default function AddExpenseScreen({ navigation }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.editButton, { backgroundColor: colors.danger }]}
-              onPress={() => {
-                setEditingCashId(null);
-                setEditCashAmount('');
-                setEditCashAmountDisplay('');
-                setEditCashDescription('');
-                setEditCashDate(getTodayDate());
-              }}
+              onPress={cashManager.cancelEditing}
             >
               <Ionicons name="close" size={18} color="#fff" />
               <Text style={styles.editButtonText}>{t('cancel')}</Text>
@@ -443,23 +285,23 @@ export default function AddExpenseScreen({ navigation }) {
 
         <TextInput
           style={[styles.amountInput, { backgroundColor: colors.card, color: colors.text }]}
-          value={cashAmountDisplay}
-          onChangeText={handleCashAmountChange}
+          value={cashManager.cashAmountDisplay}
+          onChangeText={cashManager.handleCashAmountChange}
           placeholder={t('amount')}
           placeholderTextColor={colors.textLight}
           keyboardType="numeric"
         />
         <TextInput
           style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
-          value={cashDescription}
-          onChangeText={setCashDescription}
+          value={cashManager.cashDescription}
+          onChangeText={cashManager.setCashDescription}
           placeholder={t('description')}
           placeholderTextColor={colors.textLight}
         />
         <TextInput
           style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
-          value={cashDate}
-          onChangeText={setCashDate}
+          value={cashManager.cashDate}
+          onChangeText={cashManager.setCashDate}
           placeholder={t('date')}
           placeholderTextColor={colors.textLight}
         />
@@ -474,10 +316,7 @@ export default function AddExpenseScreen({ navigation }) {
           style={[styles.cancelButton, { backgroundColor: colors.danger + '15' }]}
           onPress={() => {
             setShowCashForm(false);
-            setCashAmount('');
-            setCashAmountDisplay('');
-            setCashDate(getTodayDate());
-            setCashDescription('');
+            cashManager.resetCashForm();
           }}
         >
           <Text style={[styles.submitText, { color: colors.danger }]}>{t('cancel')}</Text>
@@ -618,57 +457,36 @@ export default function AddExpenseScreen({ navigation }) {
 
   const getFilteredExpensesList = () => {
     let filtered = expenses;
-
     if (filterDate !== 'all') {
       const now = new Date();
       filtered = filtered.filter(e => {
         const d = new Date(e.date);
-        if (filterDate === 'today') {
-          return d.toDateString() === now.toDateString();
-        } else if (filterDate === 'week') {
-          const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
-          return d >= weekAgo;
-        } else if (filterDate === 'month') {
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        }
+        if (filterDate === 'today') return d.toDateString() === now.toDateString();
+        if (filterDate === 'week') return d >= new Date(now - 7 * 24 * 60 * 60 * 1000);
+        if (filterDate === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         return true;
       });
     }
-
-    if (filterCard !== 'all') {
-      filtered = filtered.filter(e => e.cardId === filterCard);
-    }
-
+    if (filterCard !== 'all') filtered = filtered.filter(e => e.cardId === filterCard);
     if (filterType !== 'all') {
-      if (filterType === 'card') {
-        filtered = filtered.filter(e => e.cardId);
-      } else if (filterType === 'standalone') {
-        filtered = filtered.filter(e => !e.cardId);
-      }
+      if (filterType === 'card') filtered = filtered.filter(e => e.cardId);
+      else if (filterType === 'standalone') filtered = filtered.filter(e => !e.cardId);
     }
-
     return filtered;
   };
 
   const getFilteredCashList = () => {
-    let filtered = cashTransactions || [];
-
+    let filtered = ctxCashTransactions || [];
     if (filterDate !== 'all') {
       const now = new Date();
       filtered = filtered.filter(e => {
         const d = new Date(e.date);
-        if (filterDate === 'today') {
-          return d.toDateString() === now.toDateString();
-        } else if (filterDate === 'week') {
-          const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
-          return d >= weekAgo;
-        } else if (filterDate === 'month') {
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        }
+        if (filterDate === 'today') return d.toDateString() === now.toDateString();
+        if (filterDate === 'week') return d >= new Date(now - 7 * 24 * 60 * 60 * 1000);
+        if (filterDate === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         return true;
       });
     }
-
     return filtered;
   };
 
@@ -772,7 +590,7 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noExpenses')}</Text>
           <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstExpense')}</Text>
         </View>
-      ) : viewMode === 'cash' && (cashTransactions || []).length === 0 ? (
+      ) : viewMode === 'cash' && (ctxCashTransactions || []).length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="cash-outline" size={48} color={colors.textLight} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noCashEntries')}</Text>
@@ -796,10 +614,7 @@ export default function AddExpenseScreen({ navigation }) {
           <View style={[styles.fabMenu, { backgroundColor: colors.card }]}>
             <TouchableOpacity
               style={styles.fabMenuItem}
-              onPress={() => {
-                setFabMenuOpen(false);
-                setShowForm(true);
-              }}
+              onPress={() => { setFabMenuOpen(false); setShowForm(true); }}
             >
               <View style={[styles.fabMenuIcon, { backgroundColor: colors.primary + '15' }]}>
                 <Ionicons name="receipt" size={20} color={colors.primary} />
@@ -811,10 +626,7 @@ export default function AddExpenseScreen({ navigation }) {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.fabMenuItem}
-              onPress={() => {
-                setFabMenuOpen(false);
-                setShowCashForm(true);
-              }}
+              onPress={() => { setFabMenuOpen(false); setShowCashForm(true); }}
             >
               <View style={[styles.fabMenuIcon, { backgroundColor: colors.success + '15' }]}>
                 <Ionicons name="cash" size={20} color={colors.success} />
@@ -844,153 +656,36 @@ export default function AddExpenseScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20, paddingTop: 40 },
-  topSpacer: { height: 20 },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 24 },
-  balanceCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  balanceValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  viewModeContainer: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  viewModeToggle: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  viewModeButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    gap: 6,
-  },
-  viewModeText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  typeToggleContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  typeToggleButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  typeToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  amountInput: {
-    borderRadius: 16, padding: 18, fontSize: 32, fontWeight: 'bold',
-    textAlign: 'center', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
-  },
-  input: {
-    borderRadius: 14, padding: 16, fontSize: 16,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 4, elevation: 2,
-  },
-  cardButton: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 12, marginRight: 8, borderWidth: 1, borderColor: 'transparent',
-  },
+  balanceCard: { padding: 16, borderRadius: 12, marginBottom: 20, alignItems: 'center' },
+  balanceLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  balanceValue: { fontSize: 24, fontWeight: 'bold' },
+  viewModeContainer: { paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  viewModeToggle: { flexDirection: 'row', gap: 10 },
+  viewModeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, gap: 6 },
+  viewModeText: { fontSize: 13, fontWeight: '600' },
+  typeToggleContainer: { flexDirection: 'row', gap: 10 },
+  typeToggleButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  typeToggleText: { fontSize: 13, fontWeight: '600' },
+  amountInput: { borderRadius: 16, padding: 18, fontSize: 32, fontWeight: 'bold', textAlign: 'center', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  input: { borderRadius: 14, padding: 16, fontSize: 16, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  cardButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, marginRight: 8, borderWidth: 1, borderColor: 'transparent' },
   cardText: { marginLeft: 6, fontSize: 13 },
   categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  categoryButton: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12,
-    paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8,
-    borderWidth: 1, borderColor: 'transparent',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
-  },
+  categoryButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   categoryText: { marginLeft: 6, fontSize: 13 },
-  submitButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    padding: 18, borderRadius: 16, marginTop: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
-  },
-  cancelButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    padding: 18, borderRadius: 16, marginTop: 12,
-  },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 16 },
+  submitButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16, marginTop: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
+  cancelButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16, marginTop: 12 },
   submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
-
-  // Edit Cash Form
-  editCashForm: {
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  editTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  editButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  editButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 12,
-    gap: 6,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
+  editCashForm: { padding: 16, borderRadius: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  editTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 16 },
+  editButtonsRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  editButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14, borderRadius: 12, gap: 6 },
+  editButtonText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   listContent: { padding: 16, paddingBottom: 80 },
-  expenseItem: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: 16, borderRadius: 14, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 3, elevation: 1,
-  },
-  categoryIcon: {
-    width: 44, height: 44, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center',
-  },
+  expenseItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
+  categoryIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   expenseInfo: { flex: 1, marginLeft: 12 },
   expenseDescription: { fontSize: 15, fontWeight: '600' },
   expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap', gap: 6 },
@@ -999,114 +694,26 @@ const styles = StyleSheet.create({
   expenseRight: { alignItems: 'flex-end' },
   expenseAmount: { fontSize: 15, fontWeight: 'bold' },
   cashAmount: { fontSize: 15, fontWeight: 'bold' },
-  standaloneBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 6, paddingVertical: 2,
-    borderRadius: 4, gap: 3,
-  },
+  standaloneBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
   standaloneText: { fontSize: 10, fontWeight: '600' },
-  cardBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 6, paddingVertical: 2,
-    borderRadius: 4, gap: 3,
-  },
+  cardBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
   cardBadgeText: { fontSize: 10, fontWeight: '600' },
-  cashBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 6, paddingVertical: 2,
-    borderRadius: 4, gap: 3,
-  },
-  cashBadgeText: { fontSize: 10, fontWeight: '600' },
   emptyContainer: { alignItems: 'center', padding: 40, paddingTop: 80 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 16 },
   emptySubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
-  filtersContainer: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  filtersScroll: {
-    paddingHorizontal: 12,
-    gap: 16,
-  },
-  filterGroup: {
-    marginRight: 16,
-  },
-  filterLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-  filterButtons: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  filterBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  filterBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  fabMenuOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 998,
-  },
-  fabMenuOverlayTouchable: {
-    flex: 1,
-  },
-  fabMenu: {
-    position: 'absolute',
-    right: 20,
-    bottom: 80,
-    width: 220,
-    borderRadius: 16,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-    zIndex: 999,
-  },
-  fabMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  fabMenuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  fabMenuTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  fabMenuSubtitle: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  fab: {
-    position: 'absolute', right: 20, bottom: 20,
-    width: 56, height: 56, borderRadius: 28,
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
-  },
+  filtersContainer: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  filtersScroll: { paddingHorizontal: 12, gap: 16 },
+  filterGroup: { marginRight: 16 },
+  filterLabel: { fontSize: 11, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase' },
+  filterButtons: { flexDirection: 'row', gap: 6 },
+  filterBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
+  filterBtnText: { fontSize: 12, fontWeight: '500' },
+  fabMenuOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 },
+  fabMenuOverlayTouchable: { flex: 1 },
+  fabMenu: { position: 'absolute', right: 20, bottom: 80, width: 220, borderRadius: 16, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5, zIndex: 999 },
+  fabMenuItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, marginBottom: 8 },
+  fabMenuIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  fabMenuTitle: { fontSize: 15, fontWeight: '600' },
+  fabMenuSubtitle: { fontSize: 12, marginTop: 2 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
 });
