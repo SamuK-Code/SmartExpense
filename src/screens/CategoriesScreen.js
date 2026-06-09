@@ -27,20 +27,28 @@ export default function CategoriesScreen() {
   const [selectedColor, setSelectedColor] = useState('#FF6B6B');
   const [selectedIcon, setSelectedIcon] = useState('pricetag');
 
+  // Cores únicas (sem duplicatas)
   const colorsList = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
     '#DDA0DD', '#98D8C8', '#F7DC6F', '#FFB6C1', '#87CEEB',
-    '#DDA0DD', '#98FB98', '#F0E68C', '#FFA07A', '#20B2AA',
+    '#FFA07A', '#20B2AA', '#778899', '#B0C4DE', '#D2B48C',
+    '#CD853F', '#D8BFD8', '#BC8F8F', '#F4A460', '#2E8B57',
+    '#4682B4', '#5F9EA0', '#6495ED', '#DC143C', '#00CED1',
   ];
 
+  // Ícones variados
   const iconsList = [
     'pricetag', 'restaurant', 'car', 'game-controller', 'medical',
-    'home', 'school', 'cart', 'ellipsis-horizontal', 'airplane',
-    'book', 'fitness', 'gift', 'phone-portrait', 'wifi',
+    'home', 'school', 'cart', 'airplane', 'book',
+    'fitness', 'gift', 'phone-portrait', 'wifi', 'water',
+    'flame', 'flash', 'moon', 'sunny', 'cloud',
+    'musical-note', 'film', 'camera', 'heart', 'star',
+    'trophy', 'diamond', 'hammer', 'construct', 'bus',
+    'bicycle', 'boat', 'train', 'paw', 'leaf',
   ];
 
   const handleSave = () => {
-    if (!categoryName.trim()) {
+    if (!categoryName || !categoryName.trim()) {
       Alert.alert(t('error'), t('requiredField'));
       return;
     }
@@ -51,14 +59,18 @@ export default function CategoriesScreen() {
       icon: selectedIcon,
     };
 
-    if (editingCategory) {
-      updateCategory(editingCategory.id, data);
-    } else {
-      addCategory(data);
+    try {
+      if (editingCategory) {
+        updateCategory(editingCategory.id, data);
+      } else {
+        addCategory(data);
+      }
+      setModalVisible(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving category:', error);
+      Alert.alert(t('error'), t('error'));
     }
-
-    setModalVisible(false);
-    resetForm();
   };
 
   const handleDelete = (category) => {
@@ -74,9 +86,9 @@ export default function CategoriesScreen() {
 
   const openEdit = (category) => {
     setEditingCategory(category);
-    setCategoryName(category.name);
-    setSelectedColor(category.color);
-    setSelectedIcon(category.icon);
+    setCategoryName(category.name || '');
+    setSelectedColor(category.color || '#FF6B6B');
+    setSelectedIcon(category.icon || 'pricetag');
     setModalVisible(true);
   };
 
@@ -95,7 +107,7 @@ export default function CategoriesScreen() {
     setEditingCategory(null);
   };
 
-  const displayCategories = categories.length > 0 ? categories : CATEGORIES;
+  const displayCategories = categories && categories.length > 0 ? categories : CATEGORIES;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -103,18 +115,18 @@ export default function CategoriesScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         {displayCategories.map((category, index) => (
-          <FadeInView key={category.id} delay={index * 50}>
+          <FadeInView key={category.id || index} delay={index * 50}>
             <TouchableOpacity
               style={[styles.categoryItem, { backgroundColor: colors.card }]}
               onPress={() => openEdit(category)}
               onLongPress={() => handleDelete(category)}
             >
-              <View style={[styles.categoryIcon, { backgroundColor: category.color + '15' }]}>
-                <Ionicons name={category.icon} size={22} color={category.color} />
+              <View style={[styles.categoryIcon, { backgroundColor: (category.color || '#999') + '15' }]}>
+                <Ionicons name={category.icon || 'pricetag'} size={22} color={category.color || '#999'} />
               </View>
               <View style={styles.categoryInfo}>
-                <Text style={[styles.categoryName, { color: colors.text }]}>{category.name}</Text>
-                <View style={[styles.colorDot, { backgroundColor: category.color }]} />
+                <Text style={[styles.categoryName, { color: colors.text }]}>{category.name || 'Sem nome'}</Text>
+                <View style={[styles.colorDot, { backgroundColor: category.color || '#999' }]} />
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
             </TouchableOpacity>
@@ -146,34 +158,56 @@ export default function CategoriesScreen() {
             />
 
             <Text style={[styles.label, { color: colors.text }]}>{t('categoryColor')}</Text>
-            <View style={styles.colorGrid}>
-              {colorsList.map(color => (
-                <TouchableOpacity
-                  key={color}
-                  style={[styles.colorOption, { backgroundColor: color, borderWidth: selectedColor === color ? 3 : 0, borderColor: '#fff' }]}
-                  onPress={() => setSelectedColor(color)}
-                />
-              ))}
-            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <View style={styles.colorRow}>
+                {colorsList.map((color, idx) => (
+                  <TouchableOpacity
+                    key={color + idx}
+                    style={[
+                      styles.colorOption,
+                      { backgroundColor: color },
+                      selectedColor === color && styles.colorOptionSelected
+                    ]}
+                    onPress={() => setSelectedColor(color)}
+                  >
+                    {selectedColor === color && (
+                      <Ionicons name="checkmark" size={16} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
 
             <Text style={[styles.label, { color: colors.text }]}>{t('categoryIcon')}</Text>
-            <View style={styles.iconGrid}>
-              {iconsList.map(icon => (
-                <TouchableOpacity
-                  key={icon}
-                  style={[styles.iconOption, { backgroundColor: selectedIcon === icon ? colors.primary + '15' : colors.background, borderWidth: selectedIcon === icon ? 1 : 0, borderColor: colors.primary }]}
-                  onPress={() => setSelectedIcon(icon)}
-                >
-                  <Ionicons name={icon} size={20} color={selectedIcon === icon ? colors.primary : colors.textLight} />
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              <View style={styles.iconRow}>
+                {iconsList.map((icon, idx) => (
+                  <TouchableOpacity
+                    key={icon + idx}
+                    style={[
+                      styles.iconOption,
+                      { backgroundColor: selectedIcon === icon ? colors.primary + '15' : colors.background },
+                      selectedIcon === icon && styles.iconOptionSelected
+                    ]}
+                    onPress={() => setSelectedIcon(icon)}
+                  >
+                    <Ionicons name={icon} size={20} color={selectedIcon === icon ? colors.primary : colors.textLight} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.danger }]} onPress={() => { setModalVisible(false); resetForm(); }}>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: colors.danger }]} 
+                onPress={() => { setModalVisible(false); resetForm(); }}
+              >
                 <Text style={styles.modalButtonText}>{t('cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: colors.primary }]} 
+                onPress={handleSave}
+              >
                 <Text style={styles.modalButtonText}>{t('save')}</Text>
               </TouchableOpacity>
             </View>
@@ -186,22 +220,146 @@ export default function CategoriesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  categoryItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
-  categoryIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  categoryInfo: { flex: 1, marginLeft: 12 },
-  categoryName: { fontSize: 15, fontWeight: '600' },
-  colorDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
-  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 10 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
-  input: { borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 10, marginTop: 8 },
-  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  colorOption: { width: 32, height: 32, borderRadius: 16 },
-  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  iconOption: { width: 44, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  modalButtons: { flexDirection: 'row', gap: 10 },
-  modalButton: { flex: 1, padding: 14, borderRadius: 12, alignItems: 'center' },
-  modalButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  categoryItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 16, 
+    borderRadius: 14, 
+    marginBottom: 10, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.05, 
+    shadowRadius: 3, 
+    elevation: 1 
+  },
+  categoryIcon: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 12, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  categoryInfo: { 
+    flex: 1, 
+    marginLeft: 12 
+  },
+  categoryName: { 
+    fontSize: 15, 
+    fontWeight: '600' 
+  },
+  colorDot: { 
+    width: 12, 
+    height: 12, 
+    borderRadius: 6, 
+    marginTop: 4 
+  },
+  fab: { 
+    position: 'absolute', 
+    right: 20, 
+    bottom: 20, 
+    width: 56, 
+    height: 56, 
+    borderRadius: 28, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.2, 
+    shadowRadius: 8, 
+    elevation: 5 
+  },
+  modalOverlay: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 20 
+  },
+  modalContent: { 
+    width: '100%', 
+    maxWidth: 360, 
+    borderRadius: 20, 
+    padding: 24, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 8 }, 
+    shadowOpacity: 0.2, 
+    shadowRadius: 16, 
+    elevation: 10 
+  },
+  modalTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    marginBottom: 16 
+  },
+  input: { 
+    borderRadius: 12, 
+    padding: 14, 
+    fontSize: 16, 
+    marginBottom: 16 
+  },
+  label: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    marginBottom: 10, 
+    marginTop: 8 
+  },
+  colorRow: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 8, 
+    paddingRight: 16 
+  },
+  colorOption: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  colorOptionSelected: { 
+    borderWidth: 3, 
+    borderColor: '#fff', 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.3, 
+    shadowRadius: 4, 
+    elevation: 4 
+  },
+  iconRow: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 8, 
+    paddingRight: 16 
+  },
+  iconOption: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 10, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderColor: 'transparent' 
+  },
+  iconOptionSelected: { 
+    borderColor: '#fff', 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.2, 
+    shadowRadius: 3, 
+    elevation: 3 
+  },
+  modalButtons: { 
+    flexDirection: 'row', 
+    gap: 10 
+  },
+  modalButton: { 
+    flex: 1, 
+    padding: 14, 
+    borderRadius: 12, 
+    alignItems: 'center' 
+  },
+  modalButtonText: { 
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '600' 
+  },
 });
