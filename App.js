@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ExpenseProvider } from './src/context/ExpenseContext';
 import { PlanningProvider } from './src/context/PlanningContext';
+import { CashProvider } from './src/context/CashContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { I18nProvider, useI18n } from './src/context/I18nContext';
 import ErrorBoundary from './src/utils/ErrorBoundary';
@@ -113,14 +114,16 @@ export default function App() {
       <I18nProvider>
         <ThemeProvider>
           {/* ORDEM CORRETA: PlanningProvider DEVE envolver ExpenseProvider */}
-          <PlanningProvider>
-            <ExpenseProvider>
-              <NavigationContainer>
-                <StatusBar style="auto" />
-                <TabNavigator />
-              </NavigationContainer>
-            </ExpenseProvider>
-          </PlanningProvider>
+          <CashProvider>
+            <PlanningProvider>
+              <ExpenseProvider>
+                <NavigationContainer>
+                  <StatusBar style="auto" />
+                  <TabNavigator />
+                </NavigationContainer>
+              </ExpenseProvider>
+            </PlanningProvider>
+          </CashProvider>
         </ThemeProvider>
       </I18nProvider>
     </ErrorBoundary>
