@@ -68,7 +68,22 @@ export default function AddExpenseScreen({ navigation }) {
   };
 
   const getCategoryInfo = (categoryId) => {
-    return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7] || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
+    if (!categoryId) return { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
+    const cat = CATEGORIES.find(c => c.id === categoryId);
+    if (cat) return cat;
+    // Fallback: procurar nas categorias padrões
+    const defaults = [
+      { id: 'food', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+      { id: 'transport', name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+      { id: 'leisure', name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+      { id: 'health', name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+      { id: 'housing', name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+      { id: 'education', name: 'Educação', color: '#DDA0DD', icon: 'school' },
+      { id: 'shopping', name: 'Compras', color: '#98D8C8', icon: 'cart' },
+      { id: 'others', name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+    ];
+    const defaultCat = defaults.find(c => c.id === categoryId);
+    return defaultCat || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
   };
 
   const handleAmountChange = (text) => {
@@ -395,7 +410,7 @@ export default function AddExpenseScreen({ navigation }) {
         {expenseType === 'card' && (
           <>
             <Text style={[styles.label, { color: colors.text }]}>{t('paymentMethod')}</Text>
-            <View style={styles.typeToggleContainer}>
+            <View style={[styles.typeToggleContainer, { marginBottom: 20 }]}>
               <TouchableOpacity
                 style={[styles.typeToggleButton, { backgroundColor: paymentMethod === 'credit' ? colors.primary : colors.card }]}
                 onPress={() => setPaymentMethod('credit')}
