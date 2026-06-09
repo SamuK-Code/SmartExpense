@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { usePlanning } from '../context/PlanningContext';
 import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 
@@ -40,6 +41,7 @@ export default function AddExpenseScreen({ navigation }) {
 
   const [localCashTransactions, setLocalCashTransactions] = useState([]);
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
@@ -132,7 +134,7 @@ export default function AddExpenseScreen({ navigation }) {
     console.log('cashDescription:', cashDescription);
 
     if (!cashAmount || !cashDescription) {
-      Alert.alert('Erro', 'Preencha o valor e a descrição');
+      Alert.alert('Erro', t('invalidAmount') + ' / ' + t('invalidDescription'));
       return;
     }
 
@@ -140,7 +142,7 @@ export default function AddExpenseScreen({ navigation }) {
     console.log('numericValue:', numericValue);
 
     if (isNaN(numericValue) || numericValue <= 0) {
-      Alert.alert('Erro', 'Valor inválido: ' + cashAmount);
+      Alert.alert('Erro', t('invalidAmount'));
       return;
     }
 
@@ -152,11 +154,11 @@ export default function AddExpenseScreen({ navigation }) {
       console.log('addCashTransaction result:', result);
 
       if (result === null || result === undefined) {
-        Alert.alert('Erro', 'Não foi possível adicionar ao caixa (retornou null)');
+        Alert.alert('Erro', t('error'));
         return;
       }
 
-      Alert.alert('Sucesso', 'Dinheiro adicionado ao caixa!', [
+      Alert.alert('Sucesso', t('cashAdded'), [
         { text: 'OK', onPress: () => {
           setShowCashForm(false);
           setCashAmount('');
@@ -167,24 +169,24 @@ export default function AddExpenseScreen({ navigation }) {
       ]);
     } catch (error) {
       console.error('Error in handleCashSubmit:', error);
-      Alert.alert('Erro', 'Não foi possível adicionar: ' + error.message);
+      Alert.alert('Erro', t('error'));
     }
   };
 
   const handleSubmit = () => {
     if (!amount || !description) {
-      Alert.alert('Erro', 'Preencha o valor e a descrição');
+      Alert.alert('Erro', t('invalidAmount') + ' / ' + t('invalidDescription'));
       return;
     }
 
     const numericAmount = parseInt(amount) / 100;
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Erro', 'Digite um valor válido');
+      Alert.alert('Erro', t('invalidAmount'));
       return;
     }
 
     if (expenseType === 'card' && cards.length > 0 && !selectedCard) {
-      Alert.alert('Erro', 'Selecione um cartão ou mude para "Sem Cartão"');
+      Alert.alert('Erro', t('invalidCard'));
       return;
     }
 
@@ -198,7 +200,7 @@ export default function AddExpenseScreen({ navigation }) {
         paymentMethod: expenseType === 'card' ? paymentMethod : null,
       });
 
-      Alert.alert('Sucesso', 'Gasto adicionado!', [
+      Alert.alert('Sucesso', t('expenseAdded'), [
         { text: 'OK', onPress: () => {
           setShowForm(false);
           setAmount('');
@@ -211,16 +213,16 @@ export default function AddExpenseScreen({ navigation }) {
         }}
       ]);
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível salvar: ' + error.message);
+      Alert.alert('Erro', t('error'));
     }
   };
 
   const handleDeleteExpense = (expense) => {
     Alert.alert(
-      'Confirmar exclusão',
+      t('confirm') + ' ' + t('delete'),
       `Deseja excluir "${expense.description}"?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         { text: 'Excluir', style: 'destructive', onPress: () => deleteExpense(expense.id) },
       ]
     );
@@ -266,7 +268,7 @@ export default function AddExpenseScreen({ navigation }) {
       });
 
       if (result) {
-        Alert.alert('Sucesso', 'Entrada do caixa atualizada!', [
+        Alert.alert('Sucesso', t('cashUpdated'), [
           { text: 'OK', onPress: () => {
             setEditingCashId(null);
             setEditCashAmount('');
@@ -286,10 +288,10 @@ export default function AddExpenseScreen({ navigation }) {
 
   const handleDeleteCash = (cashItem) => {
     Alert.alert(
-      'Confirmar exclusão',
+      t('confirm') + ' ' + t('delete'),
       `Deseja excluir "${cashItem.description}"?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         { text: 'Excluir', style: 'destructive', onPress: () => {
           if (ctxAddCashTransaction && typeof deleteCashTransaction === 'function') {
             deleteCashTransaction(cashItem.id);
@@ -842,7 +844,7 @@ export default function AddExpenseScreen({ navigation }) {
 
   const renderList = () => (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={viewMode === 'expenses' ? 'Gastos' : 'Caixa'} />
+      <AppHeader title={viewMode === 'expenses' ? t('expenses') : t('cash')} />
 
       <View style={[styles.viewModeContainer, { backgroundColor: colors.card }]}>
         <View style={styles.viewModeToggle}>
@@ -884,7 +886,7 @@ export default function AddExpenseScreen({ navigation }) {
                     onPress={() => setFilterDate(f)}
                   >
                     <Text style={[styles.filterBtnText, { color: filterDate === f ? '#fff' : colors.textSecondary }]}>
-                      {f === 'all' ? 'Todas' : f === 'today' ? 'Hoje' : f === 'week' ? '7 Dias' : 'Mês'}
+                      {f === 'all' ? t('all') : f === 'today' ? t('today') : f === 'week' ? t('week') : t('month')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -901,7 +903,7 @@ export default function AddExpenseScreen({ navigation }) {
                     onPress={() => setFilterType(f)}
                   >
                     <Text style={[styles.filterBtnText, { color: filterType === f ? '#fff' : colors.textSecondary }]}>
-                      {f === 'all' ? 'Todos' : f === 'card' ? 'Cartão' : 'Avulso'}
+                      {f === 'all' ? t('all') : f === 'card' ? t('card') : t('standalone')}
                     </Text>
                   </TouchableOpacity>
                 ))}
