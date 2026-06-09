@@ -15,7 +15,7 @@ import { useExpenses } from '../context/ExpenseContext';
 import { safeGetItem, safeSetItem, STORAGE_KEYS } from '../utils/SafeStorage';
 import { playClick, toggleSound, isSoundEnabled } from '../utils/SoundManager';
 import { useTheme } from '../context/ThemeContext';
-import { usePlanning } from '../context/PlanningContext';
+import { useCash } from '../context/CashContext';
 import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
@@ -23,7 +23,7 @@ import AppHeader from '../components/AppHeader';
 export default function MenuScreen({ navigation }) {
   const { expenses, cards, deleteExpense, deleteCard, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
   const { colors, isDark, toggleTheme } = useTheme();
-  const { cashBalance, updateCashBalance } = usePlanning();
+  const { cashBalance } = useCash();
   const { t } = useI18n();
 
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
@@ -109,7 +109,7 @@ export default function MenuScreen({ navigation }) {
                     const cardIds = cards.map(c => c.id);
                     expenseIds.forEach(id => deleteExpense(id));
                     cardIds.forEach(id => deleteCard(id));
-                    updateCashBalance(0);
+                    // Cash balance reset removed
                     Alert.alert(t('done'), t('dataCleared'));
                   }
                 }
@@ -263,7 +263,7 @@ export default function MenuScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('menu')} />
+      <AppHeader title={t('settings')} />
 
       <ScrollView 
         style={styles.content}
