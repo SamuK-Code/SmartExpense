@@ -28,6 +28,7 @@ export default function AddExpenseScreen({ navigation }) {
     CATEGORIES,
     deleteExpense,
     toggleExpensePaid,
+    payBill,
   } = useExpenses();
 
   const { cashBalance, cashTransactions, addCashTransaction: cashAddTransaction } = useCash();
@@ -67,7 +68,6 @@ export default function AddExpenseScreen({ navigation }) {
     return new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
   };
 
-  // CORREÇÃO: Simplificar getCategoryInfo — usar apenas CATEGORIES do contexto
   const getCategoryInfo = (categoryId) => {
     if (!categoryId) return { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
     const cat = CATEGORIES.find(c => c.id === categoryId);
@@ -100,8 +100,17 @@ export default function AddExpenseScreen({ navigation }) {
       return;
     }
 
+    // Verifica se cartão está pausado
+    if (expenseType === 'card' && selectedCard) {
+      const card = cards.find(c => c.id === selectedCard);
+      if (card && card.isPaused) {
+        Alert.alert(t('cardPaused'), t('cardPausedMessage'));
+        return;
+      }
+    }
+
     try {
-      addExpense({
+      const result = addExpense({
         amount: numericAmount,
         description,
         category: selectedCategory,
@@ -109,6 +118,11 @@ export default function AddExpenseScreen({ navigation }) {
         date,
         paymentMethod: expenseType === 'card' ? paymentMethod : null,
       });
+
+      if (result && !result.success) {
+        Alert.alert(t('cardPaused'), t('cardPausedMessage'));
+        return;
+      }
 
       // Se for débito, subtrair do caixa imediatamente
       if (expenseType === 'card' && paymentMethod === 'debit') {
@@ -146,15 +160,40 @@ export default function AddExpenseScreen({ navigation }) {
     );
   };
 
+  // Quitar: apenas para boletos/standalone e faturas
   const handlePayExpense = (expense) => {
-    Alert.alert(
-      t('confirmPay'),
-      t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?',
-      [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('pay'), style: 'default', onPress: () => toggleExpensePaid(expense.id) },
-      ]
-    );
+    if (expense.isBill) {
+      // Fatura: subtrai do caixa + paga fatura + despausa cartão
+      Alert.alert(
+        t('confirmPay'),
+        t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?\n\n' + t('billAmount') + ': ' + formatCurrency(parseFloat(expense.amount)),
+        [
+          { text: t('cancel'), style: 'cancel' },
+          {
+            text: t('pay'),
+            style: 'default',
+            onPress: () => {
+              cashAddTransaction(expense.amount, 'expense', {
+                description: 'Pagamento: ' + expense.description,
+                date: new Date().toISOString().split('T')[0],
+              });
+              payBill(expense.id);
+              Alert.alert(t('success'), t('billPaid'));
+            }
+          },
+        ]
+      );
+    } else if (!expense.cardId) {
+      // Boleto/standalone: apenas marca como pago
+      Alert.alert(
+        t('confirmPay'),
+        t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?',
+        [
+          { text: t('cancel'), style: 'cancel' },
+          { text: t('pay'), style: 'default', onPress: () => toggleExpensePaid(expense.id) },
+        ]
+      );
+    }
   };
 
   const handleCashSubmit = () => {
@@ -178,6 +217,9 @@ export default function AddExpenseScreen({ navigation }) {
     const card = cards.find(c => c.id === item.cardId);
     const isStandalone = !item.cardId;
     const isPaid = item.paid === true;
+    const isBill = item.isBill === true;
+    // Mostrar botão quitar apenas para boletos/standalone e faturas
+    const canPay = !isPaid && (isBill || !item.cardId);
 
     return (
       <TouchableOpacity
@@ -195,7 +237,12 @@ export default function AddExpenseScreen({ navigation }) {
           </Text>
           <View style={styles.expenseMeta}>
             <Text style={[styles.expenseCategory, { color: category.color }]}>{category.name}</Text>
-            {isStandalone ? (
+            {isBill ? (
+              <View style={[styles.billBadge, { backgroundColor: colors.warning + '15' }]}>
+                <Ionicons name="document-text-outline" size={10} color={colors.warning} />
+                <Text style={[styles.billText, { color: colors.warning }]}>{t('bill')}</Text>
+              </View>
+            ) : isStandalone ? (
               <View style={[styles.standaloneBadge, { backgroundColor: colors.warning + '15' }]}>
                 <Ionicons name="receipt-outline" size={10} color={colors.warning} />
                 <Text style={[styles.standaloneText, { color: colors.warning }]}>{t('standalone')}</Text>
@@ -213,7 +260,7 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.expenseAmount, { color: isPaid ? colors.textLight : colors.danger, textDecorationLine: isPaid ? 'line-through' : 'none' }]}>
             {formatCurrency(parseFloat(item.amount))}
           </Text>
-          {!isPaid && (
+          {canPay && (
             <TouchableOpacity
               style={[styles.payButton, { backgroundColor: colors.success }]}
               onPress={() => handlePayExpense(item)}
@@ -240,7 +287,6 @@ export default function AddExpenseScreen({ navigation }) {
         <View style={[styles.editCashForm, { backgroundColor: colors.card }]}>
           <Text style={[styles.editTitle, { color: colors.text }]}>{t('editCash')}</Text>
 
-          {/* Valor anterior em vermelho */}
           <View style={[styles.previousValueBox, { backgroundColor: colors.danger + '10' }]}>
             <Text style={[styles.previousValueLabel, { color: colors.danger }]}>{t('previousValue')}</Text>
             <Text style={[styles.previousValueText, { color: colors.danger }]}>{formatCurrency(parseFloat(item.amount))}</Text>
@@ -378,7 +424,6 @@ export default function AddExpenseScreen({ navigation }) {
         </View>
 
         <Text style={[styles.label, { color: colors.text }]}>{t('expenseType')}</Text>
-        {/* CORREÇÃO: Adicionar marginBottom no container do toggle */}
         <View style={[styles.typeToggleContainer, { marginBottom: 16 }]}>
           <TouchableOpacity
             style={[styles.typeToggleButton, { backgroundColor: expenseType === 'card' ? colors.primary : colors.card }]}
@@ -399,7 +444,6 @@ export default function AddExpenseScreen({ navigation }) {
         {expenseType === 'card' && (
           <>
             <Text style={[styles.label, { color: colors.text }]}>{t('paymentMethod')}</Text>
-            {/* CORREÇÃO: Aumentar marginBottom para separar do input de valor */}
             <View style={[styles.typeToggleContainer, { marginBottom: 20 }]}>
               <TouchableOpacity
                 style={[styles.typeToggleButton, { backgroundColor: paymentMethod === 'credit' ? colors.primary : colors.card }]}
@@ -449,12 +493,15 @@ export default function AddExpenseScreen({ navigation }) {
                   key={card.id}
                   style={[styles.cardButton, {
                     backgroundColor: selectedCard === card.id ? colors.primary + '15' : colors.card,
-                    borderColor: selectedCard === card.id ? colors.primary : 'transparent'
+                    borderColor: selectedCard === card.id ? colors.primary : 'transparent',
+                    opacity: card.isPaused ? 0.5 : 1,
                   }]}
-                  onPress={() => setSelectedCard(card.id)}
+                  onPress={() => !card.isPaused && setSelectedCard(card.id)}
                 >
-                  <Ionicons name="card" size={16} color={selectedCard === card.id ? colors.primary : colors.textLight} />
-                  <Text style={[styles.cardText, { color: selectedCard === card.id ? colors.primary : colors.text }]}>{card.name}</Text>
+                  <Ionicons name="card" size={16} color={card.isPaused ? colors.textLight : (selectedCard === card.id ? colors.primary : colors.textLight)} />
+                  <Text style={[styles.cardText, { color: selectedCard === card.id ? colors.primary : colors.text }]}>
+                    {card.customName || card.name} {card.isPaused ? '(Pausado)' : ''}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -462,7 +509,6 @@ export default function AddExpenseScreen({ navigation }) {
         )}
 
         <Text style={[styles.label, { color: colors.text }]}>{t('category')}</Text>
-        {/* CORREÇÃO: Melhorar o grid de categorias com padding e alinhamento */}
         <View style={[styles.categoriesGrid, { marginBottom: 8 }]}>
           {CATEGORIES.map((category) => (
             <TouchableOpacity
@@ -510,8 +556,9 @@ export default function AddExpenseScreen({ navigation }) {
     }
     if (filterCard !== 'all') filtered = filtered.filter(e => e.cardId === filterCard);
     if (filterType !== 'all') {
-      if (filterType === 'card') filtered = filtered.filter(e => e.cardId);
-      else if (filterType === 'standalone') filtered = filtered.filter(e => !e.cardId);
+      if (filterType === 'card') filtered = filtered.filter(e => e.cardId && !e.isBill);
+      else if (filterType === 'standalone') filtered = filtered.filter(e => !e.cardId && !e.isBill);
+      else if (filterType === 'bill') filtered = filtered.filter(e => e.isBill);
     }
     return filtered;
   };
@@ -579,7 +626,7 @@ export default function AddExpenseScreen({ navigation }) {
             <View style={styles.filterGroup}>
               <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('expenseType')}</Text>
               <View style={styles.filterButtons}>
-                {['all', 'card', 'standalone'].map(f => (
+                {['all', 'card', 'standalone', 'bill'].map(f => (
                   <TouchableOpacity
                     key={f}
                     style={[styles.filterBtn, {
@@ -589,7 +636,7 @@ export default function AddExpenseScreen({ navigation }) {
                     onPress={() => setFilterType(f)}
                   >
                     <Text style={[styles.filterBtnText, { color: filterType === f ? colors.primary : colors.text }]}>
-                      {f === 'all' ? t('all') : f === 'card' ? t('card') : t('standalone')}
+                      {f === 'all' ? t('all') : f === 'card' ? t('card') : f === 'standalone' ? t('standalone') : t('bill')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -616,7 +663,7 @@ export default function AddExpenseScreen({ navigation }) {
                     }]}
                     onPress={() => setFilterCard(c.id)}
                   >
-                    <Text style={[styles.filterBtnText, { color: filterCard === c.id ? colors.primary : colors.text }]}>{c.name}</Text>
+                    <Text style={[styles.filterBtnText, { color: filterCard === c.id ? colors.primary : colors.text }]}>{c.customName || c.name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -705,14 +752,12 @@ const styles = StyleSheet.create({
   viewModeToggle: { flexDirection: 'row', gap: 10 },
   viewModeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, gap: 6 },
   viewModeText: { fontSize: 13, fontWeight: '600' },
-  // CORREÇÃO: Adicionar marginBottom no typeToggleContainer
   typeToggleContainer: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   typeToggleButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   typeToggleText: { fontSize: 13, fontWeight: '600' },
   inputCompact: { borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   cardButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, marginRight: 8, borderWidth: 1, borderColor: 'transparent' },
   cardText: { marginLeft: 6, fontSize: 13 },
-  // CORREÇÃO: Melhorar categoriesGrid com padding e justifyContent
   categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start' },
   categoryButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   categoryText: { marginLeft: 6, fontSize: 13 },
@@ -741,9 +786,11 @@ const styles = StyleSheet.create({
   cashAmount: { fontSize: 15, fontWeight: 'bold' },
   standaloneBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
   standaloneText: { fontSize: 10, fontWeight: '600' },
+  billBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
+  billText: { fontSize: 10, fontWeight: '600' },
   cardBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
   cardBadgeText: { fontSize: 10, fontWeight: '600' },
-  paidBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, gap: 3 },
+  paidBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, gap: 3, alignSelf: 'flex-start' },
   paidText: { fontSize: 10, fontWeight: '600' },
   payButton: { marginTop: 6, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
   payButtonText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
