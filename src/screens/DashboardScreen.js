@@ -47,7 +47,11 @@ export default function HomeScreen({ navigation }) {
     checkAlertsEnabled();
   }, [alerts]);
 
-  const getCategoryInfo = (categoryId) => CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
+  const getCategoryInfo = (categoryId) => {
+    if (!categoryId) return CATEGORIES[7];
+    const cat = CATEGORIES.find(c => c.id === categoryId);
+    return cat || CATEGORIES[7] || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
+  };
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('pt-BR');
 
