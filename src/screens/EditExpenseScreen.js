@@ -49,7 +49,7 @@ export default function EditExpenseScreen({ navigation, route }) {
   }
 
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  const getCategoryInfo = (categoryId) => CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
+  const getCategoryInfo = (categoryId) => CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7] || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
   const category = getCategoryInfo(expense.category);
   const card = cards.find(c => c.id === expense.cardId);
   const isPaid = expense.paid === true;
