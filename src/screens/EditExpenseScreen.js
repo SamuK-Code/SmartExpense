@@ -1,460 +1,232 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
-import { useCash } from '../context/CashContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
-import { useCashManager } from '../hooks/useCashManager';
-import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
-import AppHeader from '../components/AppHeader';
+import { ScaleInView } from '../components/AnimatedComponents';
 
-export default function AddExpenseScreen({ navigation }) {
-  const {
-    addExpense,
-    expenses,
-    cards,
-    CATEGORIES,
-    deleteExpense,
-    toggleExpensePaid,
-  } = useExpenses();
-
-  const { cashBalance, cashTransactions } = useCash();
-  const { colors, isDark } = useTheme();
+export default function EditExpenseScreen({ navigation, route }) {
+  const { expenseId } = route.params;
+  const { expenses, updateExpense, deleteExpense, cards, CATEGORIES } = useExpenses();
+  const { colors } = useTheme();
   const { t } = useI18n();
 
-  const cashManager = useCashManager();
-
-  const [showForm, setShowForm] = useState(false);
-  const [showCashForm, setShowCashForm] = useState(false);
-  const [fabMenuOpen, setFabMenuOpen] = useState(false);
-  const [viewMode, setViewMode] = useState('expenses');
+  const expense = expenses.find(e => e.id === expenseId);
 
   const [amount, setAmount] = useState('');
-  const [amountDisplay, setAmountDisplay] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]?.id || 'outros');
   const [selectedCard, setSelectedCard] = useState(null);
-  const [expenseType, setExpenseType] = useState('card');
-  const [paymentMethod, setPaymentMethod] = useState('credit');
-  const [date, setDate] = useState(getTodayDate());
+  const [date, setDate] = useState('');
 
-  const [filterDate, setFilterDate] = useState('all');
-  const [filterCard, setFilterCard] = useState('all');
-  const [filterType, setFilterType] = useState('all');
+  useEffect(() => {
+    if (expense) {
+      setAmount(expense.amount.toString());
+      setDescription(expense.description);
+      setSelectedCategory(expense.category);
+      setSelectedCard(expense.cardId || null);
+      setDate(expense.date);
+    }
+  }, [expense]);
 
-  function getTodayDate() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (!expense) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <Ionicons name="alert-circle" size={48} color={colors.danger} />
+        <Text style={{ color: colors.text, fontSize: 18, marginTop: 16 }}>{t('expenseNotFound')}</Text>
+      </View>
+    );
   }
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
+  const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const getCategoryInfo = (categoryId) => CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
+  const category = getCategoryInfo(expense.category);
+  const card = cards.find(c => c.id === expense.cardId);
+  const isPaid = expense.paid === true;
+  const hasValueChanged = expense.originalAmount && parseFloat(expense.originalAmount) !== parseFloat(expense.amount);
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  };
+  // ─── TELA DE DETALHES (quando pago) ───
+  if (isPaid) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <ScaleInView style={[styles.detailCard, { backgroundColor: colors.card }]}>
+          <View style={[styles.paidIcon, { backgroundColor: colors.success + '15' }]}>
+            <Ionicons name="checkmark-circle" size={48} color={colors.success} />
+          </View>
 
-  const getCategoryInfo = (categoryId) => {
-    return CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
-  };
+          <Text style={[styles.detailTitle, { color: colors.text }]}>{expense.description}</Text>
 
-  const handleAmountChange = (text) => {
-    const numeric = text.replace(/\D/g, '');
-    setAmount(numeric);
-    const number = parseInt(numeric) / 100;
-    setAmountDisplay(
-      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number || 0)
+          <View style={[styles.paidBadge, { backgroundColor: colors.success + '15' }]}>
+            <Ionicons name="checkmark" size={14} color={colors.success} />
+            <Text style={[styles.paidBadgeText, { color: colors.success }]}>{t('paid')}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textLight }]}>{t('amount')}</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{formatCurrency(parseFloat(expense.amount))}</Text>
+          </View>
+
+          {hasValueChanged && (
+            <View style={[styles.valueChangedBox, { backgroundColor: colors.warning + '10' }]}>
+              <Ionicons name="warning" size={16} color={colors.warning} />
+              <View style={{ marginLeft: 8 }}>
+                <Text style={[styles.valueChangedLabel, { color: colors.warning }]}>{t('valueChanged')}</Text>
+                <Text style={[styles.valueChangedText, { color: colors.text }]}>
+                  {t('previousValue')}: <Text style={{ textDecorationLine: 'line-through' }}>{formatCurrency(parseFloat(expense.originalAmount))}</Text>
+                </Text>
+                <Text style={[styles.valueChangedText, { color: colors.success, fontWeight: 'bold' }]}>
+                  {t('newValue')}: {formatCurrency(parseFloat(expense.amount))}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textLight }]}>{t('category')}</Text>
+            <View style={styles.detailCategoryRow}>
+              <Ionicons name={category.icon} size={16} color={category.color} />
+              <Text style={[styles.detailValue, { color: category.color, marginLeft: 6 }]}>{category.name}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textLight }]}>{t('date')}</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{new Date(expense.date).toLocaleDateString('pt-BR')}</Text>
+          </View>
+
+          {card && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textLight }]}>{t('card')}</Text>
+              <Text style={[styles.detailValue, { color: colors.primary }]}>{card.name}</Text>
+            </View>
+          )}
+
+          <Text style={[styles.detailHint, { color: colors.textLight }]}>
+            {t('expensePaid')}
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.modalButton, { backgroundColor: colors.primary }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.modalButtonText}>{t('close')}</Text>
+          </TouchableOpacity>
+        </ScaleInView>
+      </View>
     );
-  };
+  }
 
-  const handleSubmit = () => {
+  // ─── TELA DE EDIÇÃO (quando não pago) ───
+  const handleUpdate = () => {
     if (!amount || !description) {
-      Alert.alert(t('error'), t('invalidAmount') + ' / ' + t('invalidDescription'));
+      Alert.alert(t('error'), t('fillValueAndDesc'));
       return;
     }
 
-    const numericAmount = parseInt(amount) / 100;
+    const numericAmount = parseFloat(amount.replace(',', '.'));
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert(t('error'), t('invalidAmount'));
+      Alert.alert(t('error'), t('enterValidValue'));
       return;
     }
 
-    if (expenseType === 'card' && cards.length > 0 && !selectedCard) {
-      Alert.alert(t('error'), t('invalidCard'));
-      return;
-    }
+    const originalAmount = expense.originalAmount || expense.amount;
 
-    try {
-      addExpense({
-        amount: numericAmount,
-        description,
-        category: selectedCategory,
-        cardId: expenseType === 'standalone' ? null : selectedCard,
-        date,
-        paymentMethod: expenseType === 'card' ? paymentMethod : null,
-      });
+    updateExpense(expenseId, {
+      amount: numericAmount,
+      description,
+      category: selectedCategory,
+      cardId: selectedCard,
+      date,
+      originalAmount,
+    });
 
-      // Se for débito, subtrair do caixa imediatamente
-      if (expenseType === 'card' && paymentMethod === 'debit') {
-        addCashTransaction(-numericAmount, 'expense', {
-          description: 'Débito: ' + description,
-          date: date,
-        });
-      }
-
-      Alert.alert(t('success'), t('expenseAdded'), [
-        { text: t('ok'), onPress: () => {
-          setShowForm(false);
-          setAmount('');
-          setAmountDisplay('');
-          setDescription('');
-          setSelectedCategory(CATEGORIES[0]?.id || 'outros');
-          setSelectedCard(null);
-          setExpenseType('card');
-          setDate(getTodayDate());
-        }}
-      ]);
-    } catch (error) {
-      Alert.alert(t('error'), t('error'));
-    }
+    Alert.alert(t('success'), t('expenseUpdated'), [
+      { text: t('ok'), onPress: () => navigation.goBack() }
+    ]);
   };
 
-  const handleDeleteExpense = (expense) => {
+  const handleDelete = () => {
     Alert.alert(
-      t('confirm') + ' ' + t('delete'),
-      t('confirmDeleteExpense') + ' "' + expense.description + '"?',
+      t('confirmDelete'),
+      t('wantToDelete') + ' "' + expense.description + '"?',
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('delete'), style: 'destructive', onPress: () => deleteExpense(expense.id) },
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: () => {
+            deleteExpense(expenseId);
+            Alert.alert(t('deleted'), t('expenseRemoved'), [
+              { text: t('ok'), onPress: () => navigation.goBack() }
+            ]);
+          }
+        },
       ]
     );
   };
 
-  const handlePayExpense = (expense) => {
-    Alert.alert(
-      t('confirmPay'),
-      t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?',
-      [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('pay'), style: 'default', onPress: () => toggleExpensePaid(expense.id) },
-      ]
-    );
-  };
-
-  const handleCashSubmit = () => {
-    cashManager.submitCash(() => setShowCashForm(false));
-  };
-
-  const handleUpdateCash = () => {
-    cashManager.updateCash();
-  };
-
-  const handleDeleteCash = (cashItem) => {
-    cashManager.deleteCash(cashItem);
-  };
-
-  const handleEditCash = (cashItem) => {
-    cashManager.startEditing(cashItem);
-  };
-
-  const renderExpenseItem = ({ item }) => {
-    const category = getCategoryInfo(item.category);
-    const card = cards.find(c => c.id === item.cardId);
-    const isStandalone = !item.cardId;
-    const isPaid = item.paid === true;
-
-    return (
-      <TouchableOpacity
-        style={[styles.expenseItem, { backgroundColor: colors.card }]}
-        onPress={() => navigation.navigate('EditExpense', { expenseId: item.id })}
-        onLongPress={() => handleDeleteExpense(item)}
-        activeOpacity={0.7}
-      >
-        <View style={[styles.categoryIcon, { backgroundColor: category.color + '15' }]}>
-          <Ionicons name={category.icon} size={22} color={category.color} />
-        </View>
-        <View style={styles.expenseInfo}>
-          <Text style={[styles.expenseDescription, { color: colors.text, textDecorationLine: isPaid ? 'line-through' : 'none', opacity: isPaid ? 0.6 : 1 }]}>
-            {item.description}
-          </Text>
-          <View style={styles.expenseMeta}>
-            <Text style={[styles.expenseCategory, { color: category.color }]}>{category.name}</Text>
-            {isStandalone ? (
-              <View style={[styles.standaloneBadge, { backgroundColor: colors.warning + '15' }]}>
-                <Ionicons name="receipt-outline" size={10} color={colors.warning} />
-                <Text style={[styles.standaloneText, { color: colors.warning }]}>{t('standalone')}</Text>
-              </View>
-            ) : card ? (
-              <View style={[styles.cardBadge, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="card-outline" size={10} color={colors.primary} />
-                <Text style={[styles.cardBadgeText, { color: colors.primary }]}>{card.name}</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
-        </View>
-        <View style={styles.expenseRight}>
-          <Text style={[styles.expenseAmount, { color: isPaid ? colors.textLight : colors.danger, textDecorationLine: isPaid ? 'line-through' : 'none' }]}>
-            {formatCurrency(parseFloat(item.amount))}
-          </Text>
-          {!isPaid && (
-            <TouchableOpacity
-              style={[styles.payButton, { backgroundColor: colors.success }]}
-              onPress={() => handlePayExpense(item)}
-            >
-              <Text style={styles.payButtonText}>{t('pay')}</Text>
-            </TouchableOpacity>
-          )}
-          {isPaid && (
-            <View style={[styles.paidBadge, { backgroundColor: colors.success + '15' }]}>
-              <Ionicons name="checkmark-circle" size={10} color={colors.success} />
-              <Text style={[styles.paidText, { color: colors.success }]}>{t('paid')}</Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderCashItem = ({ item }) => {
-    const isEditing = cashManager.editingCashId === item.id;
-
-    if (isEditing) {
-      return (
-        <View style={[styles.editCashForm, { backgroundColor: colors.card }]}>
-          <Text style={[styles.editTitle, { color: colors.text }]}>{t('editCash')}</Text>
-
-          {/* Valor anterior em vermelho */}
-          <View style={[styles.previousValueBox, { backgroundColor: colors.danger + '10' }]}>
-            <Text style={[styles.previousValueLabel, { color: colors.danger }]}>{t('previousValue')}</Text>
-            <Text style={[styles.previousValueText, { color: colors.danger }]}>{formatCurrency(parseFloat(item.amount))}</Text>
-          </View>
-
-          <TextInput
-            style={[styles.inputCompact, { backgroundColor: colors.background, color: colors.text }]}
-            value={cashManager.editCashAmountDisplay}
-            onChangeText={cashManager.handleEditCashAmountChange}
-            placeholder={t('newValue')}
-            placeholderTextColor={colors.textLight}
-            keyboardType="numeric"
-          />
-          <TextInput
-            style={[styles.inputCompact, { backgroundColor: colors.background, color: colors.text }]}
-            value={cashManager.editCashDescription}
-            onChangeText={cashManager.setEditCashDescription}
-            placeholder={t('description')}
-            placeholderTextColor={colors.textLight}
-          />
-          <TextInput
-            style={[styles.inputCompact, { backgroundColor: colors.background, color: colors.text }]}
-            value={cashManager.editCashDate}
-            onChangeText={cashManager.setEditCashDate}
-            placeholder={t('date')}
-            placeholderTextColor={colors.textLight}
-          />
-          <View style={styles.editButtonsRow}>
-            <TouchableOpacity
-              style={[styles.editButton, { backgroundColor: colors.success }]}
-              onPress={handleUpdateCash}
-            >
-              <Ionicons name="checkmark" size={18} color="#fff" />
-              <Text style={styles.editButtonText}>{t('save')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.editButton, { backgroundColor: colors.danger }]}
-              onPress={cashManager.cancelEditing}
-            >
-              <Ionicons name="close" size={18} color="#fff" />
-              <Text style={styles.editButtonText}>{t('cancel')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      );
-    }
-
-    return (
-      <TouchableOpacity
-        style={[styles.expenseItem, { backgroundColor: colors.card }]}
-        onPress={() => handleEditCash(item)}
-        onLongPress={() => handleDeleteCash(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.expenseInfo}>
-          <Text style={[styles.expenseDescription, { color: colors.text }]}>{item.description}</Text>
-          <Text style={[styles.expenseCategory, { color: colors.textLight }]}>{t('cash')}</Text>
-          <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
-        </View>
-        <View style={styles.expenseRight}>
-          <Text style={[styles.cashAmount, { color: colors.success }]}>+ {formatCurrency(parseFloat(item.amount))}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderCashForm = () => (
+  return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <AppHeader title={t('addCash')} />
-        <Text style={[styles.title, { color: colors.text }]}>{t('addCash')}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{t('editExpense')}</Text>
 
-        <View style={[styles.balanceCard, { backgroundColor: colors.card }]}>
-          <Text style={[styles.balanceLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
-          <Text style={[styles.balanceValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
-        </View>
-
+        <Text style={[styles.label, { color: colors.text }]}>{t('amount')}</Text>
         <TextInput
-          style={[styles.inputCompact, { backgroundColor: colors.card, color: colors.text }]}
-          value={cashManager.cashAmountDisplay}
-          onChangeText={cashManager.handleCashAmountChange}
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
+          value={amount}
+          onChangeText={setAmount}
           placeholder={t('amount')}
           placeholderTextColor={colors.textLight}
           keyboardType="numeric"
         />
+
+        <Text style={[styles.label, { color: colors.text }]}>{t('description')}</Text>
         <TextInput
-          style={[styles.inputCompact, { backgroundColor: colors.card, color: colors.text }]}
-          value={cashManager.cashDescription}
-          onChangeText={cashManager.setCashDescription}
-          placeholder={t('description')}
-          placeholderTextColor={colors.textLight}
-        />
-        <TextInput
-          style={[styles.inputCompact, { backgroundColor: colors.card, color: colors.text }]}
-          value={cashManager.cashDate}
-          onChangeText={cashManager.setCashDate}
-          placeholder={t('date')}
-          placeholderTextColor={colors.textLight}
-        />
-        <TouchableOpacity
-          style={[styles.submitButton, { backgroundColor: colors.success }]}
-          onPress={handleCashSubmit}
-        >
-          <Ionicons name="add-circle" size={22} color="#fff" />
-          <Text style={styles.submitText}>{t('addCash')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.cancelButton, { backgroundColor: colors.danger + '15' }]}
-          onPress={() => {
-            setShowCashForm(false);
-            cashManager.resetCashForm();
-          }}
-        >
-          <Text style={[styles.submitText, { color: colors.danger }]}>{t('cancel')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-
-  const renderForm = () => (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <AppHeader title={t('newExpense')} />
-        <Text style={[styles.title, { color: colors.text }]}>{t('newExpense')}</Text>
-
-        <View style={[styles.balanceCard, { backgroundColor: colors.card }]}>
-          <Text style={[styles.balanceLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
-          <Text style={[styles.balanceValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
-        </View>
-
-        <Text style={[styles.label, { color: colors.text }]}>{t('expenseType')}</Text>
-        <View style={styles.typeToggleContainer}>
-          <TouchableOpacity
-            style={[styles.typeToggleButton, { backgroundColor: expenseType === 'card' ? colors.primary : colors.card }]}
-            onPress={() => { setExpenseType('card'); setSelectedCard(null); }}
-          >
-            <Ionicons name="card" size={18} color={expenseType === 'card' ? '#fff' : colors.text} />
-            <Text style={[styles.typeToggleText, { color: expenseType === 'card' ? '#fff' : colors.text }]}>{t('card')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeToggleButton, { backgroundColor: expenseType === 'standalone' ? colors.warning : colors.card }]}
-            onPress={() => { setExpenseType('standalone'); setSelectedCard(null); }}
-          >
-            <Ionicons name="receipt" size={18} color={expenseType === 'standalone' ? '#fff' : colors.text} />
-            <Text style={[styles.typeToggleText, { color: expenseType === 'standalone' ? '#fff' : colors.text }]}>{t('standalone')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {expenseType === 'card' && (
-          <>
-            <Text style={[styles.label, { color: colors.text }]}>{t('paymentMethod')}</Text>
-            <View style={styles.typeToggleContainer}>
-              <TouchableOpacity
-                style={[styles.typeToggleButton, { backgroundColor: paymentMethod === 'credit' ? colors.primary : colors.card }]}
-                onPress={() => setPaymentMethod('credit')}
-              >
-                <Text style={[styles.typeToggleText, { color: paymentMethod === 'credit' ? '#fff' : colors.text }]}>{t('credit')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeToggleButton, { backgroundColor: paymentMethod === 'debit' ? colors.primary : colors.card }]}
-                onPress={() => setPaymentMethod('debit')}
-              >
-                <Text style={[styles.typeToggleText, { color: paymentMethod === 'debit' ? '#fff' : colors.text }]}>{t('debit')}</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        <TextInput
-          style={[styles.inputCompact, { backgroundColor: colors.card, color: colors.text }]}
-          value={amountDisplay}
-          onChangeText={handleAmountChange}
-          placeholder={t('amount')}
-          placeholderTextColor={colors.textLight}
-          keyboardType="numeric"
-        />
-        <TextInput
-          style={[styles.inputCompact, { backgroundColor: colors.card, color: colors.text }]}
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
           value={description}
           onChangeText={setDescription}
           placeholder={t('description')}
           placeholderTextColor={colors.textLight}
         />
+
+        <Text style={[styles.label, { color: colors.text }]}>{t('date')}</Text>
         <TextInput
-          style={[styles.inputCompact, { backgroundColor: colors.card, color: colors.text }]}
+          style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
           value={date}
           onChangeText={setDate}
           placeholder={t('date')}
           placeholderTextColor={colors.textLight}
         />
 
-        {expenseType === 'card' && cards.length > 0 && (
-          <>
-            <Text style={[styles.label, { color: colors.text }]}>{t('selectCard')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              {cards.map(card => (
-                <TouchableOpacity
-                  key={card.id}
-                  style={[styles.cardButton, { 
-                    backgroundColor: selectedCard === card.id ? colors.primary + '15' : colors.card,
-                    borderColor: selectedCard === card.id ? colors.primary : 'transparent'
-                  }]}
-                  onPress={() => setSelectedCard(card.id)}
-                >
-                  <Ionicons name="card" size={16} color={selectedCard === card.id ? colors.primary : colors.textLight} />
-                  <Text style={[styles.cardText, { color: selectedCard === card.id ? colors.primary : colors.text }]}>{card.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </>
-        )}
+        <Text style={[styles.label, { color: colors.text }]}>{t('selectCard')}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          {cards.map(card => (
+            <TouchableOpacity
+              key={card.id}
+              style={[styles.cardButton, { 
+                backgroundColor: selectedCard === card.id ? colors.primary + '15' : colors.card,
+                borderColor: selectedCard === card.id ? colors.primary : 'transparent'
+              }]}
+              onPress={() => setSelectedCard(card.id)}
+            >
+              <Ionicons name="card" size={16} color={selectedCard === card.id ? colors.primary : colors.textLight} />
+              <Text style={[styles.cardText, { color: selectedCard === card.id ? colors.primary : colors.text }]}>{card.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         <Text style={[styles.label, { color: colors.text }]}>{t('category')}</Text>
         <View style={styles.categoriesGrid}>
@@ -475,286 +247,51 @@ export default function AddExpenseScreen({ navigation }) {
 
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: colors.primary }]}
-          onPress={handleSubmit}
+          onPress={handleUpdate}
         >
           <Ionicons name="save" size={22} color="#fff" />
-          <Text style={styles.submitText}>{t('addExpenseBtn')}</Text>
+          <Text style={styles.submitText}>{t('updateExpense')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.cancelButton, { backgroundColor: colors.danger + '15' }]}
-          onPress={() => setShowForm(false)}
+          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          onPress={handleDelete}
         >
-          <Text style={[styles.submitText, { color: colors.danger }]}>{t('cancel')}</Text>
+          <Ionicons name="trash" size={22} color="#fff" />
+          <Text style={styles.submitText}>{t('deleteExpenseBtn')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
-
-  const getFilteredExpensesList = () => {
-    let filtered = expenses;
-    if (filterDate !== 'all') {
-      const now = new Date();
-      filtered = filtered.filter(e => {
-        const d = new Date(e.date);
-        if (filterDate === 'today') return d.toDateString() === now.toDateString();
-        if (filterDate === 'week') return d >= new Date(now - 7 * 24 * 60 * 60 * 1000);
-        if (filterDate === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        return true;
-      });
-    }
-    if (filterCard !== 'all') filtered = filtered.filter(e => e.cardId === filterCard);
-    if (filterType !== 'all') {
-      if (filterType === 'card') filtered = filtered.filter(e => e.cardId);
-      else if (filterType === 'standalone') filtered = filtered.filter(e => !e.cardId);
-    }
-    return filtered;
-  };
-
-  const getFilteredCashList = () => {
-    let filtered = cashTransactions || [];
-    if (filterDate !== 'all') {
-      const now = new Date();
-      filtered = filtered.filter(e => {
-        const d = new Date(e.date);
-        if (filterDate === 'today') return d.toDateString() === now.toDateString();
-        if (filterDate === 'week') return d >= new Date(now - 7 * 24 * 60 * 60 * 1000);
-        if (filterDate === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        return true;
-      });
-    }
-    return filtered;
-  };
-
-  const renderList = () => (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('addExpense')} />
-
-      <View style={styles.viewModeContainer}>
-        <View style={styles.viewModeToggle}>
-          <TouchableOpacity
-            style={[styles.viewModeButton, { backgroundColor: viewMode === 'expenses' ? colors.primary : colors.card }]}
-            onPress={() => setViewMode('expenses')}
-          >
-            <Ionicons name="receipt" size={16} color={viewMode === 'expenses' ? '#fff' : colors.text} />
-            <Text style={[styles.viewModeText, { color: viewMode === 'expenses' ? '#fff' : colors.text }]}>{t('expenses')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.viewModeButton, { backgroundColor: viewMode === 'cash' ? colors.success : colors.card }]}
-            onPress={() => setViewMode('cash')}
-          >
-            <Ionicons name="cash" size={16} color={viewMode === 'cash' ? '#fff' : colors.text} />
-            <Text style={[styles.viewModeText, { color: viewMode === 'cash' ? '#fff' : colors.text }]}>{t('cash')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {viewMode === 'expenses' && (
-        <View style={styles.filtersContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScroll}>
-            <View style={styles.filterGroup}>
-              <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('date')}</Text>
-              <View style={styles.filterButtons}>
-                {['all', 'today', 'week', 'month'].map(f => (
-                  <TouchableOpacity
-                    key={f}
-                    style={[styles.filterBtn, { 
-                      backgroundColor: filterDate === f ? colors.primary + '15' : colors.card,
-                      borderColor: filterDate === f ? colors.primary : colors.border
-                    }]}
-                    onPress={() => setFilterDate(f)}
-                  >
-                    <Text style={[styles.filterBtnText, { color: filterDate === f ? colors.primary : colors.text }]}>
-                      {f === 'all' ? t('all') : f === 'today' ? t('today') : f === 'week' ? t('week') : t('month')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View style={styles.filterGroup}>
-              <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('expenseType')}</Text>
-              <View style={styles.filterButtons}>
-                {['all', 'card', 'standalone'].map(f => (
-                  <TouchableOpacity
-                    key={f}
-                    style={[styles.filterBtn, { 
-                      backgroundColor: filterType === f ? colors.primary + '15' : colors.card,
-                      borderColor: filterType === f ? colors.primary : colors.border
-                    }]}
-                    onPress={() => setFilterType(f)}
-                  >
-                    <Text style={[styles.filterBtnText, { color: filterType === f ? colors.primary : colors.text }]}>
-                      {f === 'all' ? t('all') : f === 'card' ? t('card') : t('standalone')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View style={styles.filterGroup}>
-              <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('card')}</Text>
-              <View style={styles.filterButtons}>
-                <TouchableOpacity
-                  style={[styles.filterBtn, { 
-                    backgroundColor: filterCard === 'all' ? colors.primary + '15' : colors.card,
-                    borderColor: filterCard === 'all' ? colors.primary : colors.border
-                  }]}
-                  onPress={() => setFilterCard('all')}
-                >
-                  <Text style={[styles.filterBtnText, { color: filterCard === 'all' ? colors.primary : colors.text }]}>{t('all')}</Text>
-                </TouchableOpacity>
-                {cards.map(c => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[styles.filterBtn, { 
-                      backgroundColor: filterCard === c.id ? colors.primary + '15' : colors.card,
-                      borderColor: filterCard === c.id ? colors.primary : colors.border
-                    }]}
-                    onPress={() => setFilterCard(c.id)}
-                  >
-                    <Text style={[styles.filterBtnText, { color: filterCard === c.id ? colors.primary : colors.text }]}>{c.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </ScrollView>
-        </View>
-      )}
-
-      {viewMode === 'expenses' && expenses.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="receipt-outline" size={48} color={colors.textLight} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noExpenses')}</Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstExpense')}</Text>
-        </View>
-      ) : viewMode === 'cash' && (cashTransactions || []).length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="cash-outline" size={48} color={colors.textLight} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noCashEntries')}</Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstExpense')}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={viewMode === 'expenses' ? getFilteredExpensesList() : getFilteredCashList()}
-          renderItem={viewMode === 'expenses' ? renderExpenseItem : renderCashItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-
-      {fabMenuOpen && (
-        <>
-          <View style={styles.fabMenuOverlay}>
-            <TouchableOpacity style={styles.fabMenuOverlayTouchable} onPress={() => setFabMenuOpen(false)} />
-          </View>
-          <View style={[styles.fabMenu, { backgroundColor: colors.card }]}>
-            <TouchableOpacity
-              style={styles.fabMenuItem}
-              onPress={() => { setFabMenuOpen(false); setShowForm(true); }}
-            >
-              <View style={[styles.fabMenuIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="receipt" size={20} color={colors.primary} />
-              </View>
-              <View>
-                <Text style={[styles.fabMenuTitle, { color: colors.text }]}>{t('newExpense')}</Text>
-                <Text style={[styles.fabMenuSubtitle, { color: colors.textLight }]}>{t('addExpense')}</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.fabMenuItem}
-              onPress={() => { setFabMenuOpen(false); setShowCashForm(true); }}
-            >
-              <View style={[styles.fabMenuIcon, { backgroundColor: colors.success + '15' }]}>
-                <Ionicons name="cash" size={20} color={colors.success} />
-              </View>
-              <View>
-                <Text style={[styles.fabMenuTitle, { color: colors.text }]}>{t('addCash')}</Text>
-                <Text style={[styles.fabMenuSubtitle, { color: colors.textLight }]}>{t('cash')}</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
-
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={() => setFabMenuOpen(!fabMenuOpen)}
-      >
-        <Ionicons name={fabMenuOpen ? 'close' : 'add'} size={28} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
-
-  if (showCashForm) return renderCashForm();
-  return showForm ? renderForm() : renderList();
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 20, paddingTop: 40 },
+  scrollContent: { padding: 20 },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 24 },
-  balanceCard: { padding: 16, borderRadius: 12, marginBottom: 20, alignItems: 'center' },
-  balanceLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  balanceValue: { fontSize: 24, fontWeight: 'bold' },
-  viewModeContainer: { paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  viewModeToggle: { flexDirection: 'row', gap: 10 },
-  viewModeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, gap: 6 },
-  viewModeText: { fontSize: 13, fontWeight: '600' },
-  typeToggleContainer: { flexDirection: 'row', gap: 10 },
-  typeToggleButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
-  typeToggleText: { fontSize: 13, fontWeight: '600' },
-  inputCompact: { borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 16 },
+  input: { borderRadius: 14, padding: 16, fontSize: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   cardButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, marginRight: 8, borderWidth: 1, borderColor: 'transparent' },
   cardText: { marginLeft: 6, fontSize: 13 },
   categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   categoryButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   categoryText: { marginLeft: 6, fontSize: 13 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 16 },
-  submitButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 14, marginTop: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
-  cancelButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 14, marginTop: 12 },
+  submitButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16, marginTop: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
+  deleteButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 16, marginTop: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
   submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
-  editCashForm: { padding: 16, borderRadius: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
-  editTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
-  previousValueBox: { padding: 12, borderRadius: 10, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  previousValueLabel: { fontSize: 12, fontWeight: '600' },
-  previousValueText: { fontSize: 16, fontWeight: 'bold' },
-  editButtonsRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  editButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 12, gap: 6 },
-  editButtonText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  listContent: { padding: 16, paddingBottom: 80 },
-  expenseItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
-  categoryIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  expenseInfo: { flex: 1, marginLeft: 12 },
-  expenseDescription: { fontSize: 15, fontWeight: '600' },
-  expenseMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap', gap: 6 },
-  expenseCategory: { fontSize: 12 },
-  expenseDate: { fontSize: 11, marginTop: 4 },
-  expenseRight: { alignItems: 'flex-end' },
-  expenseAmount: { fontSize: 15, fontWeight: 'bold' },
-  cashAmount: { fontSize: 15, fontWeight: 'bold' },
-  standaloneBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
-  standaloneText: { fontSize: 10, fontWeight: '600' },
-  cardBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
-  cardBadgeText: { fontSize: 10, fontWeight: '600' },
-  paidBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, gap: 3 },
-  paidText: { fontSize: 10, fontWeight: '600' },
-  payButton: { marginTop: 6, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
-  payButtonText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-  emptyContainer: { alignItems: 'center', padding: 40, paddingTop: 80 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 16 },
-  emptySubtitle: { fontSize: 14, marginTop: 8, textAlign: 'center' },
-  filtersContainer: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  filtersScroll: { paddingHorizontal: 12, gap: 16 },
-  filterGroup: { marginRight: 16 },
-  filterLabel: { fontSize: 11, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase' },
-  filterButtons: { flexDirection: 'row', gap: 6 },
-  filterBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
-  filterBtnText: { fontSize: 12, fontWeight: '500' },
-  fabMenuOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 },
-  fabMenuOverlayTouchable: { flex: 1 },
-  fabMenu: { position: 'absolute', right: 20, bottom: 80, width: 220, borderRadius: 16, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5, zIndex: 999 },
-  fabMenuItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, marginBottom: 8 },
-  fabMenuIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  fabMenuTitle: { fontSize: 15, fontWeight: '600' },
-  fabMenuSubtitle: { fontSize: 12, marginTop: 2 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
+  // Detail view styles
+  detailCard: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 10 },
+  paidIcon: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  detailTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
+  paidBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, marginBottom: 16, gap: 6 },
+  paidBadgeText: { fontSize: 14, fontWeight: 'bold' },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
+  detailLabel: { fontSize: 13 },
+  detailValue: { fontSize: 15, fontWeight: '600' },
+  detailCategoryRow: { flexDirection: 'row', alignItems: 'center' },
+  valueChangedBox: { flexDirection: 'row', alignItems: 'flex-start', width: '100%', padding: 12, borderRadius: 12, marginVertical: 12 },
+  valueChangedLabel: { fontSize: 13, fontWeight: 'bold', marginBottom: 4 },
+  valueChangedText: { fontSize: 13, marginTop: 2 },
+  detailHint: { fontSize: 12, textAlign: 'center', marginTop: 12, marginBottom: 16, fontStyle: 'italic' },
+  modalButton: { width: '100%', padding: 14, borderRadius: 12, alignItems: 'center' },
+  modalButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
