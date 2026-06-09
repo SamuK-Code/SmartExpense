@@ -13,7 +13,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ExpenseProvider } from './src/context/ExpenseContext';
 import { PlanningProvider } from './src/context/PlanningContext';
-import { CashProvider } from './src/context/CashContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { I18nProvider, useI18n } from './src/context/I18nContext';
 import ErrorBoundary from './src/utils/ErrorBoundary';
@@ -57,7 +56,7 @@ function MenuStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="MenuMain" component={MenuScreen} />
-      <Stack.Screen name="Language" component={SettingsScreen} />
+      <Stack.Screen name="Language" component={LanguageScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
@@ -114,8 +113,7 @@ export default function App() {
       <I18nProvider>
         <ThemeProvider>
           {/* ORDEM CORRETA: PlanningProvider DEVE envolver ExpenseProvider */}
-          <CashProvider>
-            <PlanningProvider>
+          <PlanningProvider>
               <ExpenseProvider>
                 <NavigationContainer>
                   <StatusBar style="auto" />
@@ -123,7 +121,6 @@ export default function App() {
                 </NavigationContainer>
               </ExpenseProvider>
             </PlanningProvider>
-          </CashProvider>
         </ThemeProvider>
       </I18nProvider>
     </ErrorBoundary>
