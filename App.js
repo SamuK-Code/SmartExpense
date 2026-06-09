@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExpenseProvider } from './src/context/ExpenseContext';
 import { PlanningProvider } from './src/context/PlanningContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-import { I18nProvider } from './src/context/I18nContext';
+import { I18nProvider, useI18n } from './src/context/I18nContext';
 import ErrorBoundary from './src/utils/ErrorBoundary';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -34,19 +34,9 @@ const Stack = createStackNavigator();
 function HomeStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.header },
-        headerTintColor: colors.headerText,
-        headerTitleStyle: { fontWeight: 'bold' },
-        cardStyle: { backgroundColor: colors.background },
-      }}
-    >
-      <Stack.Screen name="HomeMain" component={HomeScreen} options={{ title: 'Inicio' }} />
-      <Stack.Screen name="AddExpense" component={AddExpenseScreen} options={{ title: 'Novo Gasto' }} />
-      <Stack.Screen name="EditExpense" component={EditExpenseScreen} options={{ title: 'Editar Gasto' }} />
-      <Stack.Screen name="Cartoes" component={CardsScreen} options={{ title: 'Meus Cartoes' }} />
-      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configuracoes' }} />
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
+      <Stack.Screen name="HomeMain" component={HomeScreen} />
+      <Stack.Screen name="EditExpense" component={EditExpenseScreen} />
     </Stack.Navigator>
   );
 }
@@ -54,16 +44,9 @@ function HomeStack() {
 function ChartStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.header },
-        headerTintColor: colors.headerText,
-        headerTitleStyle: { fontWeight: 'bold' },
-        cardStyle: { backgroundColor: colors.background },
-      }}
-    >
-      <Stack.Screen name="ChartMain" component={ChartScreen} options={{ title: 'Graficos' }} />
-      <Stack.Screen name="ChartDetail" component={ChartDetailScreen} options={{ title: 'Detalhes' }} />
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
+      <Stack.Screen name="ChartMain" component={ChartScreen} />
+      <Stack.Screen name="ChartDetail" component={ChartDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -71,37 +54,29 @@ function ChartStack() {
 function MenuStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.header },
-        headerTintColor: colors.headerText,
-        headerTitleStyle: { fontWeight: 'bold' },
-        cardStyle: { backgroundColor: colors.background },
-      }}
-    >
-      <Stack.Screen name="MenuMain" component={MenuScreen} options={{ title: 'Menu' }} />
-      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configuracoes' }} />
-      <Stack.Screen name="EditExpense" component={EditExpenseScreen} options={{ title: 'Editar Gasto' }} />
-      <Stack.Screen name="ChartDetail" component={ChartDetailScreen} options={{ title: 'Detalhes' }} />
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
+      <Stack.Screen name="MenuMain" component={MenuScreen} />
+      <Stack.Screen name="Language" component={SettingsScreen} />
     </Stack.Navigator>
   );
 }
 
 function TabNavigator() {
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-          if (route.name === 'Inicio') iconName = focused ? 'home' : 'home-outline';
-          else if (route.name === 'Adicionar') iconName = focused ? 'add-circle' : 'add-circle-outline';
-          else if (route.name === 'Historico') iconName = focused ? 'list' : 'list-outline';
-          else if (route.name === 'Graficos') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
-          else if (route.name === 'Planejar') iconName = focused ? 'calendar' : 'calendar-outline';
-          else if (route.name === 'Cartoes') iconName = focused ? 'card' : 'card-outline';
-          else if (route.name === 'Menu') iconName = focused ? 'menu' : 'menu-outline';
+          if (route.name === 'HomeTab') iconName = focused ? 'home' : 'home-outline';
+          else if (route.name === 'AddTab') iconName = focused ? 'add-circle' : 'add-circle-outline';
+          else if (route.name === 'HistoryTab') iconName = focused ? 'list' : 'list-outline';
+          else if (route.name === 'ChartsTab') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
+          else if (route.name === 'PlanningTab') iconName = focused ? 'calendar' : 'calendar-outline';
+          else if (route.name === 'CardsTab') iconName = focused ? 'card' : 'card-outline';
+          else if (route.name === 'MenuTab') iconName = focused ? 'menu' : 'menu-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: colors.primary,
@@ -120,13 +95,13 @@ function TabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Inicio" component={HomeStack} />
-      <Tab.Screen name="Adicionar" component={AddExpenseScreen} />
-      <Tab.Screen name="Historico" component={HistoryScreen} />
-      <Tab.Screen name="Graficos" component={ChartStack} />
-      <Tab.Screen name="Planejar" component={PlanningScreen} />
-      <Tab.Screen name="Cartoes" component={CardsScreen} />
-      <Tab.Screen name="Menu" component={MenuStack} />
+      <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: t('home') }} />
+      <Tab.Screen name="AddTab" component={AddExpenseScreen} options={{ tabBarLabel: t('addExpense') }} />
+      <Tab.Screen name="HistoryTab" component={HistoryScreen} options={{ tabBarLabel: t('history') }} />
+      <Tab.Screen name="ChartsTab" component={ChartStack} options={{ tabBarLabel: t('charts') }} />
+      <Tab.Screen name="PlanningTab" component={PlanningScreen} options={{ tabBarLabel: t('planning') }} />
+      <Tab.Screen name="CardsTab" component={CardsScreen} options={{ tabBarLabel: t('cards') }} />
+      <Tab.Screen name="MenuTab" component={MenuStack} options={{ tabBarLabel: t('menu') }} />
     </Tab.Navigator>
   );
 }
@@ -136,17 +111,17 @@ export default function App() {
     <ErrorBoundary>
       <I18nProvider>
         <ThemeProvider>
-        {/* ORDEM CORRETA: PlanningProvider DEVE envolver ExpenseProvider */}
-        <PlanningProvider>
-          <ExpenseProvider>
-            <NavigationContainer>
-              <StatusBar style="auto" />
-              <TabNavigator />
-            </NavigationContainer>
-          </ExpenseProvider>
-        </PlanningProvider>
-      </ThemeProvider>
-    </I18nProvider>
+          {/* ORDEM CORRETA: PlanningProvider DEVE envolver ExpenseProvider */}
+          <PlanningProvider>
+            <ExpenseProvider>
+              <NavigationContainer>
+                <StatusBar style="auto" />
+                <TabNavigator />
+              </NavigationContainer>
+            </ExpenseProvider>
+          </PlanningProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </ErrorBoundary>
   );
 }
