@@ -57,6 +57,7 @@ function MenuStack() {
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="MenuMain" component={MenuScreen} />
       <Stack.Screen name="Language" component={SettingsScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 }
