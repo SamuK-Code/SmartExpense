@@ -94,11 +94,11 @@ export default function PlanningScreen() {
     ]);
   };
 
-  const getCategoryInfo = (catId) => CATEGORIES.find(c => c.id === catId) || CATEGORIES[7];
+  const getCategoryInfo = (catId) => CATEGORIES.find(c => c.id === catId) || CATEGORIES[7] || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
 
   const renderGoalItem = (goal) => {
     const feasibility = checkGoalFeasibility(goal.amount, cashBalance, totalExpenses);
-    const category = getCategoryInfo(goal.category);
+    const category = getCategoryInfo(goal.category) || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
     const canBuyNow = goal.amount <= cashBalance && feasibility.feasible;
 
     return (
