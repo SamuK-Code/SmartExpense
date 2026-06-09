@@ -16,16 +16,18 @@ import { safeGetItem, safeSetItem, STORAGE_KEYS } from '../utils/SafeStorage';
 import { playClick, toggleSound, isSoundEnabled } from '../utils/SoundManager';
 import { useTheme } from '../context/ThemeContext';
 import { useCash } from '../context/CashContext';
+import { usePlanning } from '../context/PlanningContext';
 import { useI18n } from '../context/I18nContext';
 import { clearAllStorage } from '../utils/StorageUtils';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 
 export default function MenuScreen({ navigation }) {
-  const { expenses, cards, deleteExpense, deleteCard, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
+  const { expenses, cards, deleteExpense, deleteCard, clearAllData, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
   const { colors, isDark, toggleTheme } = useTheme();
   const { cashBalance, clearCash } = useCash();
   const { t } = useI18n();
+  const { clearGoals } = usePlanning();
 
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
   const [statsModalVisible, setStatsModalVisible] = useState(false);
@@ -105,12 +107,15 @@ export default function MenuScreen({ navigation }) {
                 {
                   text: t('yes') + ', ' + t('clear'),
                   style: 'destructive',
-                  onPress: () => {
-                    const expenseIds = expenses.map(e => e.id);
-                    const cardIds = cards.map(c => c.id);
-                    expenseIds.forEach(id => deleteExpense(id));
-                    cardIds.forEach(id => deleteCard(id));
-                    // Cash balance reset removed
+                  onPress: async () => {
+                    // Limpar todos os dados: despesas, cartões, categorias, transações em caixa
+                    clearAllData();
+                    // Limpar saldo em caixa e transações de caixa
+                    clearCash();
+                    // Limpar metas/planejamento
+                    clearGoals();
+                    // Limpar todo o AsyncStorage (cache, configurações, etc.)
+                    await clearAllStorage();
                     Alert.alert(t('done'), t('dataCleared'));
                   }
                 }
