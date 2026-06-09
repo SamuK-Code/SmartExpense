@@ -100,23 +100,23 @@ export default function PlanningScreen() {
     const canBuyNow = goal.amount <= cashBalance && feasibility.feasible;
 
     return (
-      <View key={goal.id} style={[styles.goalCard, { backgroundColor: colors.card, borderLeftColor: category.color }]}>
+      <View style={[styles.goalCard, { backgroundColor: colors.card, borderLeftColor: category.color }]}>
         <View style={styles.goalHeader}>
           <View style={styles.goalTitleRow}>
-            <View style={[styles.goalCategoryIcon, { backgroundColor: category.color + '20' }]}>
+            <View style={[styles.goalCategoryIcon, { backgroundColor: category.color + '15' }]}>
               <Ionicons name={category.icon} size={18} color={category.color} />
             </View>
             <View style={styles.goalTitleInfo}>
               <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
-              <Text style={[styles.goalAmount, { color: colors.text }]}>{formatCurrency(goal.amount)}</Text>
+              <Text style={[styles.goalAmount, { color: category.color }]}>{formatCurrency(goal.amount)}</Text>
             </View>
           </View>
           <View style={styles.goalActions}>
             <TouchableOpacity onPress={() => toggleGoalComplete(goal.id)}>
-              <Ionicons name={goal.completed ? "checkmark-circle" : "ellipse-outline"} size={24} color={goal.completed ? colors.success : colors.textLight} />
+              <Ionicons name={goal.completed ? 'checkbox' : 'square-outline'} size={24} color={goal.completed ? colors.success : colors.textLight} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => openEditGoal(goal)}>
-              <Ionicons name="create-outline" size={20} color={colors.primary} />
+              <Ionicons name="create-outline" size={20} color={colors.textLight} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => handleDeleteGoal(goal)}>
               <Ionicons name="trash-outline" size={20} color={colors.danger} />
@@ -124,36 +124,33 @@ export default function PlanningScreen() {
           </View>
         </View>
 
-        <View style={styles.goalAnalysis}>
-          {!goal.completed && (
-            <>
-              <View style={[styles.feasibilityBadge, { backgroundColor: feasibility.severity === 'success' ? colors.success + '20' : feasibility.severity === 'warning' ? colors.warning + '20' : colors.danger + '20' }]}>
-                <Ionicons name={feasibility.severity === 'success' ? "checkmark-circle" : feasibility.severity === 'warning' ? "alert-circle" : "close-circle"} size={14} color={feasibility.severity === 'success' ? colors.success : feasibility.severity === 'warning' ? colors.warning : colors.danger} />
-                <Text style={[styles.feasibilityText, { color: feasibility.severity === 'success' ? colors.success : feasibility.severity === 'warning' ? colors.warning : colors.danger }]}>
-                  {feasibility.reason}
-                </Text>
-              </View>
-              {canBuyNow && (
-                <View style={[styles.buyNowBadge, { backgroundColor: colors.success + '20' }]}>
-                  <Ionicons name="checkmark" size={14} color={colors.success} />
-                  <Text style={[styles.buyNowText, { color: colors.success }]}>{t('canBuyNow')}</Text>
-                </View>
-              )}
-              {!canBuyNow && goal.amount > cashBalance && (
-                <View style={[styles.buyNowBadge, { backgroundColor: colors.warning + '20' }]}>
-                  <Ionicons name="time-outline" size={14} color={colors.warning} />
-                  <Text style={[styles.buyNowText, { color: colors.warning }]}>{t('missing')} {formatCurrency(goal.amount - cashBalance)}</Text>
-                </View>
-              )}
-            </>
-          )}
-          {goal.completed && (
-            <View style={[styles.completedBadge, { backgroundColor: colors.success + '20' }]}>
-              <Ionicons name="checkmark-done" size={14} color={colors.success} />
-              <Text style={[styles.completedText, { color: colors.success }]}>{t('purchaseMade')}</Text>
+        {!goal.completed && (
+          <>
+            <View style={[styles.feasibilityBadge, { backgroundColor: feasibility.feasible ? colors.success + '15' : colors.danger + '15' }]}>
+              <Ionicons name={feasibility.feasible ? 'checkmark-circle' : 'warning'} size={16} color={feasibility.feasible ? colors.success : colors.danger} />
+              <Text style={[styles.feasibilityText, { color: feasibility.feasible ? colors.success : colors.danger }]}>{feasibility.reason}</Text>
             </View>
-          )}
-        </View>
+
+            {canBuyNow && (
+              <View style={[styles.buyNowBadge, { backgroundColor: colors.success + '15' }]}>
+                <Ionicons name="cart" size={16} color={colors.success} />
+                <Text style={[styles.buyNowText, { color: colors.success }]}>{t('canBuyNow')}</Text>
+              </View>
+            )}
+            {!canBuyNow && goal.amount > cashBalance && (
+              <View style={[styles.buyNowBadge, { backgroundColor: colors.warning + '15' }]}>
+                <Ionicons name="trending-up" size={16} color={colors.warning} />
+                <Text style={[styles.buyNowText, { color: colors.warning }]}>{t('missing')} {formatCurrency(goal.amount - cashBalance)}</Text>
+              </View>
+            )}
+          </>
+        )}
+        {goal.completed && (
+          <View style={[styles.completedBadge, { backgroundColor: colors.success + '15' }]}>
+            <Ionicons name="checkmark-done" size={16} color={colors.success} />
+            <Text style={[styles.completedText, { color: colors.success }]}>{t('purchaseMade')}</Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -161,91 +158,84 @@ export default function PlanningScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title={t('planning')} />
-
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Cash Balance Card */}
-        <FadeInView>
-          <TouchableOpacity style={[styles.cashCard, { backgroundColor: colors.card }]} onPress={() => setCashModalVisible(true)}>
-            <View style={styles.cashRow}>
-              <View>
-                <Text style={[styles.cashLabel, { color: colors.textSecondary }]}>{t('availableCash')}</Text>
-                <Text style={[styles.cashValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
-              </View>
-              <View style={[styles.cashIcon, { backgroundColor: colors.success + '15' }]}>
-                <Ionicons name="cash-outline" size={24} color={colors.success} />
-              </View>
+        <TouchableOpacity style={[styles.cashCard, { backgroundColor: colors.card }]} onPress={() => setCashModalVisible(true)}>
+          <View style={styles.cashRow}>
+            <View>
+              <Text style={[styles.cashLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
+              <Text style={[styles.cashValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
             </View>
-            <Text style={[styles.cashHint, { color: colors.textSecondary }]}>{t('tapToUpdate')}</Text>
-          </TouchableOpacity>
-        </FadeInView>
+            <View style={[styles.cashIcon, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="wallet" size={24} color={colors.primary} />
+            </View>
+          </View>
+          <Text style={[styles.cashHint, { color: colors.textLight }]}>{t('tapToUpdate')}</Text>
+        </TouchableOpacity>
 
         {/* Budget Overview */}
-        <SlideInView delay={100}>
-          <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
-            <Text style={[styles.budgetTitle, { color: colors.text }]}>{t('cashStatus')}</Text>
-            <View style={styles.budgetRow}>
-              <View style={styles.budgetItem}>
-                <Text style={[styles.budgetItemLabel, { color: colors.textSecondary }]}>{t('availableCash')}</Text>
-                <Text style={[styles.budgetItemValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
-              </View>
-              <View style={styles.budgetItem}>
-                <Text style={[styles.budgetItemLabel, { color: colors.textSecondary }]}>{t('monthlyExpenses')}</Text>
-                <Text style={[styles.budgetItemValue, { color: colors.danger }]}>{formatCurrency(totalExpenses)}</Text>
-              </View>
-              <View style={styles.budgetItem}>
-                <Text style={[styles.budgetItemLabel, { color: colors.textSecondary }]}>{t('remaining')}</Text>
-                <Text style={[styles.budgetItemValue, { color: remaining >= 0 ? colors.primary : colors.danger }]}>{formatCurrency(remaining)}</Text>
-              </View>
+        <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
+          <Text style={[styles.budgetTitle, { color: colors.text }]}>{t('cashStatus')}</Text>
+          <View style={styles.budgetRow}>
+            <View style={styles.budgetItem}>
+              <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
+              <Text style={[styles.budgetItemValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
             </View>
-            <View style={styles.budgetProgressContainer}>
-              <View style={[styles.budgetProgressBar, { backgroundColor: isDark ? '#333' : '#e0e0e0' }]}>
-                <View style={[styles.budgetProgressFill, { width: `${Math.min(expensePercent, 100)}%`, backgroundColor: expensePercent >= 100 ? colors.danger : expensePercent >= 80 ? colors.warning : colors.primary }]} />
-              </View>
-              <Text style={[styles.budgetProgressText, { color: expensePercent >= 100 ? colors.danger : expensePercent >= 80 ? colors.warning : colors.primary }]}>
-                {expensePercent.toFixed(1)}% {t('cashCommitted')}
-              </Text>
+            <View style={styles.budgetItem}>
+              <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('monthlyExpenses')}</Text>
+              <Text style={[styles.budgetItemValue, { color: colors.danger }]}>{formatCurrency(totalExpenses)}</Text>
             </View>
-
-            {!isCashSufficient && cashBalance > 0 && (
-              <View style={[styles.insufficientAlert, { backgroundColor: colors.danger + '20' }]}>
-                <Ionicons name="warning" size={16} color={colors.danger} />
-                <View style={{ marginLeft: 8 }}>
-                  <Text style={[styles.insufficientTitle, { color: colors.danger }]}>{t('insufficientCash')}</Text>
-                  <Text style={[styles.insufficientText, { color: colors.danger }]}>{t('missing')} {formatCurrency(totalExpenses - cashBalance)}</Text>
-                </View>
-              </View>
-            )}
-            {cashBalance <= 0 && (
-              <View style={[styles.insufficientAlert, { backgroundColor: colors.warning + '20' }]}>
-                <Ionicons name="cash-outline" size={16} color={colors.warning} />
-                <View style={{ marginLeft: 8 }}>
-                  <Text style={[styles.insufficientTitle, { color: colors.warning }]}>{t('noCash')}</Text>
-                </View>
-              </View>
-            )}
+            <View style={styles.budgetItem}>
+              <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('remaining')}</Text>
+              <Text style={[styles.budgetItemValue, { color: remaining >= 0 ? colors.primary : colors.danger }]}>{formatCurrency(remaining)}</Text>
+            </View>
           </View>
-        </SlideInView>
+          <View style={styles.budgetProgressContainer}>
+            <View style={[styles.budgetProgressBar, { backgroundColor: colors.background }]}>
+              <View style={[styles.budgetProgressFill, { width: `${Math.min(expensePercent, 100)}%`, backgroundColor: expensePercent >= 100 ? colors.danger : expensePercent >= 80 ? colors.warning : colors.primary }]} />
+            </View>
+            <Text style={[styles.budgetProgressText, { color: expensePercent >= 100 ? colors.danger : expensePercent >= 80 ? colors.warning : colors.primary }]}>
+              {expensePercent.toFixed(1)}% {t('cashCommitted')}
+            </Text>
+          </View>
+
+          {!isCashSufficient && cashBalance > 0 && (
+            <View style={[styles.insufficientAlert, { backgroundColor: colors.danger + '10' }]}>
+              <Ionicons name="warning" size={20} color={colors.danger} />
+              <View style={{ marginLeft: 10 }}>
+                <Text style={[styles.insufficientTitle, { color: colors.danger }]}>{t('insufficientCash')}</Text>
+                <Text style={[styles.insufficientText, { color: colors.danger }]}>{t('missing')} {formatCurrency(totalExpenses - cashBalance)}</Text>
+              </View>
+            </View>
+          )}
+          {cashBalance <= 0 && (
+            <View style={[styles.insufficientAlert, { backgroundColor: colors.warning + '10' }]}>
+              <Ionicons name="alert-circle" size={20} color={colors.warning} />
+              <View style={{ marginLeft: 10 }}>
+                <Text style={[styles.insufficientTitle, { color: colors.warning }]}>{t('noCash')}</Text>
+              </View>
+            </View>
+          )}
+        </View>
 
         {/* Daily Budget */}
         {remaining > 0 && (
-          <SlideInView delay={200}>
-            <View style={[styles.dailyBudgetCard, { backgroundColor: colors.card }]}>
-              <View style={styles.dailyBudgetHeader}>
-                <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-                <Text style={[styles.dailyBudgetTitle, { color: colors.text }]}>{t('dailyBudget')}</Text>
+          <View style={[styles.dailyBudgetCard, { backgroundColor: colors.card }]}>
+            <View style={styles.dailyBudgetHeader}>
+              <Ionicons name="calendar" size={20} color={colors.secondary} />
+              <Text style={[styles.dailyBudgetTitle, { color: colors.text }]}>{t('dailyBudget')}</Text>
+            </View>
+            <View style={styles.dailyBudgetRow}>
+              <View style={styles.dailyBudgetItem}>
+                <Text style={[styles.dailyBudgetValue, { color: colors.primary }]}>{formatCurrency(dailyBudget.daily)}</Text>
+                <Text style={[styles.dailyBudgetLabel, { color: colors.textLight }]}>{t('perDay')}</Text>
               </View>
-              <View style={styles.dailyBudgetRow}>
-                <View style={styles.dailyBudgetItem}>
-                  <Text style={[styles.dailyBudgetValue, { color: colors.text }]}>{formatCurrency(dailyBudget.daily)}</Text>
-                  <Text style={[styles.dailyBudgetLabel, { color: colors.textSecondary }]}>{t('perDay')}</Text>
-                </View>
-                <View style={styles.dailyBudgetItem}>
-                  <Text style={[styles.dailyBudgetValue, { color: colors.text }]}>{formatCurrency(dailyBudget.weekly)}</Text>
-                  <Text style={[styles.dailyBudgetLabel, { color: colors.textSecondary }]}>{t('perWeek')}</Text>
-                </View>
+              <View style={styles.dailyBudgetItem}>
+                <Text style={[styles.dailyBudgetValue, { color: colors.secondary }]}>{formatCurrency(dailyBudget.weekly)}</Text>
+                <Text style={[styles.dailyBudgetLabel, { color: colors.textLight }]}>{t('perWeek')}</Text>
               </View>
             </View>
-          </SlideInView>
+          </View>
         )}
 
         {/* Goals Section */}
@@ -259,20 +249,20 @@ export default function PlanningScreen() {
 
           {goals.length === 0 ? (
             <View style={styles.emptyGoals}>
-              <Ionicons name="flag-outline" size={48} color={colors.textLight} />
+              <Ionicons name="flag-outline" size={40} color={colors.textLight} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noGoals')}</Text>
-              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{t('addFirstGoal')}</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstGoal')}</Text>
               <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={openAddGoal}>
                 <Ionicons name="add" size={16} color="#fff" />
                 <Text style={styles.addButtonText}>{t('addGoal')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <StaggeredList staggerDelay={80}>
+            <StaggeredList>
               {goals.map((goal, index) => (
-                <SlideInView key={goal.id} delay={index * 80}>
+                <FadeInView key={goal.id} delay={index * 100}>
                   {renderGoalItem(goal)}
-                </SlideInView>
+                </FadeInView>
               ))}
             </StaggeredList>
           )}
@@ -281,83 +271,82 @@ export default function PlanningScreen() {
 
       {/* Cash Modal */}
       <Modal visible={cashModalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-          <ScaleInView>
-            <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('availableCash')}</Text>
-              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{t('howMuchCash')}</Text>
-              <TextInput
-                style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
-                keyboardType="numeric"
-                value={cashInput}
-                onChangeText={setCashInput}
-                placeholder="0,00"
-                placeholderTextColor={colors.textLight}
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.border }]} onPress={() => setCashModalVisible(false)}>
-                  <Text style={[styles.modalButtonText, { color: colors.text }]}>{t('cancel')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={handleSaveCash}>
-                  <Text style={styles.modalButtonText}>{t('save')}</Text>
-                </TouchableOpacity>
-              </View>
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <ScaleInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{t('availableCash')}</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textLight }]}>{t('howMuchCash')}</Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: colors.background, color: colors.text }]}
+              value={cashInput}
+              onChangeText={setCashInput}
+              placeholder="0,00"
+              placeholderTextColor={colors.textLight}
+              keyboardType="numeric"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.danger }]} onPress={() => setCashModalVisible(false)}>
+                <Text style={styles.modalButtonText}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={handleSaveCash}>
+                <Text style={styles.modalButtonText}>{t('save')}</Text>
+              </TouchableOpacity>
             </View>
           </ScaleInView>
         </View>
       </Modal>
 
       {/* Goal Modal */}
-      <Modal visible={goalModalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
-            <ScaleInView>
-              <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  {editingGoal ? t('editGoal') : t('newGoal')}
-                </Text>
-                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('whatToBuy')}</Text>
-                <TextInput
-                  style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
-                  value={goalName}
-                  onChangeText={setGoalName}
-                  placeholder={t('goalName')}
-                  placeholderTextColor={colors.textLight}
-                />
-                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('totalValue')}</Text>
-                <TextInput
-                  style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
-                  value={goalAmount}
-                  onChangeText={setGoalAmount}
-                  keyboardType="numeric"
-                  placeholder="0,00"
-                  placeholderTextColor={colors.textLight}
-                />
-                <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>{t('category')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                  {CATEGORIES.map(cat => (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[styles.categoryOption, { backgroundColor: goalCategory === cat.id ? cat.color + '25' : colors.inputBg, borderColor: goalCategory === cat.id ? cat.color : 'transparent' }]}
-                      onPress={() => setGoalCategory(cat.id)}
-                    >
-                      <Ionicons name={cat.icon} size={16} color={cat.color} />
-                      <Text style={[styles.categoryOptionText, { color: goalCategory === cat.id ? cat.color : colors.textSecondary }]}>{cat.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.border }]} onPress={() => setGoalModalVisible(false)}>
-                    <Text style={[styles.modalButtonText, { color: colors.text }]}>{t('cancel')}</Text>
+      <Modal visible={goalModalVisible} transparent animationType="fade">
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <SlideInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                {editingGoal ? t('editGoal') : t('newGoal')}
+              </Text>
+              <Text style={[styles.modalLabel, { color: colors.text }]}>{t('whatToBuy')}</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.background, color: colors.text }]}
+                value={goalName}
+                onChangeText={setGoalName}
+                placeholder={t('goalName')}
+                placeholderTextColor={colors.textLight}
+              />
+              <Text style={[styles.modalLabel, { color: colors.text }]}>{t('totalValue')}</Text>
+              <TextInput
+                style={[styles.modalInput, { backgroundColor: colors.background, color: colors.text }]}
+                value={goalAmount}
+                onChangeText={setGoalAmount}
+                placeholder="0,00"
+                placeholderTextColor={colors.textLight}
+                keyboardType="numeric"
+              />
+              <Text style={[styles.modalLabel, { color: colors.text }]}>{t('category')}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+                {CATEGORIES.map(cat => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.categoryOption, { 
+                      backgroundColor: goalCategory === cat.id ? cat.color + '15' : colors.background,
+                      borderColor: goalCategory === cat.id ? cat.color : 'transparent'
+                    }]}
+                    onPress={() => setGoalCategory(cat.id)}
+                  >
+                    <Ionicons name={cat.icon} size={16} color={cat.color} />
+                    <Text style={[styles.categoryOptionText, { color: goalCategory === cat.id ? cat.color : colors.text }]}>{cat.name}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={handleSaveGoal}>
-                    <Text style={styles.modalButtonText}>{t('save')}</Text>
-                  </TouchableOpacity>
-                </View>
+                ))}
+              </ScrollView>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.danger }]} onPress={() => setGoalModalVisible(false)}>
+                  <Text style={styles.modalButtonText}>{t('cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, { backgroundColor: colors.primary }]} onPress={handleSaveGoal}>
+                  <Text style={styles.modalButtonText}>{t('save')}</Text>
+                </TouchableOpacity>
               </View>
-            </ScaleInView>
-          </View>
-        </KeyboardAvoidingView>
+            </SlideInView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );
