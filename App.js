@@ -134,7 +134,8 @@ function TabNavigator() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider>
         {/* ORDEM CORRETA: PlanningProvider DEVE envolver ExpenseProvider */}
         <PlanningProvider>
           <ExpenseProvider>
