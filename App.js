@@ -27,6 +27,7 @@ import ChartDetailScreen from './src/screens/ChartDetailScreen';
 import CardsScreen from './src/screens/CardsScreen';
 import PlanningScreen from './src/screens/PlanningScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import LanguageScreen from './src/screens/LanguageScreen';
 import MenuScreen from './src/screens/MenuScreen';
 
 const Tab = createBottomTabNavigator();
@@ -113,8 +114,8 @@ export default function App() {
     <ErrorBoundary>
       <I18nProvider>
         <ThemeProvider>
-          {/* ORDEM CORRETA: PlanningProvider DEVE envolver ExpenseProvider */}
-          <PlanningProvider>
+          <CashProvider>
+            <PlanningProvider>
               <ExpenseProvider>
                 <NavigationContainer>
                   <StatusBar style="auto" />
@@ -122,6 +123,7 @@ export default function App() {
                 </NavigationContainer>
               </ExpenseProvider>
             </PlanningProvider>
+          </CashProvider>
         </ThemeProvider>
       </I18nProvider>
     </ErrorBoundary>
