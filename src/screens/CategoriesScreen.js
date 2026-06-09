@@ -27,7 +27,22 @@ export default function CategoriesScreen() {
   const [selectedColor, setSelectedColor] = useState('#FF6B6B');
   const [selectedIcon, setSelectedIcon] = useState('pricetag');
 
-  // Cores únicas (sem duplicatas)
+  // Categorias padrões do app (hardcoded para garantir que sempre existam)
+  const defaultCategories = [
+    { id: 'food', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+    { id: 'transport', name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+    { id: 'leisure', name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+    { id: 'health', name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+    { id: 'housing', name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+    { id: 'education', name: 'Educação', color: '#DDA0DD', icon: 'school' },
+    { id: 'shopping', name: 'Compras', color: '#98D8C8', icon: 'cart' },
+    { id: 'others', name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+  ];
+
+  // Usar CATEGORIES do contexto (que inclui padrões se state.categories estiver vazio)
+  const displayCategories = (CATEGORIES && CATEGORIES.length > 0) ? CATEGORIES : defaultCategories;
+
+  // Cores para escolher
   const colorsList = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
     '#DDA0DD', '#98D8C8', '#F7DC6F', '#FFB6C1', '#87CEEB',
@@ -36,7 +51,7 @@ export default function CategoriesScreen() {
     '#4682B4', '#5F9EA0', '#6495ED', '#DC143C', '#00CED1',
   ];
 
-  // Ícones variados
+  // Ícones para escolher
   const iconsList = [
     'pricetag', 'restaurant', 'car', 'game-controller', 'medical',
     'home', 'school', 'cart', 'airplane', 'book',
@@ -137,6 +152,30 @@ export default function CategoriesScreen() {
           </View>
         ))}
       </ScrollView>
+
+      <TouchableOpacity
+        style={[styles.resetButton, { backgroundColor: colors.warning }]}
+        onPress={() => {
+          Alert.alert(
+            'Resetar Categorias',
+            'Deseja restaurar as categorias padrões? Isso removerá categorias personalizadas.',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Resetar', style: 'destructive', onPress: () => {
+                // Resetar para padrões
+                defaultCategories.forEach(cat => {
+                  if (!categories.find(c => c.id === cat.id)) {
+                    addCategory(cat);
+                  }
+                });
+              }},
+            ]
+          );
+        }}
+      >
+        <Ionicons name="refresh" size={20} color="#fff" />
+        <Text style={{ color: '#fff', fontSize: 12, marginLeft: 6 }}>Resetar</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
@@ -256,6 +295,21 @@ const styles = StyleSheet.create({
     height: 12, 
     borderRadius: 6, 
     marginTop: 4 
+  },
+  resetButton: {
+    position: 'absolute',
+    left: 20,
+    bottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   fab: { 
     position: 'absolute', 
