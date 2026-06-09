@@ -59,6 +59,10 @@ export function PlanningProvider({ children }) {
     setGoals(prev => prev.map(g => g.id === id ? { ...g, completed: !g.completed, completedAt: !g.completed ? new Date().toISOString() : null } : g));
   };
 
+  const clearGoals = useCallback(() => {
+    setGoals([]);
+  }, []);
+
   const checkGoalFeasibility = (goalAmount, cashBalance, monthlyExpenses) => {
     const availableAfterExpenses = cashBalance - monthlyExpenses;
     if (cashBalance <= 0) return { feasible: false, reason: 'Sem dinheiro em caixa', severity: 'danger' };
@@ -85,6 +89,7 @@ export function PlanningProvider({ children }) {
     updateGoal,
     deleteGoal,
     toggleGoalComplete,
+    clearGoals,
     checkGoalFeasibility,
     calculateDailyBudget,
   };
