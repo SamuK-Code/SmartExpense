@@ -3,17 +3,17 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 
-const PERIODS = [
-  { id: 'all', label: t('all') },
-  { id: 'today', label: t('today') },
-  { id: 'week', label: t('week') },
-  { id: 'month', label: t('month') },
-  { id: 'year', label: t('year') },
-];
-
 export default function PeriodFilter({ selected, onSelect }) {
   const { colors } = useTheme();
   const { t } = useI18n();
+
+  const PERIODS = [
+    { id: 'all', label: t('all') },
+    { id: 'today', label: t('today') },
+    { id: 'week', label: t('week') },
+    { id: 'month', label: t('month') },
+    { id: 'year', label: t('year') },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
