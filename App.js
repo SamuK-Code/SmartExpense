@@ -1,9 +1,9 @@
+import { LogBox } from 'react-native';
+
 LogBox.ignoreLogs([
   'InteractionManager has been deprecated',
 ]);
-import './src/utils/InteractionManagerPatch';
-
-import { LogBox } from 'react-native';
+require('./src/utils/InteractionManagerPatch');
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
