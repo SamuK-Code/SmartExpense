@@ -16,18 +16,16 @@ import { safeGetItem, safeSetItem, STORAGE_KEYS } from '../utils/SafeStorage';
 import { playClick, toggleSound, isSoundEnabled } from '../utils/SoundManager';
 import { useTheme } from '../context/ThemeContext';
 import { useCash } from '../context/CashContext';
-import { usePlanning } from '../context/PlanningContext';
 import { useI18n } from '../context/I18nContext';
 import { clearAllStorage } from '../utils/StorageUtils';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 
 export default function MenuScreen({ navigation }) {
-  const { expenses, cards, deleteExpense, deleteCard, clearAllData, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
+  const { expenses, cards, deleteExpense, deleteCard, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
   const { colors, isDark, toggleTheme } = useTheme();
   const { cashBalance, clearCash } = useCash();
   const { t } = useI18n();
-  const { clearGoals } = usePlanning();
 
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
   const [statsModalVisible, setStatsModalVisible] = useState(false);
@@ -107,15 +105,12 @@ export default function MenuScreen({ navigation }) {
                 {
                   text: t('yes') + ', ' + t('clear'),
                   style: 'destructive',
-                  onPress: async () => {
-                    // Limpar todos os dados: despesas, cartões, categorias, transações em caixa
-                    await clearAllData();
-                    // Limpar saldo em caixa e transações de caixa
-                    clearCash();
-                    // Limpar metas/planejamento
-                    clearGoals();
-                    // Limpar todo o AsyncStorage (cache, configurações, etc.)
-                    await clearAllStorage();
+                  onPress: () => {
+                    const expenseIds = expenses.map(e => e.id);
+                    const cardIds = cards.map(c => c.id);
+                    expenseIds.forEach(id => deleteExpense(id));
+                    cardIds.forEach(id => deleteCard(id));
+                    // Cash balance reset removed
                     Alert.alert(t('done'), t('dataCleared'));
                   }
                 }
@@ -392,13 +387,13 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12 },
-  statCard: { width: '47%', padding: 16, borderRadius: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  statCard: { width: '47%', padding: 16, borderRadius: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 2, elevation: 1 },
   statIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   statValue: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   statLabel: { fontSize: 11 },
   menuSection: { paddingHorizontal: 16, paddingBottom: 24 },
   sectionTitle: { fontSize: 12, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12, marginLeft: 4 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, marginBottom: 8 },
   iconContainer: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   menuInfo: { flex: 1 },
   menuTitle: { fontSize: 15, fontWeight: '600' },
