@@ -98,10 +98,8 @@ export default function HistoryScreen({ navigation }) {
     );
   };
 
-  // Quitar: apenas para boletos/standalone e faturas
   const handlePayExpense = (expense) => {
     if (expense.isBill) {
-      // Fatura: subtrai do caixa + paga fatura + despausa cartão
       Alert.alert(
         t('confirmPay'),
         t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?',
@@ -122,7 +120,6 @@ export default function HistoryScreen({ navigation }) {
         ]
       );
     } else if (!expense.cardId) {
-      // Boleto/standalone: apenas marca como pago
       Alert.alert(
         t('confirmPay'),
         t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?',
@@ -241,8 +238,9 @@ export default function HistoryScreen({ navigation }) {
         />
       </View>
 
+      
       <View style={styles.viewModeContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.viewModeScroll}>
+        <View style={styles.viewModeRow}>
           {['all', 'card', 'standalone', 'bill', 'cash'].map(mode => (
             <TouchableOpacity
               key={mode}
@@ -262,7 +260,7 @@ export default function HistoryScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
       </View>
 
       <View style={[styles.totalContainer, { backgroundColor: colors.card }]}>
@@ -292,7 +290,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   filtersContainer: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
   viewModeContainer: { paddingVertical: 12, paddingHorizontal: 16 },
-  viewModeScroll: { gap: 8 },
+  viewModeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   viewModeBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, borderWidth: 1, gap: 6 },
   viewModeText: { fontSize: 13, fontWeight: '500' },
   totalContainer: { marginHorizontal: 16, marginVertical: 12, padding: 16, borderRadius: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
