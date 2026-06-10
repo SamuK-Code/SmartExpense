@@ -102,9 +102,7 @@ export default function CardsScreen() {
   }, [selectedBank, cardLimit, customName, dueDate, editingCard, addCard, updateCard, t]);
 
   const handleDelete = useCallback((card) => {
-    Alert.alert(t('confirm') + ' ' + t('delete'), t('confirmDeleteCard') + ' "' + (card.customName || card.name) + '"?
-
-' + t('cardExpensesWarning'), [
+    Alert.alert(t('confirm') + ' ' + t('delete'), `${t('confirmDeleteCard')} "${card.customName || card.name}"?\n\n${t('cardExpensesWarning')}`, [
       { text: t('cancel'), style: 'cancel' },
       { text: t('delete'), style: 'destructive', onPress: () => deleteCard(card.id) },
     ]);
