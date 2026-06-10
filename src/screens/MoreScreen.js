@@ -16,15 +16,17 @@ import { safeGetItem, safeSetItem, STORAGE_KEYS } from '../utils/SafeStorage';
 import { playClick, toggleSound, isSoundEnabled } from '../utils/SoundManager';
 import { useTheme } from '../context/ThemeContext';
 import { useCash } from '../context/CashContext';
+import { usePlanning } from '../context/PlanningContext';
 import { useI18n } from '../context/I18nContext';
 import { clearAllStorage } from '../utils/StorageUtils';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 
 export default function MenuScreen({ navigation }) {
-  const { expenses, cards, deleteExpense, deleteCard, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
+  const { expenses, cards, deleteExpense, deleteCard, clearAllData, CATEGORIES, categoryLimits, setCategoryLimit } = useExpenses();
   const { colors, isDark, toggleTheme } = useTheme();
   const { cashBalance, clearCash } = useCash();
+  const { clearGoals } = usePlanning();
   const { t } = useI18n();
 
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
@@ -51,15 +53,14 @@ export default function MenuScreen({ navigation }) {
   const totalCards = cards.length;
   const totalAmount = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
   const avgExpense = totalExpenses > 0 ? totalAmount / totalExpenses : 0;
-  const standaloneCount = expenses.filter(e => !e.cardId).length;
-  const cardExpensesCount = expenses.filter(e => e.cardId).length;
+  const standaloneCount = expenses.filter(e => !e.cardId && !e.isBill).length;
+  const cardExpensesCount = expenses.filter(e => e.cardId && !e.isBill).length;
 
   const toggleSoundSetting = async () => {
     const newValue = !soundEnabled;
     setSoundEnabled(newValue);
     toggleSound(newValue);
     await safeSetItem(STORAGE_KEYS.SOUND_ENABLED, newValue);
-    if (newValue) playClick();
   };
 
   const toggleAlerts = async () => {
@@ -105,12 +106,11 @@ export default function MenuScreen({ navigation }) {
                 {
                   text: t('yes') + ', ' + t('clear'),
                   style: 'destructive',
-                  onPress: () => {
-                    const expenseIds = expenses.map(e => e.id);
-                    const cardIds = cards.map(c => c.id);
-                    expenseIds.forEach(id => deleteExpense(id));
-                    cardIds.forEach(id => deleteCard(id));
-                    // Cash balance reset removed
+                  onPress: async () => {
+                    clearAllData();
+                    clearCash();
+                    clearGoals();
+                    await clearAllStorage();
                     Alert.alert(t('done'), t('dataCleared'));
                   }
                 }
@@ -239,25 +239,22 @@ export default function MenuScreen({ navigation }) {
         <Switch
           value={isDark}
           onValueChange={toggleTheme}
-          trackColor={{ false: isDark ? '#444' : '#767577', true: colors.primary + '80' }}
-          thumbColor={isDark ? '#fff' : '#f4f3f4'}
-          ios_backgroundColor={isDark ? '#444' : '#767577'}
+          trackColor={{ false: '#767577', true: colors.primary + '80' }}
+          thumbColor={isDark ? colors.primary : '#f4f3f4'}
         />
       ) : item.action === 'toggleSound' ? (
         <Switch
           value={soundEnabled}
           onValueChange={toggleSoundSetting}
-          trackColor={{ false: isDark ? '#444' : '#767577', true: colors.secondary + '80' }}
-          thumbColor={isDark ? '#fff' : '#f4f3f4'}
-          ios_backgroundColor={isDark ? '#444' : '#767577'}
+          trackColor={{ false: '#767577', true: colors.secondary + '80' }}
+          thumbColor={soundEnabled ? colors.secondary : '#f4f3f4'}
         />
       ) : item.action === 'toggleAlerts' ? (
         <Switch
           value={alertsEnabled}
           onValueChange={toggleAlerts}
-          trackColor={{ false: isDark ? '#444' : '#767577', true: colors.info + '80' }}
-          thumbColor={isDark ? '#fff' : '#f4f3f4'}
-          ios_backgroundColor={isDark ? '#444' : '#767577'}
+          trackColor={{ false: '#767577', true: colors.info + '80' }}
+          thumbColor={alertsEnabled ? colors.info : '#f4f3f4'}
         />
       ) : (
         <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
@@ -267,46 +264,38 @@ export default function MenuScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('settings')} />
-
-      <ScrollView 
-        style={styles.content}
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={true}
-      >
+      <AppHeader title={t('more')} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {/* Quick Stats */}
         <View style={styles.statsGrid}>
-          <FadeInView delay={100} style={[styles.statCard, { backgroundColor: colors.card }]}>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
             <View style={[styles.statIcon, { backgroundColor: colors.danger + '15' }]}>
-              <Ionicons name="cash-outline" size={20} color={colors.danger} />
+              <Ionicons name="trending-down" size={20} color={colors.danger} />
             </View>
             <Text style={[styles.statValue, { color: colors.text }]}>{formatCurrency(totalAmount)}</Text>
             <Text style={[styles.statLabel, { color: colors.textLight }]}>{t('totalSpent')}</Text>
-          </FadeInView>
-
-          <FadeInView delay={200} style={[styles.statCard, { backgroundColor: colors.card }]}>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
             <View style={[styles.statIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="card-outline" size={20} color={colors.primary} />
+              <Ionicons name="card" size={20} color={colors.primary} />
             </View>
             <Text style={[styles.statValue, { color: colors.text }]}>{totalCards}</Text>
             <Text style={[styles.statLabel, { color: colors.textLight }]}>{t('cards')}</Text>
-          </FadeInView>
-
-          <FadeInView delay={300} style={[styles.statCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.statIcon, { backgroundColor: colors.secondary + '15' }]}>
-              <Ionicons name="receipt-outline" size={20} color={colors.secondary} />
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.statIcon, { backgroundColor: colors.warning + '15' }]}>
+              <Ionicons name="receipt" size={20} color={colors.warning} />
             </View>
             <Text style={[styles.statValue, { color: colors.text }]}>{totalExpenses}</Text>
             <Text style={[styles.statLabel, { color: colors.textLight }]}>{t('transactions')}</Text>
-          </FadeInView>
-
-          <FadeInView delay={400} style={[styles.statCard, { backgroundColor: colors.card }]}>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.card }]}>
             <View style={[styles.statIcon, { backgroundColor: colors.success + '15' }]}>
-              <Ionicons name="wallet-outline" size={20} color={colors.success} />
+              <Ionicons name="wallet" size={20} color={colors.success} />
             </View>
             <Text style={[styles.statValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
             <Text style={[styles.statLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
-          </FadeInView>
+          </View>
         </View>
 
         {/* Menu Items */}
@@ -316,12 +305,12 @@ export default function MenuScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      {/* About Modal - Mais conciso */}
-      <Modal visible={aboutModalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-          <ScaleInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+      {/* About Modal */}
+      <Modal visible={aboutModalVisible} animationType="fade" transparent onRequestClose={() => setAboutModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <View style={[styles.aboutIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="card" size={40} color={colors.primary} />
+              <Ionicons name="wallet" size={40} color={colors.primary} />
             </View>
             <Text style={[styles.aboutTitle, { color: colors.text }]}>{t('appName')}</Text>
             <Text style={[styles.aboutVersion, { color: colors.textLight }]}>v2.0.0</Text>
@@ -331,16 +320,15 @@ export default function MenuScreen({ navigation }) {
             >
               <Text style={styles.modalButtonText}>{t('close')}</Text>
             </TouchableOpacity>
-          </ScaleInView>
+          </View>
         </View>
       </Modal>
 
       {/* Stats Modal */}
-      <Modal visible={statsModalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-          <SlideInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+      <Modal visible={statsModalVisible} animationType="slide" transparent onRequestClose={() => setStatsModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>{t('statistics')}</Text>
-
             <View style={styles.statRow}>
               <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('totalExpenses')}</Text>
               <Text style={[styles.statRowValue, { color: colors.text }]}>{totalExpenses}</Text>
@@ -369,14 +357,13 @@ export default function MenuScreen({ navigation }) {
               <Text style={[styles.statRowLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
               <Text style={[styles.statRowValue, { color: colors.text }]}>{formatCurrency(cashBalance)}</Text>
             </View>
-
             <TouchableOpacity
               style={[styles.modalButton, { backgroundColor: colors.primary, marginTop: 16 }]}
               onPress={() => setStatsModalVisible(false)}
             >
               <Text style={styles.modalButtonText}>{t('close')}</Text>
             </TouchableOpacity>
-          </SlideInView>
+          </View>
         </View>
       </Modal>
     </View>
@@ -387,7 +374,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12 },
-  statCard: { width: '47%', padding: 16, borderRadius: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 2, elevation: 1 },
+  statCard: { width: '47%', padding: 16, borderRadius: 16, alignItems: 'center' },
   statIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   statValue: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   statLabel: { fontSize: 11 },
