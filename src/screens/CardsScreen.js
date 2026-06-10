@@ -14,15 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
-import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 import SimpleList from '../components/SimpleList';
 import BankSelectorModal from '../components/BankSelectorModal';
 import { getBankById } from '../utils/BanksData';
 
 export default function CardsScreen() {
-  const { cards, expenses, addCard, updateCard, deleteCard, getCardUsage, getCardBillAmount, generateBill, payBill } = useExpenses();
-  const { colors, isDark } = useTheme();
+  const { cards, expenses, addCard, updateCard, deleteCard, getCardUsage, getCardBillAmount, generateBill } = useExpenses();
+  const { colors } = useTheme();
   const { t } = useI18n();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -50,10 +49,7 @@ export default function CardsScreen() {
     setCardLimit(numeric);
     const number = parseInt(numeric) / 100;
     setCardLimitDisplay(
-      new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(number || 0)
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(number || 0)
     );
   };
 
@@ -190,15 +186,15 @@ export default function CardsScreen() {
       .reduce((sum, e) => sum + parseFloat(e.amount), 0);
   };
 
-  const renderExpenseItem = ({ item, index }) => {
+  const renderExpenseItem = ({ item }) => {
     return (
-      <TouchableOpacity style={[styles.expenseRow, { backgroundColor: colors.card }]}>
+      <View style={[styles.expenseRow, { backgroundColor: colors.card }]}>
         <View style={styles.expenseLeft}>
           <Text style={[styles.expenseDesc, { color: colors.text }]}>{item.description}</Text>
           <Text style={[styles.expenseDate, { color: colors.textLight }]}>{formatDate(item.date)}</Text>
         </View>
         <Text style={[styles.expenseAmount, { color: colors.danger }]}>{formatCurrency(parseFloat(item.amount))}</Text>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -309,6 +305,8 @@ export default function CardsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title={t('myCards')} />
+
+      {/* CORREÇÃO: Apenas SimpleList renderiza os cards — removido o cards.map() duplicado */}
       <SimpleList
         data={cards}
         renderItem={(item) => renderCardItem(item)}
@@ -319,16 +317,6 @@ export default function CardsScreen() {
         onAddPress={openAddModal}
         addButtonText={t('add') + ' ' + t('card')}
       />
-
-      {cards.length > 0 && (
-        <View style={styles.cardsList}>
-          {cards.map(card => (
-            <View key={card.id} style={{ marginHorizontal: 16, marginBottom: 12 }}>
-              {renderCardItem(card)}
-            </View>
-          ))}
-        </View>
-      )}
 
       {/* Modal de Detalhes */}
       <Modal visible={detailModalVisible} animationType="slide" transparent onRequestClose={closeDetailModal}>
@@ -505,13 +493,6 @@ export default function CardsScreen() {
         onClose={() => setBankSelectorVisible(false)}
         selectedBankId={selectedBank?.id}
       />
-
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={openAddModal}
-      >
-        <Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -519,7 +500,6 @@ export default function CardsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
-  cardsList: { paddingTop: 8 },
 
   cardItem: {
     marginHorizontal: 16,
@@ -627,22 +607,6 @@ const styles = StyleSheet.create({
   },
   viewDetailsText: { fontSize: 13, fontWeight: '600' },
   expenseCount: { fontSize: 12 },
-
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
 
   detailOverlay: {
     flex: 1,
