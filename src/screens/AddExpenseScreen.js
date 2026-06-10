@@ -105,7 +105,7 @@ const FilterBar = React.memo(function FilterBar({ filterDate, setFilterDate, fil
 
 export default function AddExpenseScreen({ navigation }) {
   const { addExpense, expenses, cards, CATEGORIES, deleteExpense, toggleExpensePaid } = useExpenses();
-  const { cashBalance, addCashTransaction: cashAddTransaction } = useCash();
+  const { cashBalance, cashTransactions, addCashTransaction: cashAddTransaction } = useCash();
   const { colors } = useTheme();
   const { t } = useI18n();
   const cashManager = useCashManager();
@@ -130,7 +130,7 @@ export default function AddExpenseScreen({ navigation }) {
   const [filterType, setFilterType] = useState('all');
 
   const filteredExpenses = useFilteredExpenses(expenses, filterDate, filterType, filterCard);
-  const filteredCash = useFilteredCash(cashManager.cashTransactions || [], filterDate);
+  const filteredCash = useFilteredCash(cashTransactions || [], filterDate);
 
   const getCategoryInfo = useCallback((categoryId) => {
     if (!categoryId) return { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
@@ -163,6 +163,13 @@ export default function AddExpenseScreen({ navigation }) {
       Alert.alert(t('error'), t('invalidCard'));
       return;
     }
+    // Validação de caixa para débito apenas
+    if (expenseType === 'card' && paymentMethod === 'debit' && cashBalance < numericAmount) {
+      setIsSubmitting(false);
+      Alert.alert(t('error'), t('insufficientCash'));
+      return;
+    }
+
     try {
       addExpense({
         amount: numericAmount, description, category: selectedCategory,
@@ -239,7 +246,7 @@ export default function AddExpenseScreen({ navigation }) {
   ), [colors, t, cashManager, handleEditCash, handleDeleteCash, handleUpdateCash]);
 
   const data = viewMode === 'expenses' ? filteredExpenses : filteredCash;
-  const isEmpty = viewMode === 'expenses' ? expenses.length === 0 : (cashManager.cashTransactions || []).length === 0;
+  const isEmpty = viewMode === 'expenses' ? expenses.length === 0 : (cashTransactions || []).length === 0;
 
   if (showCashForm) {
     return (

@@ -59,6 +59,15 @@ export default function SimpleList({
       keyExtractor={keyExtractor}
       contentContainerStyle={[styles.listContent, contentContainerStyle]}
       showsVerticalScrollIndicator={false}
+      ListFooterComponent={showAddButton && onAddPress ? (
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: colors.primary }]}
+          onPress={onAddPress}
+        >
+          <Ionicons name="add-outline" size={20} color="#fff" />
+          <Text style={styles.addButtonText}>{_addButtonText}</Text>
+        </TouchableOpacity>
+      ) : null}
     />
   );
 }
