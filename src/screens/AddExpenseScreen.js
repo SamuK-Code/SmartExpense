@@ -28,7 +28,6 @@ export default function AddExpenseScreen({ navigation }) {
     CATEGORIES,
     deleteExpense,
     toggleExpensePaid,
-    payBill,
   } = useExpenses();
 
   const { cashBalance, cashTransactions, addCashTransaction: cashAddTransaction } = useCash();
@@ -45,7 +44,7 @@ export default function AddExpenseScreen({ navigation }) {
   const [amount, setAmount] = useState('');
   const [amountDisplay, setAmountDisplay] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]?.id || 'cat-others');
+  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]?.id || 'outros');
   const [selectedCard, setSelectedCard] = useState(null);
   const [expenseType, setExpenseType] = useState('card');
   const [paymentMethod, setPaymentMethod] = useState('credit');
@@ -54,6 +53,7 @@ export default function AddExpenseScreen({ navigation }) {
   const [filterDate, setFilterDate] = useState('all');
   const [filterCard, setFilterCard] = useState('all');
   const [filterType, setFilterType] = useState('all');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function getTodayDate() {
     const now = new Date();
@@ -71,7 +71,20 @@ export default function AddExpenseScreen({ navigation }) {
   const getCategoryInfo = (categoryId) => {
     if (!categoryId) return { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
     const cat = CATEGORIES.find(c => c.id === categoryId);
-    return cat || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
+    if (cat) return cat;
+    // Fallback: procurar nas categorias padrões
+    const defaults = [
+      { id: 'food', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+      { id: 'transport', name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+      { id: 'leisure', name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+      { id: 'health', name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+      { id: 'housing', name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+      { id: 'education', name: 'Educação', color: '#DDA0DD', icon: 'school' },
+      { id: 'shopping', name: 'Compras', color: '#98D8C8', icon: 'cart' },
+      { id: 'others', name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+    ];
+    const defaultCat = defaults.find(c => c.id === categoryId);
+    return defaultCat || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' };
   };
 
   const handleAmountChange = (text) => {
@@ -84,32 +97,29 @@ export default function AddExpenseScreen({ navigation }) {
   };
 
   const handleSubmit = () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     if (!amount || !description) {
+      setIsSubmitting(false);
       Alert.alert(t('error'), t('invalidAmount') + ' / ' + t('invalidDescription'));
       return;
     }
 
     const numericAmount = parseInt(amount) / 100;
     if (isNaN(numericAmount) || numericAmount <= 0) {
+      setIsSubmitting(false);
       Alert.alert(t('error'), t('invalidAmount'));
       return;
     }
 
     if (expenseType === 'card' && cards.length > 0 && !selectedCard) {
+      setIsSubmitting(false);
       Alert.alert(t('error'), t('invalidCard'));
       return;
     }
 
-    if (expenseType === 'card' && selectedCard) {
-      const card = cards.find(c => c.id === selectedCard);
-      if (card && card.isPaused) {
-        Alert.alert(t('cardPaused'), t('cardPausedMessage'));
-        return;
-      }
-    }
-
     try {
-      const result = addExpense({
+      addExpense({
         amount: numericAmount,
         description,
         category: selectedCategory,
@@ -118,11 +128,7 @@ export default function AddExpenseScreen({ navigation }) {
         paymentMethod: expenseType === 'card' ? paymentMethod : null,
       });
 
-      if (result && !result.success) {
-        Alert.alert(t('cardPaused'), t('cardPausedMessage'));
-        return;
-      }
-
+      // Se for débito, subtrair do caixa imediatamente
       if (expenseType === 'card' && paymentMethod === 'debit') {
         cashAddTransaction(numericAmount, 'expense', {
           description: 'Débito: ' + description,
@@ -132,17 +138,19 @@ export default function AddExpenseScreen({ navigation }) {
 
       Alert.alert(t('success'), t('expenseAdded'), [
         { text: t('ok'), onPress: () => {
+          setIsSubmitting(false);
           setShowForm(false);
           setAmount('');
           setAmountDisplay('');
           setDescription('');
-          setSelectedCategory(CATEGORIES[0]?.id || 'cat-others');
+          setSelectedCategory(CATEGORIES[0]?.id || 'outros');
           setSelectedCard(null);
           setExpenseType('card');
           setDate(getTodayDate());
         }}
       ]);
     } catch (error) {
+      setIsSubmitting(false);
       Alert.alert(t('error'), t('error'));
     }
   };
@@ -159,36 +167,14 @@ export default function AddExpenseScreen({ navigation }) {
   };
 
   const handlePayExpense = (expense) => {
-    if (expense.isBill) {
-      Alert.alert(
-        t('confirmPay'),
-        t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?',
-        [
-          { text: t('cancel'), style: 'cancel' },
-          {
-            text: t('pay'),
-            style: 'default',
-            onPress: () => {
-              cashAddTransaction(expense.amount, 'expense', {
-                description: 'Pagamento: ' + expense.description,
-                date: new Date().toISOString().split('T')[0],
-              });
-              payBill(expense.id);
-              Alert.alert(t('success'), t('billPaid'));
-            }
-          },
-        ]
-      );
-    } else if (!expense.cardId) {
-      Alert.alert(
-        t('confirmPay'),
-        t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?',
-        [
-          { text: t('cancel'), style: 'cancel' },
-          { text: t('pay'), style: 'default', onPress: () => toggleExpensePaid(expense.id) },
-        ]
-      );
-    }
+    Alert.alert(
+      t('confirmPay'),
+      t('wantToPay') + ' "' + expense.description + '" (' + formatCurrency(parseFloat(expense.amount)) + ')?',
+      [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('pay'), style: 'default', onPress: () => toggleExpensePaid(expense.id) },
+      ]
+    );
   };
 
   const handleCashSubmit = () => {
@@ -212,8 +198,6 @@ export default function AddExpenseScreen({ navigation }) {
     const card = cards.find(c => c.id === item.cardId);
     const isStandalone = !item.cardId;
     const isPaid = item.paid === true;
-    const isBill = item.isBill === true;
-    const canPay = !isPaid && (isBill || !item.cardId);
 
     return (
       <TouchableOpacity
@@ -231,12 +215,7 @@ export default function AddExpenseScreen({ navigation }) {
           </Text>
           <View style={styles.expenseMeta}>
             <Text style={[styles.expenseCategory, { color: category.color }]}>{category.name}</Text>
-            {isBill ? (
-              <View style={[styles.billBadge, { backgroundColor: colors.warning + '15' }]}>
-                <Ionicons name="document-text-outline" size={10} color={colors.warning} />
-                <Text style={[styles.billText, { color: colors.warning }]}>{t('bill')}</Text>
-              </View>
-            ) : isStandalone ? (
+            {isStandalone ? (
               <View style={[styles.standaloneBadge, { backgroundColor: colors.warning + '15' }]}>
                 <Ionicons name="receipt-outline" size={10} color={colors.warning} />
                 <Text style={[styles.standaloneText, { color: colors.warning }]}>{t('standalone')}</Text>
@@ -254,7 +233,7 @@ export default function AddExpenseScreen({ navigation }) {
           <Text style={[styles.expenseAmount, { color: isPaid ? colors.textLight : colors.danger, textDecorationLine: isPaid ? 'line-through' : 'none' }]}>
             {formatCurrency(parseFloat(item.amount))}
           </Text>
-          {canPay && (
+          {!isPaid && (
             <TouchableOpacity
               style={[styles.payButton, { backgroundColor: colors.success }]}
               onPress={() => handlePayExpense(item)}
@@ -280,10 +259,13 @@ export default function AddExpenseScreen({ navigation }) {
       return (
         <View style={[styles.editCashForm, { backgroundColor: colors.card }]}>
           <Text style={[styles.editTitle, { color: colors.text }]}>{t('editCash')}</Text>
+
+          {/* Valor anterior em vermelho */}
           <View style={[styles.previousValueBox, { backgroundColor: colors.danger + '10' }]}>
             <Text style={[styles.previousValueLabel, { color: colors.danger }]}>{t('previousValue')}</Text>
             <Text style={[styles.previousValueText, { color: colors.danger }]}>{formatCurrency(parseFloat(item.amount))}</Text>
           </View>
+
           <TextInput
             style={[styles.inputCompact, { backgroundColor: colors.background, color: colors.text }]}
             value={cashManager.editCashAmountDisplay}
@@ -353,10 +335,12 @@ export default function AddExpenseScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <AppHeader title={t('addCash')} />
         <Text style={[styles.title, { color: colors.text }]}>{t('addCash')}</Text>
+
         <View style={[styles.balanceCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.balanceLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
           <Text style={[styles.balanceValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
         </View>
+
         <TextInput
           style={[styles.inputCompact, { backgroundColor: colors.card, color: colors.text }]}
           value={cashManager.cashAmountDisplay}
@@ -407,13 +391,14 @@ export default function AddExpenseScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <AppHeader title={t('newExpense')} />
         <Text style={[styles.title, { color: colors.text }]}>{t('newExpense')}</Text>
+
         <View style={[styles.balanceCard, { backgroundColor: colors.card }]}>
           <Text style={[styles.balanceLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
           <Text style={[styles.balanceValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
         </View>
 
         <Text style={[styles.label, { color: colors.text }]}>{t('expenseType')}</Text>
-        <View style={[styles.typeToggleContainer, { marginBottom: 16 }]}>
+        <View style={styles.typeToggleContainer}>
           <TouchableOpacity
             style={[styles.typeToggleButton, { backgroundColor: expenseType === 'card' ? colors.primary : colors.card }]}
             onPress={() => { setExpenseType('card'); setSelectedCard(null); }}
@@ -480,17 +465,14 @@ export default function AddExpenseScreen({ navigation }) {
               {cards.map(card => (
                 <TouchableOpacity
                   key={card.id}
-                  style={[styles.cardButton, {
+                  style={[styles.cardButton, { 
                     backgroundColor: selectedCard === card.id ? colors.primary + '15' : colors.card,
-                    borderColor: selectedCard === card.id ? colors.primary : 'transparent',
-                    opacity: card.isPaused ? 0.5 : 1,
+                    borderColor: selectedCard === card.id ? colors.primary : 'transparent'
                   }]}
-                  onPress={() => !card.isPaused && setSelectedCard(card.id)}
+                  onPress={() => setSelectedCard(card.id)}
                 >
-                  <Ionicons name="card" size={16} color={card.isPaused ? colors.textLight : (selectedCard === card.id ? colors.primary : colors.textLight)} />
-                  <Text style={[styles.cardText, { color: selectedCard === card.id ? colors.primary : colors.text }]}>
-                    {card.customName || card.name} {card.isPaused ? '(Pausado)' : ''}
-                  </Text>
+                  <Ionicons name="card" size={16} color={selectedCard === card.id ? colors.primary : colors.textLight} />
+                  <Text style={[styles.cardText, { color: selectedCard === card.id ? colors.primary : colors.text }]}>{card.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -498,13 +480,13 @@ export default function AddExpenseScreen({ navigation }) {
         )}
 
         <Text style={[styles.label, { color: colors.text }]}>{t('category')}</Text>
-        <View style={[styles.categoriesGrid, { marginBottom: 8 }]}>
+        <View style={styles.categoriesGrid}>
           {CATEGORIES.map((category) => (
             <TouchableOpacity
               key={category.id}
-              style={[styles.categoryButton, {
+              style={[styles.categoryButton, { 
                 backgroundColor: selectedCategory === category.id ? category.color + '15' : colors.card,
-                borderColor: selectedCategory === category.id ? category.color : 'transparent',
+                borderColor: selectedCategory === category.id ? category.color : 'transparent'
               }]}
               onPress={() => setSelectedCategory(category.id)}
             >
@@ -515,8 +497,9 @@ export default function AddExpenseScreen({ navigation }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.submitButton, { backgroundColor: colors.primary }]}
+          style={[styles.submitButton, { backgroundColor: colors.primary, opacity: isSubmitting ? 0.6 : 1 }]}
           onPress={handleSubmit}
+          disabled={isSubmitting}
         >
           <Ionicons name="save" size={22} color="#fff" />
           <Text style={styles.submitText}>{t('addExpenseBtn')}</Text>
@@ -545,9 +528,8 @@ export default function AddExpenseScreen({ navigation }) {
     }
     if (filterCard !== 'all') filtered = filtered.filter(e => e.cardId === filterCard);
     if (filterType !== 'all') {
-      if (filterType === 'card') filtered = filtered.filter(e => e.cardId && !e.isBill);
-      else if (filterType === 'standalone') filtered = filtered.filter(e => !e.cardId && !e.isBill);
-      else if (filterType === 'bill') filtered = filtered.filter(e => e.isBill);
+      if (filterType === 'card') filtered = filtered.filter(e => e.cardId);
+      else if (filterType === 'standalone') filtered = filtered.filter(e => !e.cardId);
     }
     return filtered;
   };
@@ -570,6 +552,7 @@ export default function AddExpenseScreen({ navigation }) {
   const renderList = () => (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title={t('addExpense')} />
+
       <View style={styles.viewModeContainer}>
         <View style={styles.viewModeToggle}>
           <TouchableOpacity
@@ -598,7 +581,7 @@ export default function AddExpenseScreen({ navigation }) {
                 {['all', 'today', 'week', 'month'].map(f => (
                   <TouchableOpacity
                     key={f}
-                    style={[styles.filterBtn, {
+                    style={[styles.filterBtn, { 
                       backgroundColor: filterDate === f ? colors.primary + '15' : colors.card,
                       borderColor: filterDate === f ? colors.primary : colors.border
                     }]}
@@ -614,17 +597,17 @@ export default function AddExpenseScreen({ navigation }) {
             <View style={styles.filterGroup}>
               <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('expenseType')}</Text>
               <View style={styles.filterButtons}>
-                {['all', 'card', 'standalone', 'bill'].map(f => (
+                {['all', 'card', 'standalone'].map(f => (
                   <TouchableOpacity
                     key={f}
-                    style={[styles.filterBtn, {
+                    style={[styles.filterBtn, { 
                       backgroundColor: filterType === f ? colors.primary + '15' : colors.card,
                       borderColor: filterType === f ? colors.primary : colors.border
                     }]}
                     onPress={() => setFilterType(f)}
                   >
                     <Text style={[styles.filterBtnText, { color: filterType === f ? colors.primary : colors.text }]}>
-                      {f === 'all' ? t('all') : f === 'card' ? t('card') : f === 'standalone' ? t('standalone') : t('bill')}
+                      {f === 'all' ? t('all') : f === 'card' ? t('card') : t('standalone')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -634,7 +617,7 @@ export default function AddExpenseScreen({ navigation }) {
               <Text style={[styles.filterLabel, { color: colors.textLight }]}>{t('card')}</Text>
               <View style={styles.filterButtons}>
                 <TouchableOpacity
-                  style={[styles.filterBtn, {
+                  style={[styles.filterBtn, { 
                     backgroundColor: filterCard === 'all' ? colors.primary + '15' : colors.card,
                     borderColor: filterCard === 'all' ? colors.primary : colors.border
                   }]}
@@ -645,13 +628,13 @@ export default function AddExpenseScreen({ navigation }) {
                 {cards.map(c => (
                   <TouchableOpacity
                     key={c.id}
-                    style={[styles.filterBtn, {
+                    style={[styles.filterBtn, { 
                       backgroundColor: filterCard === c.id ? colors.primary + '15' : colors.card,
                       borderColor: filterCard === c.id ? colors.primary : colors.border
                     }]}
                     onPress={() => setFilterCard(c.id)}
                   >
-                    <Text style={[styles.filterBtnText, { color: filterCard === c.id ? colors.primary : colors.text }]}>{c.customName || c.name}</Text>
+                    <Text style={[styles.filterBtnText, { color: filterCard === c.id ? colors.primary : colors.text }]}>{c.name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -740,16 +723,16 @@ const styles = StyleSheet.create({
   viewModeToggle: { flexDirection: 'row', gap: 10 },
   viewModeButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, gap: 6 },
   viewModeText: { fontSize: 13, fontWeight: '600' },
-  typeToggleContainer: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  typeToggleButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, gap: 6 },
+  typeToggleContainer: { flexDirection: 'row', gap: 10 },
+  typeToggleButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, gap: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   typeToggleText: { fontSize: 13, fontWeight: '600' },
   inputCompact: { borderRadius: 12, padding: 14, fontSize: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
   cardButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, marginRight: 8, borderWidth: 1, borderColor: 'transparent' },
   cardText: { marginLeft: 6, fontSize: 13 },
-  categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-start' },
-  categoryButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: 'transparent' },
+  categoriesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: 'transparent', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   categoryText: { marginLeft: 6, fontSize: 13 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 8 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 16 },
   submitButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 14, marginTop: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
   cancelButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16, borderRadius: 14, marginTop: 12 },
   submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },
@@ -774,8 +757,6 @@ const styles = StyleSheet.create({
   cashAmount: { fontSize: 15, fontWeight: 'bold' },
   standaloneBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
   standaloneText: { fontSize: 10, fontWeight: '600' },
-  billBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
-  billText: { fontSize: 10, fontWeight: '600' },
   cardBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 3 },
   cardBadgeText: { fontSize: 10, fontWeight: '600' },
   paidBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4, gap: 3 },
