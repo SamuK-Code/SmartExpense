@@ -265,7 +265,7 @@ export default function MenuScreen({ navigation }) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader title={t('more')} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Quick Stats */}
         <View style={styles.statsGrid}>
           <View style={[styles.statCard, { backgroundColor: colors.card }]}>
@@ -372,7 +372,6 @@ export default function MenuScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flex: 1 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12 },
   statCard: { width: '47%', padding: 16, borderRadius: 16, alignItems: 'center' },
   statIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
