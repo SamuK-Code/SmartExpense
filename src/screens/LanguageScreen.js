@@ -13,7 +13,7 @@ import { FadeInView, SlideInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 import BackButton from '../components/BackButton';
 
-export default function LanguageScreen() {
+export default function LanguageScreen({ navigation }) {
   const { language, changeLanguage, t } = useI18n();
   const { colors } = useTheme();
 
