@@ -17,7 +17,7 @@ import { ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
 import BackButton from '../components/BackButton';
 
-export default function CategoriesScreen() {
+export default function CategoriesScreen({ navigation }) {
   const { categories, addCategory, updateCategory, deleteCategory, CATEGORIES } = useExpenses();
   const { colors } = useTheme();
   const { t } = useI18n();
