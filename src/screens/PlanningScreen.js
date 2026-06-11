@@ -95,9 +95,29 @@ export default function PlanningScreen() {
   const dailyBudget = useMemo(() => calculateDailyBudget(cashBalance, totalExpenses), [calculateDailyBudget, cashBalance, totalExpenses]);
   const isCashSufficient = useMemo(() => cashBalance >= totalExpenses, [cashBalance, totalExpenses]);
 
-  const getCategoryInfo = useCallback((catId) =>
-    CATEGORIES.find(c => c.id === catId) || CATEGORIES[7] || { name: 'Outros', color: '#999', icon: 'ellipsis-horizontal' },
-  [CATEGORIES]);
+  const getCategoryInfo = useCallback((catId) => {
+    const cat = CATEGORIES.find(c => c.id === catId);
+    if (cat) return cat;
+    const DEFAULT_MAP = {
+      'cat-food': { name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+      'cat-transport': { name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+      'cat-leisure': { name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+      'cat-health': { name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+      'cat-housing': { name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+      'cat-education': { name: 'Educação', color: '#DDA0DD', icon: 'school' },
+      'cat-shopping': { name: 'Compras', color: '#98D8C8', icon: 'cart' },
+      'cat-others': { name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+      'food': { name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+      'transport': { name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+      'leisure': { name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+      'health': { name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+      'housing': { name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+      'education': { name: 'Educação', color: '#DDA0DD', icon: 'school' },
+      'shopping': { name: 'Compras', color: '#98D8C8', icon: 'cart' },
+      'others': { name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+    };
+    return DEFAULT_MAP[catId] || { name: 'Outros', color: '#999', icon: 'help-circle-outline' };
+  }, [CATEGORIES]);
 
   const goalFeasibilities = useMemo(() => {
     const map = {};

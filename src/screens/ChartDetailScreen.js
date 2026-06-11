@@ -48,7 +48,29 @@ export default function ChartDetailScreen({ navigation, route }) {
   const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const formatDate = (dateString) => new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  const getCategoryInfo = (categoryId) => CATEGORIES.find(c => c.id === categoryId) || CATEGORIES[7];
+    const getCategoryInfo = (categoryId) => {
+      const cat = CATEGORIES.find(c => c.id === categoryId);
+      if (cat) return cat;
+      const DEFAULT_MAP = {
+        'cat-food': { name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+        'cat-transport': { name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+        'cat-leisure': { name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+        'cat-health': { name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+        'cat-housing': { name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+        'cat-education': { name: 'Educação', color: '#DDA0DD', icon: 'school' },
+        'cat-shopping': { name: 'Compras', color: '#98D8C8', icon: 'cart' },
+        'cat-others': { name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+        'food': { name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
+        'transport': { name: 'Transporte', color: '#4ECDC4', icon: 'car' },
+        'leisure': { name: 'Lazer', color: '#45B7D1', icon: 'game-controller' },
+        'health': { name: 'Saúde', color: '#96CEB4', icon: 'medical' },
+        'housing': { name: 'Moradia', color: '#FFEAA7', icon: 'home' },
+        'education': { name: 'Educação', color: '#DDA0DD', icon: 'school' },
+        'shopping': { name: 'Compras', color: '#98D8C8', icon: 'cart' },
+        'others': { name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
+      };
+      return DEFAULT_MAP[categoryId] || { name: 'Outros', color: '#999', icon: 'help-circle-outline' };
+    };
 
   // Set header title
   useEffect(() => {

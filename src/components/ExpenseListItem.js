@@ -8,12 +8,71 @@ const formatCurrency = (value) =>
 const formatDate = (dateString) =>
   new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
+// Mapeamento de ícones padrões conhecidos para fallback quando categoria é removida
+const DEFAULT_ICON_MAP = {
+  'cat-food': { icon: 'restaurant', color: '#FF6B6B', name: 'Alimentação' },
+  'cat-transport': { icon: 'car', color: '#4ECDC4', name: 'Transporte' },
+  'cat-leisure': { icon: 'game-controller', color: '#45B7D1', name: 'Lazer' },
+  'cat-health': { icon: 'medical', color: '#96CEB4', name: 'Saúde' },
+  'cat-housing': { icon: 'home', color: '#FFEAA7', name: 'Moradia' },
+  'cat-education': { icon: 'school', color: '#DDA0DD', name: 'Educação' },
+  'cat-shopping': { icon: 'cart', color: '#98D8C8', name: 'Compras' },
+  'cat-others': { icon: 'ellipsis-horizontal', color: '#F7DC6F', name: 'Outros' },
+  'food': { icon: 'restaurant', color: '#FF6B6B', name: 'Alimentação' },
+  'transport': { icon: 'car', color: '#4ECDC4', name: 'Transporte' },
+  'leisure': { icon: 'game-controller', color: '#45B7D1', name: 'Lazer' },
+  'health': { icon: 'medical', color: '#96CEB4', name: 'Saúde' },
+  'housing': { icon: 'home', color: '#FFEAA7', name: 'Moradia' },
+  'education': { icon: 'school', color: '#DDA0DD', name: 'Educação' },
+  'shopping': { icon: 'cart', color: '#98D8C8', name: 'Compras' },
+  'others': { icon: 'ellipsis-horizontal', color: '#F7DC6F', name: 'Outros' },
+};
+
+const getFallbackIcon = (item, category) => {
+  // 1. Se o gasto tem icon/color salvos (novos gastos), usa eles
+  if (item.categoryIcon && item.categoryColor) {
+    return { 
+      icon: item.categoryIcon, 
+      color: item.categoryColor,
+      name: category?.name || item.categoryName || 'Outros'
+    };
+  }
+  // 2. Se a categoria ainda existe, usa ela
+  if (category?.icon && category?.color) {
+    return { 
+      icon: category.icon, 
+      color: category.color,
+      name: category.name
+    };
+  }
+  // 3. Tenta encontrar no mapa padrão pelo ID da categoria
+  const mapped = DEFAULT_ICON_MAP[item.category];
+  if (mapped) {
+    return { 
+      icon: mapped.icon, 
+      color: mapped.color,
+      name: mapped.name
+    };
+  }
+  // 4. Fallback final: placeholder para ícones customizados
+  return { 
+    icon: 'help-circle-outline', 
+    color: '#999',
+    name: category?.name || 'Outros'
+  };
+};
+
 const ExpenseListItem = memo(function ExpenseListItem({
   item, card, category, colors, t, onPress, onLongPress, onPay,
 }) {
   const isPaid = item.paid === true;
   const isBill = item.isBill === true;
   const canPay = !isPaid && (isBill || !item.cardId);
+
+  const fallback = getFallbackIcon(item, category);
+  const iconName = fallback.icon;
+  const iconColor = fallback.color;
+  const categoryName = fallback.name;
 
   return (
     <TouchableOpacity
@@ -22,8 +81,8 @@ const ExpenseListItem = memo(function ExpenseListItem({
       onLongPress={() => onLongPress && onLongPress(item)}
       activeOpacity={0.7}
     >
-      <View style={[styles.iconBox, { backgroundColor: (category?.color || '#999') + '15' }]}>
-        <Ionicons name={category?.icon || 'ellipsis-horizontal'} size={20} color={category?.color || '#999'} />
+      <View style={[styles.iconBox, { backgroundColor: (iconColor || '#999') + '15' }]}>
+        <Ionicons name={iconName} size={20} color={iconColor || '#999'} />
       </View>
       <View style={styles.info}>
         <Text style={[styles.desc, {
@@ -34,7 +93,7 @@ const ExpenseListItem = memo(function ExpenseListItem({
           {item.description}
         </Text>
         <View style={styles.meta}>
-          <Text style={[styles.cat, { color: category?.color || '#999' }]}>{category?.name || 'Outros'}</Text>
+          <Text style={[styles.cat, { color: iconColor || '#999' }]}>{categoryName}</Text>
           {isBill ? (
             <View style={[styles.badge, { backgroundColor: colors.warning + '15' }]}>
               <Ionicons name="document-text-outline" size={10} color={colors.warning} />

@@ -151,6 +151,7 @@ export default function CardsScreen() {
         emptyIcon="card-outline"
         onAddPress={openAddModal}
         addButtonText={t('add') + ' ' + t('card')}
+        showAddButton={false}
       />
 
       {/* Detail Modal */}

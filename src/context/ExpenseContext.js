@@ -142,17 +142,32 @@ export function ExpenseProvider({ children }) {
         ]);
 
         if (expensesData) {
-          const parsed = JSON.parse(expensesData);
+          let parsed = JSON.parse(expensesData);
           const seen = new Set();
           const deduped = parsed.filter(item => {
             if (!item.id || seen.has(item.id)) return false;
             seen.add(item.id);
             return true;
           });
-          if (deduped.length !== parsed.length) {
-            await AsyncStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(deduped));
+
+          // Migração: preencher categoryIcon/categoryColor em gastos antigos
+          let needsMigration = false;
+          const allCategories = [...DEFAULT_CATEGORIES, ...(categoriesData ? JSON.parse(categoriesData) : [])];
+          const migrated = deduped.map(item => {
+            if (!item.categoryIcon || !item.categoryColor) {
+              needsMigration = true;
+              const cat = allCategories.find(c => c.id === item.category);
+              if (cat) {
+                return { ...item, categoryIcon: cat.icon, categoryColor: cat.color, categoryName: cat.name };
+              }
+            }
+            return item;
+          });
+
+          if (needsMigration || deduped.length !== parsed.length) {
+            await AsyncStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(migrated));
           }
-          dispatch({ type: 'SET_EXPENSES', payload: deduped });
+          dispatch({ type: 'SET_EXPENSES', payload: migrated });
         }
         if (cardsData) dispatch({ type: 'SET_CARDS', payload: JSON.parse(cardsData) });
 
