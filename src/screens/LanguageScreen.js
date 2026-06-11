@@ -11,6 +11,7 @@ import { useI18n, availableLanguages } from '../context/I18nContext';
 import { useTheme } from '../context/ThemeContext';
 import { FadeInView, SlideInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
+import BackButton from '../components/BackButton';
 
 export default function LanguageScreen() {
   const { language, changeLanguage, t } = useI18n();
@@ -18,7 +19,10 @@ export default function LanguageScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('language')} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 50, paddingBottom: 16 }}>
+        <BackButton onPress={() => navigation.goBack()} />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('language')}</Text>
+      </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <FadeInView>

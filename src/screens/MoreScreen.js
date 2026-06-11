@@ -264,7 +264,7 @@ export default function MenuScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('more')} />
+      <AppHeader title={t('menu')} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Quick Stats */}
         <View style={styles.statsGrid}>

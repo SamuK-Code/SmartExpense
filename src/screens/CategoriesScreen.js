@@ -15,6 +15,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 import { ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
+import BackButton from '../components/BackButton';
 
 export default function CategoriesScreen() {
   const { categories, addCategory, updateCategory, deleteCategory, CATEGORIES } = useExpenses();
@@ -126,7 +127,10 @@ export default function CategoriesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('categories')} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 50, paddingBottom: 16 }}>
+        <BackButton onPress={() => navigation.goBack()} />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('categories')}</Text>
+      </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         

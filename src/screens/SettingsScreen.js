@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 import { FadeInView, SlideInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
+import BackButton from '../components/BackButton';
 
 export default function SettingsScreen({ navigation }) {
   const { colors, isDark, toggleTheme } = useTheme();
@@ -12,7 +13,10 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('settings')} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 50, paddingBottom: 16 }}>
+        <BackButton onPress={() => navigation.goBack()} />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings')}</Text>
+      </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <FadeInView>

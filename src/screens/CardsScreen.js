@@ -280,6 +280,15 @@ export default function CardsScreen() {
       </Modal>
 
       <BankSelectorModal visible={bankSelectorVisible} onSelect={setSelectedBank} onClose={() => setBankSelectorVisible(false)} selectedBankId={selectedBank?.id} />
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={openAddModal}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -327,4 +336,19 @@ const styles = StyleSheet.create({
   modalButtons: { flexDirection: 'row', gap: 10 },
   modalButton: { flex: 1, padding: 14, borderRadius: 12, alignItems: 'center' },
   modalButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
 });
