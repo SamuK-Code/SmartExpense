@@ -1,6 +1,9 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import { useAuth } from '../contexts/AuthContext';
+import { useGroup } from '../contexts/GroupContext';
+import SupabaseService from '../services/SupabaseService';
 
 const PlanningContext = createContext();
 
@@ -26,9 +29,69 @@ const generateUUID = () => {
 export function PlanningProvider({ children }) {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // ========== NOVO: Auth e Group ==========
+  const { user } = useAuth();
+  const { activeGroup } = useGroup();
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { if (!loading) saveData(); }, [goals]);
+
+  // ========== NOVO: Sync com grupo ==========
+  const syncWithGroup = useCallback(async () => {
+    if (!activeGroup || !user) return;
+
+    setIsSyncing(true);
+    try {
+      // Goals são armazenadas como JSON no Supabase
+      // Usamos a tabela group_expenses com um flag especial
+      const goalData = goals.map(g => ({
+        ...g,
+        _type: 'goal',
+      }));
+
+      await SupabaseService.syncExpenses(activeGroup.id, goalData, user.id);
+
+      // Busca dados atualizados
+      const result = await SupabaseService.fetchGroupData(activeGroup.id);
+      if (result.success && result.data.expenses) {
+        const remoteGoals = result.data.expenses.filter(e => e._type === 'goal');
+        if (remoteGoals.length > 0) {
+          const merged = mergeGoals(goals, remoteGoals);
+          setGoals(merged);
+          await AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(merged));
+        }
+      }
+    } catch (error) {
+      console.error('[PlanningContext] Erro no sync:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [activeGroup, user, goals]);
+
+  // Helper: mescla goals mantendo o mais recente
+  const mergeGoals = (local, remote) => {
+    const map = new Map();
+    local.forEach(g => map.set(g.id, g));
+    remote.forEach(g => {
+      if (g._type !== 'goal') return;
+      const cleanGoal = { ...g };
+      delete cleanGoal._type;
+      const existing = map.get(g.id);
+      if (!existing || (g.updatedAt && existing.updatedAt < g.updatedAt)) {
+        map.set(g.id, cleanGoal);
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  // Sync quando muda o grupo ativo
+  useEffect(() => {
+    if (activeGroup && user && !loading) {
+      syncWithGroup();
+    }
+  }, [activeGroup?.id]);
 
   const loadData = async () => {
     try {
@@ -45,23 +108,40 @@ export function PlanningProvider({ children }) {
   };
 
   const addGoal = (goal) => {
-    const newGoal = { id: generateUUID(), ...goal, createdAt: new Date().toISOString() };
+    const newGoal = { 
+      id: generateUUID(), 
+      ...goal, 
+      createdAt: new Date().toISOString(),
+      updatedAt: Date.now(),
+    };
     setGoals(prev => [newGoal, ...prev]);
+    setTimeout(() => syncWithGroup(), 100);
   };
 
   const updateGoal = (id, updates) => {
-    setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: Date.now() } : g));
+    setTimeout(() => syncWithGroup(), 100);
   };
 
-  const deleteGoal = (id) => setGoals(prev => prev.filter(g => g.id !== id));
+  const deleteGoal = (id) => {
+    setGoals(prev => prev.filter(g => g.id !== id));
+    setTimeout(() => syncWithGroup(), 100);
+  };
 
   const toggleGoalComplete = (id) => {
-    setGoals(prev => prev.map(g => g.id === id ? { ...g, completed: !g.completed, completedAt: !g.completed ? new Date().toISOString() : null } : g));
+    setGoals(prev => prev.map(g => g.id === id ? { 
+      ...g, 
+      completed: !g.completed, 
+      completedAt: !g.completed ? new Date().toISOString() : null,
+      updatedAt: Date.now(),
+    } : g));
+    setTimeout(() => syncWithGroup(), 100);
   };
 
   const clearGoals = useCallback(() => {
     setGoals([]);
-  }, []);
+    setTimeout(() => syncWithGroup(), 100);
+  }, [syncWithGroup]);
 
   const checkGoalFeasibility = (goalAmount, cashBalance, monthlyExpenses) => {
     const availableAfterExpenses = cashBalance - monthlyExpenses;
@@ -85,6 +165,7 @@ export function PlanningProvider({ children }) {
   const value = {
     goals,
     loading,
+    isSyncing,
     addGoal,
     updateGoal,
     deleteGoal,
@@ -92,6 +173,7 @@ export function PlanningProvider({ children }) {
     clearGoals,
     checkGoalFeasibility,
     calculateDailyBudget,
+    syncWithGroup,
   };
 
   return <PlanningContext.Provider value={value}>{children}</PlanningContext.Provider>;
