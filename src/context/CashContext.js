@@ -1,6 +1,9 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import { useAuth } from '../contexts/AuthContext';
+import { useGroup } from '../contexts/GroupContext';
+import SupabaseService from '../services/SupabaseService';
 
 const CashContext = createContext();
 
@@ -28,9 +31,65 @@ export function CashProvider({ children }) {
   const [cashBalance, setCashBalance] = useState(0);
   const [cashTransactions, setCashTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // ========== NOVO: Auth e Group ==========
+  const { user } = useAuth();
+  const { activeGroup } = useGroup();
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { if (!loading) saveData(); }, [cashBalance, cashTransactions]);
+
+  // ========== NOVO: Sync com grupo ==========
+  const syncWithGroup = useCallback(async () => {
+    if (!activeGroup || !user) return;
+
+    setIsSyncing(true);
+    try {
+      await SupabaseService.syncCashTransactions(activeGroup.id, cashTransactions, user.id);
+
+      // Busca dados atualizados do grupo
+      const result = await SupabaseService.fetchGroupData(activeGroup.id);
+      if (result.success && result.data.cashTransactions?.length > 0) {
+        const merged = mergeCashData(cashTransactions, result.data.cashTransactions);
+        setCashTransactions(merged);
+        await AsyncStorage.setItem(STORAGE_KEYS.CASH_TRANSACTIONS, JSON.stringify(merged));
+
+        // Recalcula saldo
+        const newBalance = merged.reduce((sum, t) => {
+          return t.type === 'income' ? sum + t.amount : sum - t.amount;
+        }, 0);
+        setCashBalance(newBalance);
+        await AsyncStorage.setItem(STORAGE_KEYS.CASH_BALANCE, newBalance.toString());
+      }
+    } catch (error) {
+      console.error('[CashContext] Erro no sync:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [activeGroup, user, cashTransactions]);
+
+  // Helper: mescla transações mantendo o mais recente
+  const mergeCashData = (local, remote) => {
+    const map = new Map();
+    local.forEach(t => map.set(t.id, t));
+    remote.forEach(t => {
+      const existing = map.get(t.id);
+      if (!existing || (t.updatedAt && existing.updatedAt < t.updatedAt)) {
+        map.set(t.id, t);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => 
+      new Date(b.createdAt) - new Date(a.createdAt)
+    );
+  };
+
+  // Sync quando muda o grupo ativo
+  useEffect(() => {
+    if (activeGroup && user && !loading) {
+      syncWithGroup();
+    }
+  }, [activeGroup?.id]);
 
   const loadData = async () => {
     try {
@@ -80,14 +139,18 @@ export function CashProvider({ children }) {
       description: transactionData.description || (type === 'income' ? 'Entrada de caixa' : 'Saída de caixa'),
       date: transactionData.date || new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
+      updatedAt: Date.now(),
       ...transactionData,
     };
 
     setCashBalance(newBalance);
     setCashTransactions(prev => [transaction, ...prev]);
 
+    // Sincroniza com o grupo
+    setTimeout(() => syncWithGroup(), 100);
+
     return transaction;
-  }, [cashBalance]);
+  }, [cashBalance, syncWithGroup]);
 
   const updateCashTransaction = useCallback((id, updates) => {
     const transaction = cashTransactions.find(t => t.id === id);
@@ -104,7 +167,7 @@ export function CashProvider({ children }) {
       ...transaction,
       ...updates,
       amount: newAmount,
-      updatedAt: new Date().toISOString(),
+      updatedAt: Date.now(),
     };
 
     const updatedTransactions = cashTransactions.map(t =>
@@ -116,8 +179,11 @@ export function CashProvider({ children }) {
     setCashBalance(newBalance);
     setCashTransactions(updatedTransactions);
 
+    // Sincroniza com o grupo
+    setTimeout(() => syncWithGroup(), 100);
+
     return updatedTransaction;
-  }, [cashBalance, cashTransactions]);
+  }, [cashBalance, cashTransactions, syncWithGroup]);
 
   const deleteCashTransaction = useCallback((id) => {
     const transaction = cashTransactions.find(t => t.id === id);
@@ -133,29 +199,34 @@ export function CashProvider({ children }) {
     setCashBalance(newBalance);
     setCashTransactions(prev => prev.filter(t => t.id !== id));
 
+    // Sincroniza com o grupo
+    setTimeout(() => syncWithGroup(), 100);
+
     return true;
-  }, [cashBalance, cashTransactions]);
+  }, [cashBalance, cashTransactions, syncWithGroup]);
 
   const clearCash = useCallback(async () => {
     setCashBalance(0);
     setCashTransactions([]);
-    // Garantir que o AsyncStorage também seja limpo
     try {
       await Promise.all([
         AsyncStorage.setItem(STORAGE_KEYS.CASH_BALANCE, '0'),
         AsyncStorage.setItem(STORAGE_KEYS.CASH_TRANSACTIONS, JSON.stringify([])),
       ]);
+      syncWithGroup();
     } catch (e) { console.error('Error clearing cash storage:', e); }
-  }, []);
+  }, [syncWithGroup]);
 
   const value = {
     cashBalance,
     cashTransactions,
     loading,
+    isSyncing,
     addCashTransaction,
     updateCashTransaction,
     deleteCashTransaction,
     clearCash,
+    syncWithGroup,
   };
 
   return <CashContext.Provider value={value}>{children}</CashContext.Provider>;
