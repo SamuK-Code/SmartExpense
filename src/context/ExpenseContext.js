@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useReducer, useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../contexts/AuthContext';
+import { useGroup } from '../contexts/GroupContext';
+import SupabaseService from '../services/SupabaseService';
 
 const ExpenseContext = createContext();
 
@@ -10,7 +13,6 @@ const STORAGE_KEYS = {
   CASH_TRANSACTIONS: '@cash_transactions',
 };
 
-// Categorias padrão — IDs fixos para evitar duplicatas
 const DEFAULT_CATEGORIES = [
   { id: 'cat-food', name: 'Alimentação', color: '#FF6B6B', icon: 'restaurant' },
   { id: 'cat-transport', name: 'Transporte', color: '#4ECDC4', icon: 'car' },
@@ -22,7 +24,6 @@ const DEFAULT_CATEGORIES = [
   { id: 'cat-others', name: 'Outros', color: '#F7DC6F', icon: 'ellipsis-horizontal' },
 ];
 
-// Gerador de ID único
 let _idCounter = 0;
 const generateId = () => {
   const timestamp = Date.now().toString(36);
@@ -129,6 +130,11 @@ function expenseReducer(state, action) {
 export function ExpenseProvider({ children }) {
   const [state, dispatch] = useReducer(expenseReducer, initialState);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // ========== NOVO: Hooks de Auth e Group ==========
+  const { user, isAuthenticated } = useAuth();
+  const { activeGroup, addSyncListener } = useGroup();
 
   // Carregar dados do AsyncStorage
   useEffect(() => {
@@ -150,7 +156,6 @@ export function ExpenseProvider({ children }) {
             return true;
           });
 
-          // Migração: preencher categoryIcon/categoryColor em gastos antigos
           let needsMigration = false;
           const allCategories = [...DEFAULT_CATEGORIES, ...(categoriesData ? JSON.parse(categoriesData) : [])];
           const migrated = deduped.map(item => {
@@ -188,14 +193,94 @@ export function ExpenseProvider({ children }) {
     loadData();
   }, []);
 
-  // Verificar vencimentos de fatura quando os dados carregarem
+  // ========== NOVO: Sincronização com Supabase ==========
+  const syncWithGroup = useCallback(async () => {
+    if (!activeGroup || !user) return;
+
+    setIsSyncing(true);
+    try {
+      const result = await SupabaseService.fullSync(
+        activeGroup.id,
+        {
+          expenses: state.expenses,
+          categories: state.categories,
+          cards: state.cards,
+          cashTransactions: state.cashTransactions,
+        },
+        user.id
+      );
+
+      if (result.success && result.data) {
+        // Mescla dados recebidos com os locais
+        if (result.data.expenses?.length > 0) {
+          const merged = mergeData(state.expenses, result.data.expenses);
+          dispatch({ type: 'SET_EXPENSES', payload: merged });
+          await AsyncStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(merged));
+        }
+        if (result.data.categories?.length > 0) {
+          const merged = mergeData(state.categories, result.data.categories);
+          dispatch({ type: 'SET_CATEGORIES', payload: merged });
+          await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(merged));
+        }
+        if (result.data.cards?.length > 0) {
+          const merged = mergeData(state.cards, result.data.cards);
+          dispatch({ type: 'SET_CARDS', payload: merged });
+          await AsyncStorage.setItem(STORAGE_KEYS.CARDS, JSON.stringify(merged));
+        }
+        if (result.data.cashTransactions?.length > 0) {
+          const merged = mergeData(state.cashTransactions, result.data.cashTransactions);
+          dispatch({ type: 'SET_CASH_TRANSACTIONS', payload: merged });
+          await AsyncStorage.setItem(STORAGE_KEYS.CASH_TRANSACTIONS, JSON.stringify(merged));
+        }
+      }
+    } catch (error) {
+      console.error('Erro na sincronização:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [activeGroup, user, state.expenses, state.categories, state.cards, state.cashTransactions]);
+
+  // Helper: mescla dados mantendo o mais recente
+  const mergeData = (local, remote) => {
+    const map = new Map();
+    local.forEach(item => map.set(item.id, item));
+    remote.forEach(item => {
+      const existing = map.get(item.id);
+      if (!existing || (item.updatedAt && existing.updatedAt < item.updatedAt)) {
+        map.set(item.id, item);
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  // Escuta eventos de sync do GroupContext
+  useEffect(() => {
+    if (!addSyncListener) return;
+    const unsubscribe = addSyncListener((event) => {
+      if (event.type === 'data_received') {
+        // Dados recebidos via outro mecanismo (Bluetooth, etc)
+        if (event.data.expenses) {
+          const merged = mergeData(state.expenses, event.data.expenses);
+          dispatch({ type: 'SET_EXPENSES', payload: merged });
+        }
+      }
+    });
+    return unsubscribe;
+  }, [addSyncListener, state.expenses]);
+
+  // Auto-sync quando muda o grupo ativo
+  useEffect(() => {
+    if (activeGroup && user) {
+      syncWithGroup();
+    }
+  }, [activeGroup?.id]);
+
   useEffect(() => {
     if (!loading && state.cards.length > 0) {
       checkDueDates();
     }
   }, [loading, state.cards.length]);
 
-  // Salvar dados no AsyncStorage
   const saveData = useCallback(async (key, data) => {
     try {
       await AsyncStorage.setItem(key, JSON.stringify(data));
@@ -204,12 +289,12 @@ export function ExpenseProvider({ children }) {
     }
   }, []);
 
-  // ─── Gerar Fatura ───
+  // ========== TODAS AS FUNÇÕES EXISTENTES + SYNC ==========
+
   const generateBill = useCallback((cardId) => {
     const card = state.cards.find(c => c.id === cardId);
     if (!card || !card.dueDate) return;
 
-    // Soma todos os gastos do cartão não quitados, não faturados e não são faturas
     const cardExpenses = state.expenses.filter(
       e => e.cardId === cardId && !e.paid && !e.isBill && !e.billed
     );
@@ -231,7 +316,6 @@ export function ExpenseProvider({ children }) {
       createdAt: new Date().toISOString(),
     };
 
-    // Marca os gastos antigos do cartão como billed
     const updatedExpenses = state.expenses.map(e =>
       e.cardId === cardId && !e.paid && !e.isBill ? { ...e, billed: true } : e
     );
@@ -248,9 +332,11 @@ export function ExpenseProvider({ children }) {
     dispatch({ type: 'GENERATE_BILL', payload: { billExpense, cardId } });
     saveData(STORAGE_KEYS.EXPENSES, [billExpense, ...updatedExpenses]);
     saveData(STORAGE_KEYS.CARDS, updatedCards);
-  }, [state.cards, state.expenses, saveData]);
 
-  // ─── Verificar Vencimentos ───
+    // Sync após gerar fatura
+    syncWithGroup();
+  }, [state.cards, state.expenses, saveData, syncWithGroup]);
+
   const checkDueDates = useCallback(() => {
     const today = new Date();
     const currentDay = today.getDate();
@@ -273,7 +359,6 @@ export function ExpenseProvider({ children }) {
     });
   }, [state.cards, generateBill]);
 
-  // ─── Quitar Fatura ───
   const payBill = useCallback((expenseId) => {
     const billExpense = state.expenses.find(e => e.id === expenseId);
     if (!billExpense || !billExpense.isBill) return false;
@@ -287,12 +372,12 @@ export function ExpenseProvider({ children }) {
     dispatch({ type: 'PAY_BILL', payload: { expenseId, cardId } });
     saveData(STORAGE_KEYS.EXPENSES, updatedExpenses);
     saveData(STORAGE_KEYS.CARDS, updatedCards);
+    syncWithGroup();
     return true;
-  }, [state.expenses, state.cards, saveData]);
+  }, [state.expenses, state.cards, saveData, syncWithGroup]);
 
-  // ─── Expenses ───
+  // ========== EXPENSES COM SYNC ==========
   const addExpense = useCallback((expense) => {
-    // Verifica se o cartão está pausado
     if (expense.cardId) {
       const card = state.cards.find(c => c.id === expense.cardId);
       if (card && card.isPaused) {
@@ -308,32 +393,40 @@ export function ExpenseProvider({ children }) {
       isBill: false,
       originalAmount: expense.amount,
       createdAt: new Date().toISOString(),
+      updatedAt: Date.now(),
     };
     const updated = [newExpense, ...state.expenses];
     dispatch({ type: 'ADD_EXPENSE', payload: newExpense });
     saveData(STORAGE_KEYS.EXPENSES, updated);
+
+    // Sincroniza com o grupo
+    syncWithGroup();
+
     return { success: true, expense: newExpense };
-  }, [state.expenses, state.cards, saveData]);
+  }, [state.expenses, state.cards, saveData, syncWithGroup]);
 
   const updateExpense = useCallback((id, updates) => {
-    const updated = state.expenses.map(e => e.id === id ? { ...e, ...updates } : e);
+    const updated = state.expenses.map(e => e.id === id ? { ...e, ...updates, updatedAt: Date.now() } : e);
     dispatch({ type: 'SET_EXPENSES', payload: updated });
     saveData(STORAGE_KEYS.EXPENSES, updated);
-  }, [state.expenses, saveData]);
+    syncWithGroup();
+  }, [state.expenses, saveData, syncWithGroup]);
 
   const deleteExpense = useCallback((id) => {
     const filtered = state.expenses.filter(e => e.id !== id);
     dispatch({ type: 'DELETE_EXPENSE', payload: id });
     saveData(STORAGE_KEYS.EXPENSES, filtered);
-  }, [state.expenses, saveData]);
+    syncWithGroup();
+  }, [state.expenses, saveData, syncWithGroup]);
 
   const toggleExpensePaid = useCallback((id) => {
-    const updated = state.expenses.map(e => e.id === id ? { ...e, paid: !e.paid } : e);
+    const updated = state.expenses.map(e => e.id === id ? { ...e, paid: !e.paid, updatedAt: Date.now() } : e);
     dispatch({ type: 'SET_EXPENSES', payload: updated });
     saveData(STORAGE_KEYS.EXPENSES, updated);
-  }, [state.expenses, saveData]);
+    syncWithGroup();
+  }, [state.expenses, saveData, syncWithGroup]);
 
-  // ─── Cards ───
+  // ========== CARDS COM SYNC ==========
   const addCard = useCallback((card) => {
     const newCard = {
       ...card,
@@ -341,45 +434,52 @@ export function ExpenseProvider({ children }) {
       isPaused: false,
       currentBillAmount: 0,
       lastBillDate: null,
+      updatedAt: Date.now(),
     };
     const updated = [...state.cards, newCard];
     dispatch({ type: 'ADD_CARD', payload: newCard });
     saveData(STORAGE_KEYS.CARDS, updated);
-  }, [state.cards, saveData]);
+    syncWithGroup();
+  }, [state.cards, saveData, syncWithGroup]);
 
   const updateCard = useCallback((id, updates) => {
-    const updated = state.cards.map(c => c.id === id ? { ...c, ...updates } : c);
+    const updated = state.cards.map(c => c.id === id ? { ...c, ...updates, updatedAt: Date.now() } : c);
     dispatch({ type: 'SET_CARDS', payload: updated });
     saveData(STORAGE_KEYS.CARDS, updated);
-  }, [state.cards, saveData]);
+    syncWithGroup();
+  }, [state.cards, saveData, syncWithGroup]);
 
   const deleteCard = useCallback((id) => {
     const filtered = state.cards.filter(c => c.id !== id);
     dispatch({ type: 'DELETE_CARD', payload: id });
     saveData(STORAGE_KEYS.CARDS, filtered);
-  }, [state.cards, saveData]);
+    syncWithGroup();
+  }, [state.cards, saveData, syncWithGroup]);
 
-  // ─── Categories ───
+  // ========== CATEGORIES COM SYNC ==========
   const addCategory = useCallback((category) => {
-    const newCategory = { ...category, id: generateId() };
+    const newCategory = { ...category, id: generateId(), updatedAt: Date.now() };
     const updated = [...state.categories, newCategory];
     dispatch({ type: 'ADD_CATEGORY', payload: newCategory });
     saveData(STORAGE_KEYS.CATEGORIES, updated);
-  }, [state.categories, saveData]);
+    syncWithGroup();
+  }, [state.categories, saveData, syncWithGroup]);
 
   const updateCategory = useCallback((id, updates) => {
-    const updated = state.categories.map(c => c.id === id ? { ...c, ...updates } : c);
+    const updated = state.categories.map(c => c.id === id ? { ...c, ...updates, updatedAt: Date.now() } : c);
     dispatch({ type: 'SET_CATEGORIES', payload: updated });
     saveData(STORAGE_KEYS.CATEGORIES, updated);
-  }, [state.categories, saveData]);
+    syncWithGroup();
+  }, [state.categories, saveData, syncWithGroup]);
 
   const deleteCategory = useCallback((id) => {
     const filtered = state.categories.filter(c => c.id !== id);
     dispatch({ type: 'DELETE_CATEGORY', payload: id });
     saveData(STORAGE_KEYS.CATEGORIES, filtered);
-  }, [state.categories, saveData]);
+    syncWithGroup();
+  }, [state.categories, saveData, syncWithGroup]);
 
-  // ─── Cash Transactions ───
+  // ========== CASH TRANSACTIONS COM SYNC ==========
   const addCashTransaction = useCallback((amount, description) => {
     const newTransaction = {
       id: generateId(),
@@ -387,26 +487,30 @@ export function ExpenseProvider({ children }) {
       description,
       date: new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
+      updatedAt: Date.now(),
     };
     const updated = [newTransaction, ...state.cashTransactions];
     dispatch({ type: 'ADD_CASH_TRANSACTION', payload: newTransaction });
     saveData(STORAGE_KEYS.CASH_TRANSACTIONS, updated);
+    syncWithGroup();
     return newTransaction;
-  }, [state.cashTransactions, saveData]);
+  }, [state.cashTransactions, saveData, syncWithGroup]);
 
   const updateCashTransaction = useCallback((id, updates) => {
-    const updated = state.cashTransactions.map(t => t.id === id ? { ...t, ...updates } : t);
+    const updated = state.cashTransactions.map(t => t.id === id ? { ...t, ...updates, updatedAt: Date.now() } : t);
     dispatch({ type: 'SET_CASH_TRANSACTIONS', payload: updated });
     saveData(STORAGE_KEYS.CASH_TRANSACTIONS, updated);
-  }, [state.cashTransactions, saveData]);
+    syncWithGroup();
+  }, [state.cashTransactions, saveData, syncWithGroup]);
 
   const deleteCashTransaction = useCallback((id) => {
     const filtered = state.cashTransactions.filter(t => t.id !== id);
     dispatch({ type: 'DELETE_CASH_TRANSACTION', payload: id });
     saveData(STORAGE_KEYS.CASH_TRANSACTIONS, filtered);
-  }, [state.cashTransactions, saveData]);
+    syncWithGroup();
+  }, [state.cashTransactions, saveData, syncWithGroup]);
 
-  // ─── Clear All Data ───
+  // ========== CLEAR ALL ==========
   const clearAllData = useCallback(async () => {
     dispatch({ type: 'CLEAR_ALL_DATA' });
     try {
@@ -417,12 +521,13 @@ export function ExpenseProvider({ children }) {
         AsyncStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES)),
       ]);
       dispatch({ type: 'SET_CATEGORIES', payload: DEFAULT_CATEGORIES });
+      syncWithGroup();
     } catch (error) {
       console.error('Error clearing all data:', error);
     }
-  }, []);
+  }, [syncWithGroup]);
 
-  // ─── Alerts ───
+  // ========== ALERTS ==========
   const addAlert = useCallback((alert) => {
     dispatch({ type: 'SET_ALERTS', payload: [...state.alerts, alert] });
   }, [state.alerts]);
@@ -431,7 +536,7 @@ export function ExpenseProvider({ children }) {
     dispatch({ type: 'DISMISS_ALERT', payload: id });
   }, []);
 
-  // ─── Filters ───
+  // ========== FILTERS ==========
   const getFilteredExpenses = useCallback((period) => {
     const now = new Date();
     return state.expenses.filter(e => {
@@ -487,7 +592,6 @@ export function ExpenseProvider({ children }) {
     return card ? card.isPaused || false : false;
   }, [state.cards]);
 
-  // Categorias disponíveis
   const CATEGORIES = state.categories.length > 0 ? state.categories : DEFAULT_CATEGORIES;
 
   const value = {
@@ -497,6 +601,7 @@ export function ExpenseProvider({ children }) {
     cashTransactions: state.cashTransactions,
     alerts: state.alerts,
     loading,
+    isSyncing,
     CATEGORIES,
     addExpense,
     updateExpense,
@@ -525,6 +630,7 @@ export function ExpenseProvider({ children }) {
     getTotalByCard,
     getExpensesByMonth,
     getCardUsage,
+    syncWithGroup,
   };
 
   return (
