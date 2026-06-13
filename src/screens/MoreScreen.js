@@ -18,6 +18,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useCash } from '../context/CashContext';
 import { usePlanning } from '../context/PlanningContext';
 import { useI18n } from '../context/I18nContext';
+import { useAuth } from '../contexts/AuthContext';  // ← NOVO
+import { useGroup } from '../contexts/GroupContext';  // ← NOVO
 import { clearAllStorage } from '../utils/StorageUtils';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';
@@ -28,6 +30,10 @@ export default function MenuScreen({ navigation }) {
   const { cashBalance, clearCash } = useCash();
   const { clearGoals } = usePlanning();
   const { t } = useI18n();
+
+  // ========== NOVO: Auth e Group ==========
+  const { user, logout } = useAuth();
+  const { activeGroup, groups } = useGroup();
 
   const [aboutModalVisible, setAboutModalVisible] = useState(false);
   const [statsModalVisible, setStatsModalVisible] = useState(false);
@@ -122,7 +128,49 @@ export default function MenuScreen({ navigation }) {
     );
   };
 
+  // ========== NOVO: Logout handler ==========
+  const handleLogout = () => {
+    Alert.alert(
+      'Sair da Conta',
+      'Deseja sair da sua conta?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+          }
+        }
+      ]
+    );
+  };
+
   const menuItems = [
+    // ========== NOVO: Seção do Usuário ==========
+    {
+      id: 'user',
+      icon: 'person-circle',
+      title: user ? `👤 ${user.displayName || user.username}` : 'Usuário',
+      subtitle: user ? `@${user.username}` : 'Faça login',
+      action: 'none',
+      color: colors.primary,
+      isHeader: true,
+    },
+    // ========== NOVO: Grupo ==========
+    {
+      id: 'group',
+      icon: 'people',
+      title: 'Grupos',
+      subtitle: activeGroup 
+        ? `Ativo: ${activeGroup.name}` 
+        : groups.length > 0 
+          ? `${groups.length} grupo(s)` 
+          : 'Criar Conta Casal',
+      action: 'navigate',
+      screen: 'GroupTab',  // Navega para a tab de grupos
+      color: '#58a6ff',
+    },
     {
       id: 'sound',
       icon: soundEnabled ? 'volume-high' : 'volume-mute',
@@ -206,6 +254,15 @@ export default function MenuScreen({ navigation }) {
       action: 'about',
       color: colors.primary,
     },
+    // ========== NOVO: Logout ==========
+    {
+      id: 'logout',
+      icon: 'log-out',
+      title: 'Sair da Conta',
+      subtitle: 'Encerrar sessão',
+      action: 'logout',
+      color: '#f85149',
+    },
   ];
 
   const handleMenuPress = (item) => {
@@ -215,18 +272,32 @@ export default function MenuScreen({ navigation }) {
       case 'toggle': toggleTheme(); break;
       case 'stats': setStatsModalVisible(true); break;
       case 'share': handleShare(); break;
-      case 'navigate': navigation.navigate(item.screen); break;
+      case 'navigate': 
+        // Se for a tab de grupo, navega para ela
+        if (item.screen === 'GroupTab') {
+          navigation.navigate('GroupTab');
+        } else {
+          navigation.navigate(item.screen);
+        }
+        break;
       case 'clear': handleClearData(); break;
       case 'about': setAboutModalVisible(true); break;
+      case 'logout': handleLogout(); break;
+      case 'none': break;
     }
   };
 
   const renderMenuItem = (item) => (
     <TouchableOpacity
       key={item.id}
-      style={[styles.menuItem, { backgroundColor: colors.card }]}
+      style={[
+        styles.menuItem, 
+        { backgroundColor: colors.card },
+        item.isHeader && { borderLeftWidth: 4, borderLeftColor: colors.primary }
+      ]}
       onPress={() => handleMenuPress(item)}
-      activeOpacity={0.7}
+      activeOpacity={item.action === 'none' ? 1 : 0.7}
+      disabled={item.action === 'none'}
     >
       <View style={[styles.iconContainer, { backgroundColor: item.color + '15' }]}>
         <Ionicons name={item.icon} size={22} color={item.color} />
@@ -256,6 +327,10 @@ export default function MenuScreen({ navigation }) {
           trackColor={{ false: '#767577', true: colors.info + '80' }}
           thumbColor={alertsEnabled ? colors.info : '#f4f3f4'}
         />
+      ) : item.action === 'none' ? (
+        <View style={styles.userBadge}>
+          <Text style={[styles.userBadgeText, { color: colors.primary }]}>●</Text>
+        </View>
       ) : (
         <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
       )}
@@ -384,6 +459,8 @@ const styles = StyleSheet.create({
   menuInfo: { flex: 1 },
   menuTitle: { fontSize: 15, fontWeight: '600' },
   menuSubtitle: { fontSize: 12, marginTop: 2 },
+  userBadge: { paddingHorizontal: 8 },
+  userBadgeText: { fontSize: 12, fontWeight: 'bold' },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 10 },
   aboutIcon: { width: 80, height: 80, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
