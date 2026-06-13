@@ -4,6 +4,7 @@ LogBox.ignoreLogs([
   'InteractionManager has been deprecated',
 ]);
 require('./src/utils/InteractionManagerPatch');
+
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
@@ -11,6 +12,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 
+// ========== NOVOS CONTEXTS ==========
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { GroupProvider } from './src/contexts/GroupContext';
+
+// ========== CONTEXTS EXISTENTES ==========
 import { ExpenseProvider } from './src/context/ExpenseContext';
 import { PlanningProvider } from './src/context/PlanningContext';
 import { CashProvider } from './src/context/CashContext';
@@ -18,6 +24,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { I18nProvider, useI18n } from './src/context/I18nContext';
 import ErrorBoundary from './src/utils/ErrorBoundary';
 
+// ========== SCREENS EXISTENTES ==========
 import DashboardScreen from './src/screens/DashboardScreen';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import EditExpenseScreen from './src/screens/EditExpenseScreen';
@@ -31,9 +38,15 @@ import LanguageScreen from './src/screens/LanguageScreen';
 import CategoriesScreen from './src/screens/CategoriesScreen';
 import MoreScreen from './src/screens/MoreScreen';
 
+// ========== NOVAS SCREENS ==========
+import LoginScreen from './src/screens/LoginScreen';
+import GroupScreen from './src/screens/GroupScreen';
+import SyncScreen from './src/screens/SyncScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+// ========== STACKS EXISTENTES ==========
 function HomeStack() {
   const { colors } = useTheme();
   return (
@@ -66,6 +79,7 @@ function MenuStack() {
   );
 }
 
+// ========== TAB NAVIGATOR (LOGADO) ==========
 function TabNavigator() {
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
@@ -81,6 +95,8 @@ function TabNavigator() {
           else if (route.name === 'ChartsTab') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
           else if (route.name === 'PlanningTab') iconName = focused ? 'calendar' : 'calendar-outline';
           else if (route.name === 'CardsTab') iconName = focused ? 'card' : 'card-outline';
+          else if (route.name === 'GroupTab') iconName = focused ? 'people' : 'people-outline';
+          else if (route.name === 'SyncTab') iconName = focused ? 'sync' : 'sync-outline';
           else if (route.name === 'MenuTab') iconName = focused ? 'menu' : 'menu-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -106,26 +122,50 @@ function TabNavigator() {
       <Tab.Screen name="ChartsTab" component={ChartStack} options={{ tabBarLabel: t('charts') }} />
       <Tab.Screen name="PlanningTab" component={PlanningScreen} options={{ tabBarLabel: t('planning') }} />
       <Tab.Screen name="CardsTab" component={CardsScreen} options={{ tabBarLabel: t('cards') }} />
+      <Tab.Screen name="GroupTab" component={GroupScreen} options={{ tabBarLabel: 'Grupo' }} />
+      <Tab.Screen name="SyncTab" component={SyncScreen} options={{ tabBarLabel: 'Sync' }} />
       <Tab.Screen name="MenuTab" component={MenuStack} options={{ tabBarLabel: t('settings') }} />
     </Tab.Navigator>
   );
 }
 
+// ========== APP ROOT COM AUTH ==========
+function AppRoot() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0d1117', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#58a6ff" />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      <StatusBar style="auto" />
+      {isAuthenticated ? <TabNavigator /> : <LoginScreen />}
+    </NavigationContainer>
+  );
+}
+
+// ========== EXPORT ==========
 export default function App() {
   return (
     <ErrorBoundary>
       <I18nProvider>
         <ThemeProvider>
-          <CashProvider>
-            <PlanningProvider>
-              <ExpenseProvider>
-                <NavigationContainer>
-                  <StatusBar style="auto" />
-                  <TabNavigator />
-                </NavigationContainer>
-              </ExpenseProvider>
-            </PlanningProvider>
-          </CashProvider>
+          <AuthProvider>
+            <GroupProvider>
+              <CashProvider>
+                <PlanningProvider>
+                  <ExpenseProvider>
+                    <AppRoot />
+                  </ExpenseProvider>
+                </PlanningProvider>
+              </CashProvider>
+            </GroupProvider>
+          </AuthProvider>
         </ThemeProvider>
       </I18nProvider>
     </ErrorBoundary>
