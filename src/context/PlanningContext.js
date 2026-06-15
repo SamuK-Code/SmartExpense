@@ -176,7 +176,11 @@ export function PlanningProvider({ children }) {
     syncWithGroup,
   };
 
-  return <PlanningContext.Provider value={value}>{children}</PlanningContext.Provider>;
+  return (
+    <PlanningContext.Provider value={value}>
+      {children}
+    </PlanningContext.Provider>
+  );
 }
 
 export function usePlanning() {

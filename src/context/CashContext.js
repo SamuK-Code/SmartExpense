@@ -229,7 +229,11 @@ export function CashProvider({ children }) {
     syncWithGroup,
   };
 
-  return <CashContext.Provider value={value}>{children}</CashContext.Provider>;
+  return (
+    <CashContext.Provider value={value}>
+      {children}
+    </CashContext.Provider>
+  );
 }
 
 export function useCash() {
