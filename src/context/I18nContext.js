@@ -89,6 +89,8 @@ export const translations = {
     cards: 'Cartões',
     menu: 'Menu',
     settings: 'Configurações',
+    group: 'Grupo',
+    sync: 'Sync',
 
     // Home
     welcome: 'Bem-vindo',
@@ -411,6 +413,8 @@ export const translations = {
     cards: 'Cards',
     menu: 'Menu',
     settings: 'Settings',
+    group: 'Group',
+    sync: 'Sync',
 
     // Home
     welcome: 'Welcome',
@@ -711,7 +715,12 @@ export function I18nProvider({ children }) {
     availableLanguages,
   };
 
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  // ✅ CORREÇÃO: Return com JSX wrapper correto
+  return (
+    <I18nContext.Provider value={value}>
+      {children}
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n() {
