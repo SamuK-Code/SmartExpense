@@ -9,8 +9,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { useGroup } from '../contexts/GroupContext';
-import { useAuth } from '../contexts/AuthContext';
+import { useGroup } from '../context/GroupContext';
+import { useAuth } from '../context/AuthContext';
 import { useExpenses } from '../context/ExpenseContext';
 import SupabaseService from '../services/SupabaseService';
 

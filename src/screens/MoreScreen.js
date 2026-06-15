@@ -18,8 +18,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useCash } from '../context/CashContext';
 import { usePlanning } from '../context/PlanningContext';
 import { useI18n } from '../context/I18nContext';
-import { useAuth } from '../contexts/AuthContext';  // ← NOVO
-import { useGroup } from '../contexts/GroupContext';  // ← NOVO
+import { useAuth } from '../context/AuthContext';  // ← NOVO
+import { useGroup } from '../context/GroupContext';  // ← NOVO
 import { clearAllStorage } from '../utils/StorageUtils';
 import { FadeInView, SlideInView, ScaleInView } from '../components/AnimatedComponents';
 import AppHeader from '../components/AppHeader';

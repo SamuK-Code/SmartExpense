@@ -12,8 +12,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { useAuth } from '../contexts/AuthContext';
-import { useGroup } from '../contexts/GroupContext';
+import { useAuth } from '../context/AuthContext';
+import { useGroup } from '../context/GroupContext';
 
 const GroupScreen = () => {
   const { user } = useAuth();
