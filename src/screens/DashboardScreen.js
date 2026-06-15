@@ -1,31 +1,35 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+  Dimensions,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
-import { useCash } from '../context/CashContext';
-import { usePlanning } from '../context/PlanningContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
-import { useExpenseStats } from '../hooks/useExpenseStats';
-import AppHeader from '../components/AppHeader';
-import StatCard from '../components/StatCard';
-import ExpenseListItem from '../components/ExpenseListItem';
 
 const { width } = Dimensions.get('window');
 
+// Componente de saudação
 const Greeting = React.memo(function Greeting({ t, colors }) {
   const hour = new Date().getHours();
   let text = t('evening');
   if (hour < 12) text = t('morning');
   else if (hour < 18) text = t('afternoon');
   return (
-    <View style={{ marginBottom: 20 }}>
+    <View>
       <Text style={[styles.greeting, { color: colors.text }]}>{text}</Text>
-      <Text style={[styles.greetingSub, { color: colors.textLight }]}>{t('overview')}</Text>
+      <Text style={[styles.greetingSub, { color: colors.textSecondary }]}>{t('overview')}</Text>
     </View>
   );
 });
 
+// Banner de caixa
 const CashBanner = React.memo(function CashBanner({ value, colors, t }) {
   const fmt = useMemo(() =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value),
@@ -38,31 +42,37 @@ const CashBanner = React.memo(function CashBanner({ value, colors, t }) {
           <Text style={styles.cashValue}>{fmt}</Text>
         </View>
         <View style={styles.cashIcon}>
-          <Ionicons name="wallet" size={28} color="#fff" />
+          <Ionicons name="wallet" size={24} color="#fff" />
         </View>
       </View>
     </View>
   );
 });
 
+// Banner de despesas pendentes
 const UnpaidBanner = React.memo(function UnpaidBanner({ count, total, colors, t }) {
   const fmt = useMemo(() =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total),
   [total]);
   return (
-    <View style={[styles.unpaidCard, { backgroundColor: colors.danger + '10' }]}>
+    <View style={[styles.unpaidCard, { backgroundColor: colors.danger + '15' }]}>
       <View style={styles.unpaidHeader}>
         <Ionicons name="warning" size={20} color={colors.danger} />
         <Text style={[styles.unpaidTitle, { color: colors.danger }]}>
           {count} {count === 1 ? t('unpaidExpense') : t('unpaidExpenses')}
         </Text>
       </View>
-      <Text style={[styles.unpaidAmount, { color: colors.danger }]}>{t('total')}: {fmt}</Text>
+      <Text style={[styles.unpaidAmount, { color: colors.danger }]}>
+        {t('total')}: {fmt}
+      </Text>
     </View>
   );
 });
 
+// Carrossel de cartões
 const CardCarousel = React.memo(function CardCarousel({ cards, colors, t, onNavigate }) {
+  if (!cards || cards.length === 0) return null;
+  
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -72,68 +82,75 @@ const CardCarousel = React.memo(function CardCarousel({ cards, colors, t, onNavi
         </TouchableOpacity>
       </View>
       <FlatList
+        data={cards}
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={cards}
-        keyExtractor={c => c.id}
-        renderItem={({ item: card }) => (
-          <View style={[styles.cardItem, { backgroundColor: colors.card }]}>
-            <View style={styles.cardHeader}>
-              <View style={[styles.cardIcon, { backgroundColor: (card.color || colors.primary) + '15' }]}>
-                <Ionicons name={card.icon || 'card'} size={22} color={card.color || colors.primary} />
+        keyExtractor={(c) => c.id}
+        renderItem={({ item: card }) => {
+          const usage = card.usage || 0;
+          const limit = card.limit || 0;
+          const percentage = limit > 0 ? (usage / limit) * 100 : 0;
+          
+          return (
+            <View style={[styles.cardItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.cardHeader}>
+                <View style={[styles.cardIcon, { backgroundColor: colors.primary + '20' }]}>
+                  <Ionicons name="card" size={24} color={colors.primary} />
+                </View>
+                <View style={styles.cardInfo}>
+                  <Text style={[styles.cardName, { color: colors.text }]}>{card.customName || card.name}</Text>
+                  <Text style={[styles.cardLimit, { color: colors.textSecondary }]}>
+                    {t('limit')}: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(limit)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.cardInfo}>
-                <Text style={[styles.cardName, { color: colors.text }]}>{card.customName || card.name}</Text>
-                <Text style={[styles.cardLimit, { color: colors.textLight }]}>
-                  {t('limit')}: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.limit)}
+              <View style={styles.cardUsageSection}>
+                <View style={styles.cardUsageRow}>
+                  <Text style={[styles.cardUsageLabel, { color: colors.textSecondary }]}>{t('used')}</Text>
+                  <Text style={[styles.cardUsageValue, { color: colors.text }]}>
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(usage)}
+                  </Text>
+                </View>
+                <View style={styles.progressBar}>
+                  <View style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.min(percentage, 100)}%`,
+                      backgroundColor: percentage >= 100 ? colors.danger : percentage >= 80 ? colors.warning : colors.primary,
+                    }
+                  ]} />
+                </View>
+                <Text style={[
+                  styles.progressText,
+                  { color: percentage >= 100 ? colors.danger : percentage >= 80 ? colors.warning : colors.primary }
+                ]}>
+                  {percentage.toFixed(1)}% {t('used')}
                 </Text>
+                {percentage >= 100 && (
+                  <View style={[styles.cardAlert, { backgroundColor: colors.danger + '15' }]}>
+                    <Ionicons name="alert-circle" size={14} color={colors.danger} />
+                    <Text style={[styles.cardAlertText, { color: colors.danger }]}>{t('limitExceeded')}</Text>
+                  </View>
+                )}
+                {percentage >= 80 && percentage < 100 && (
+                  <View style={[styles.cardAlert, { backgroundColor: colors.warning + '15' }]}>
+                    <Ionicons name="alert-circle" size={14} color={colors.warning} />
+                    <Text style={[styles.cardAlertText, { color: colors.warning }]}>{t('nearLimit')}</Text>
+                  </View>
+                )}
               </View>
             </View>
-            <View style={styles.cardUsageSection}>
-              <View style={styles.cardUsageRow}>
-                <Text style={[styles.cardUsageLabel, { color: colors.textLight }]}>{t('used')}</Text>
-                <Text style={[styles.cardUsageValue, { color: colors.text }]}>
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.usage)}
-                </Text>
-              </View>
-              <View style={styles.cardUsageRow}>
-                <Text style={[styles.cardUsageLabel, { color: colors.textLight }]}>{t('available')}</Text>
-                <Text style={[styles.cardUsageValue, { color: colors.primary }]}>
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.max(0, card.limit - card.usage))}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, {
-                width: `${Math.min(card.percentage, 100)}%`,
-                backgroundColor: card.percentage >= 100 ? colors.danger : card.percentage >= 80 ? colors.warning : colors.primary,
-              }]} />
-            </View>
-            <Text style={[styles.progressText, {
-              color: card.percentage >= 100 ? colors.danger : card.percentage >= 80 ? colors.warning : colors.primary,
-            }]}>
-              {card.percentage.toFixed(1)}% {t('used')}
-            </Text>
-            {card.percentage >= 100 && (
-              <View style={[styles.cardAlert, { backgroundColor: colors.danger + '15' }]}>
-                <Ionicons name="warning" size={12} color={colors.danger} />
-                <Text style={[styles.cardAlertText, { color: colors.danger }]}>{t('limitExceeded')}</Text>
-              </View>
-            )}
-            {card.percentage >= 80 && card.percentage < 100 && (
-              <View style={[styles.cardAlert, { backgroundColor: colors.warning + '15' }]}>
-                <Ionicons name="alert-circle" size={12} color={colors.warning} />
-                <Text style={[styles.cardAlertText, { color: colors.warning }]}>{t('nearLimit')}</Text>
-              </View>
-            )}
-          </View>
-        )}
+          );
+        }}
       />
     </View>
   );
 });
 
+// Top categorias
 const TopCategories = React.memo(function TopCategories({ categories, monthTotal, colors, t, getCategoryInfo, onNavigate }) {
+  if (!categories || categories.length === 0) return null;
+  
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -145,22 +162,20 @@ const TopCategories = React.memo(function TopCategories({ categories, monthTotal
       <View style={styles.categoriesList}>
         {categories.map(([catId, amount]) => {
           const cat = getCategoryInfo(catId);
+          const percentage = monthTotal > 0 ? (amount / monthTotal) * 100 : 0;
           return (
             <View key={catId} style={[styles.categoryItem, { backgroundColor: colors.card }]}>
-              <View style={[styles.categoryIcon, { backgroundColor: cat.color + '15' }]}>
-                <Ionicons name={cat.icon} size={18} color={cat.color} />
+              <View style={[styles.categoryIcon, { backgroundColor: cat.color + '20' }]}>
+                <Ionicons name={cat.icon} size={20} color={cat.color} />
               </View>
               <View style={styles.categoryInfo}>
                 <Text style={[styles.categoryName, { color: colors.text }]}>{cat.name}</Text>
-                <Text style={[styles.categoryAmount, { color: colors.textLight }]}>
+                <Text style={[styles.categoryAmount, { color: colors.textSecondary }]}>
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount)}
                 </Text>
               </View>
               <View style={styles.categoryBar}>
-                <View style={[styles.categoryBarFill, {
-                  width: `${Math.min((amount / monthTotal) * 100, 100)}%`,
-                  backgroundColor: cat.color,
-                }]} />
+                <View style={[styles.categoryBarFill, { width: `${percentage}%`, backgroundColor: cat.color }]} />
               </View>
             </View>
           );
@@ -170,8 +185,11 @@ const TopCategories = React.memo(function TopCategories({ categories, monthTotal
   );
 });
 
+// Preview de metas
 const GoalsPreview = React.memo(function GoalsPreview({ goals, colors, t, onNavigate }) {
   const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  if (!goals || goals.length === 0) return null;
+  
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -181,133 +199,172 @@ const GoalsPreview = React.memo(function GoalsPreview({ goals, colors, t, onNavi
         </TouchableOpacity>
       </View>
       <View style={styles.goalsList}>
-        {goals.slice(0, 3).map(goal => (
-          <View key={goal.id} style={[styles.goalItem, { backgroundColor: colors.card }]}>
-            <View style={styles.goalHeader}>
-              <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
-              <Text style={[styles.goalAmount, { color: colors.textLight }]}>
-                {fmt(goal.currentAmount || 0)} / {fmt(goal.targetAmount)}
-              </Text>
-            </View>
-            <View style={styles.goalProgress}>
-              <View style={styles.goalProgressBar}>
-                <View style={[styles.goalProgressFill, {
-                  width: `${Math.min(((goal.currentAmount || 0) / goal.targetAmount) * 100, 100)}%`,
-                  backgroundColor: goal.completed ? colors.success : colors.primary,
-                }]} />
+        {goals.slice(0, 3).map(goal => {
+          const percentage = goal.targetAmount > 0 ? ((goal.currentAmount || 0) / goal.targetAmount) * 100 : 0;
+          return (
+            <View key={goal.id} style={[styles.goalItem, { backgroundColor: colors.card }]}>
+              <View style={styles.goalHeader}>
+                <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
+                <Text style={[styles.goalAmount, { color: colors.textSecondary }]}>
+                  {fmt(goal.currentAmount || 0)} / {fmt(goal.targetAmount)}
+                </Text>
               </View>
-              <Text style={[styles.goalProgressText, { color: colors.textLight }]}>
-                {((goal.currentAmount || 0) / goal.targetAmount * 100).toFixed(1)}%
-              </Text>
+              <View style={styles.goalProgress}>
+                <View style={[styles.goalProgressBar, { backgroundColor: colors.border }]}>
+                  <View style={[styles.goalProgressFill, { width: `${Math.min(percentage, 100)}%`, backgroundColor: colors.primary }]} />
+                </View>
+                <Text style={[styles.goalProgressText, { color: colors.primary }]}>{percentage.toFixed(1)}%</Text>
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
 });
 
+// Item de despesa simples
+const SimpleExpenseItem = React.memo(({ item, colors, t, onPress }) => {
+  const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.amount);
+  return (
+    <TouchableOpacity 
+      style={[styles.expenseItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+      onPress={() => onPress(item.id)}
+    >
+      <View style={styles.expenseIcon}>
+        <Ionicons name="receipt" size={20} color={colors.primary} />
+      </View>
+      <View style={styles.expenseInfo}>
+        <Text style={[styles.expenseDesc, { color: colors.text }]} numberOfLines={1}>{item.description}</Text>
+        <Text style={[styles.expenseDate, { color: colors.textSecondary }]}>{item.date}</Text>
+      </View>
+      <Text style={[styles.expenseAmount, { color: colors.text }]}>{fmt}</Text>
+    </TouchableOpacity>
+  );
+});
+
 export default function DashboardScreen({ navigation }) {
   const { expenses, cards, CATEGORIES, toggleExpensePaid, payBill } = useExpenses();
-  const { cashBalance, addCashTransaction } = useCash();
-  const { goals } = usePlanning();
   const { colors } = useTheme();
   const { t } = useI18n();
 
   const [showAll, setShowAll] = useState(false);
 
-  const stats = useExpenseStats(expenses, cards, CATEGORIES);
+  // Estatísticas calculadas localmente
+  const stats = useMemo(() => {
+    const now = new Date();
+    const monthExpenses = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    
+    const total = monthExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+    const unpaid = expenses.filter(e => !e.paid);
+    const unpaidTotal = unpaid.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+    
+    const categoryTotals = monthExpenses.reduce((acc, e) => {
+      acc[e.category] = (acc[e.category] || 0) + parseFloat(e.amount);
+      return acc;
+    }, {});
+    
+    const topCategories = Object.entries(categoryTotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    
+    const getCategoryInfo = (catId) => {
+      return CATEGORIES.find(c => c.id === catId) || { name: catId, color: '#999', icon: 'help-circle' };
+    };
+    
+    return {
+      monthTotal: total,
+      unpaidCount: unpaid.length,
+      unpaidTotal,
+      topCategories,
+      getCategoryInfo,
+    };
+  }, [expenses, CATEGORIES]);
+
   const recentExpenses = useMemo(() => expenses.slice(0, showAll ? expenses.length : 5), [expenses, showAll]);
 
   const handlePay = useCallback((expense) => {
     if (expense.isBill) {
-      addCashTransaction(expense.amount, 'expense', {
-        description: 'Pagamento: ' + expense.description,
-        date: new Date().toISOString().split('T')[0],
-      });
       payBill(expense.id);
     } else if (!expense.cardId) {
       toggleExpensePaid(expense.id);
     }
-  }, [addCashTransaction, payBill, toggleExpensePaid]);
+  }, [payBill, toggleExpensePaid]);
 
   const handleNavigate = useCallback((screen) => navigation.navigate(screen), [navigation]);
 
-  const renderExpense = useCallback(({ item }) => (
-    <ExpenseListItem
-      item={item}
-      card={cards.find(c => c.id === item.cardId)}
-      category={stats.getCategoryInfo(item.category)}
-      colors={colors}
-      t={t}
-      onPress={(id) => navigation.navigate('EditExpense', { expenseId: id })}
-      onPay={handlePay}
-    />
-  ), [cards, colors, t, stats.getCategoryInfo, navigation, handlePay]);
-
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('dashboard')} />
-      <FlatList
-        data={recentExpenses}
-        renderItem={renderExpense}
-        keyExtractor={item => item.id}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={(
-          <View style={styles.scrollContent}>
-            <Greeting t={t} colors={colors} />
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.scrollContent}>
+        <Greeting t={t} colors={colors} />
+        
+        {/* Cards de resumo */}
+        <View style={styles.summaryCards}>
+          <CashBanner value={0} colors={colors} t={t} />
+        </View>
 
-            <View style={styles.summaryCards}>
-              <StatCard icon="today" iconColor={colors.primary} bgColor={colors.primary + '15'} label={t('today')} value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.todayTotal)} colors={colors} />
-              <StatCard icon="calendar" iconColor={colors.warning} bgColor={colors.warning + '15'} label={t('week')} value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.weekTotal)} colors={colors} />
-              <StatCard icon="calendar-number" iconColor={colors.danger} bgColor={colors.danger + '15'} label={t('month')} value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.monthTotal)} colors={colors} />
-            </View>
+        {/* Despesas pendentes */}
+        {stats.unpaidCount > 0 && (
+          <UnpaidBanner count={stats.unpaidCount} total={stats.unpaidTotal} colors={colors} t={t} />
+        )}
 
-            <CashBanner value={cashBalance} colors={colors} t={t} />
+        {/* Carrossel de cartões */}
+        {cards.length > 0 && (
+          <CardCarousel cards={cards} colors={colors} t={t} onNavigate={handleNavigate} />
+        )}
 
-            {stats.unpaidExpenses.length > 0 && (
-              <UnpaidBanner count={stats.unpaidExpenses.length} total={stats.totalUnpaid} colors={colors} t={t} />
-            )}
+        {/* Top categorias */}
+        {stats.topCategories.length > 0 && (
+          <TopCategories 
+            categories={stats.topCategories} 
+            monthTotal={stats.monthTotal} 
+            colors={colors} 
+            t={t} 
+            getCategoryInfo={stats.getCategoryInfo} 
+            onNavigate={handleNavigate} 
+          />
+        )}
 
-            {cards.length > 0 && (
-              <CardCarousel cards={stats.cardUsage} colors={colors} t={t} onNavigate={handleNavigate} />
-            )}
-
-            {stats.topCategories.length > 0 && (
-              <TopCategories categories={stats.topCategories} monthTotal={stats.monthTotal} colors={colors} t={t} getCategoryInfo={stats.getCategoryInfo} onNavigate={handleNavigate} />
-            )}
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('recentExpenses')}</Text>
-                <TouchableOpacity onPress={() => handleNavigate('History')}>
-                  <Text style={[styles.seeAll, { color: colors.primary }]}>{t('seeAll')}</Text>
+        {/* Despesas recentes */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('recentExpenses')}</Text>
+            <TouchableOpacity onPress={() => handleNavigate('History')}>
+              <Text style={[styles.seeAll, { color: colors.primary }]}>{t('seeAll')}</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {recentExpenses.length === 0 ? (
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('noExpenses')}</Text>
+          ) : (
+            <>
+              {recentExpenses.map(item => (
+                <SimpleExpenseItem 
+                  key={item.id}
+                  item={item}
+                  colors={colors}
+                  t={t}
+                  onPress={(id) => navigation.navigate('EditExpense', { expenseId: id })}
+                />
+              ))}
+              {expenses.length > 5 && (
+                <TouchableOpacity 
+                  style={[styles.showAllButton, { backgroundColor: colors.card }]}
+                  onPress={() => setShowAll(!showAll)}
+                >
+                  <Text style={[styles.showAllText, { color: colors.primary }]}>
+                    {showAll ? t('showLess') : t('seeAll')}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
-        ListFooterComponent={(
-          <View style={{ paddingHorizontal: 16 }}>
-            {expenses.length > 5 && (
-              <TouchableOpacity
-                style={[styles.showAllButton, { backgroundColor: colors.primary + '15' }]}
-                onPress={() => setShowAll(!showAll)}
-              >
-                <Text style={[styles.showAllText, { color: colors.primary }]}>
-                  {showAll ? t('showLess') : t('showAll')}
-                </Text>
-              </TouchableOpacity>
-            )}
-            {goals.length > 0 && (
-              <GoalsPreview goals={goals} colors={colors} t={t} onNavigate={handleNavigate} />
-            )}
-            <View style={{ height: 30 }} />
-          </View>
-        )}
-        contentContainerStyle={{ paddingBottom: 30 }}
-      />
-    </View>
+              )}
+            </>
+          )}
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -316,7 +373,7 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 16 },
   greeting: { fontSize: 24, fontWeight: 'bold' },
   greetingSub: { fontSize: 14, marginTop: 4 },
-  summaryCards: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  summaryCards: { marginBottom: 20 },
   cashCard: { borderRadius: 20, padding: 20, marginBottom: 20 },
   cashRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cashLabel: { color: '#fff', fontSize: 14, opacity: 0.8 },
@@ -330,7 +387,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold' },
   seeAll: { fontSize: 14, fontWeight: '600' },
-  cardItem: { width: width * 0.75, padding: 16, borderRadius: 18, marginRight: 12 },
+  cardItem: { width: width * 0.75, padding: 16, borderRadius: 18, marginRight: 12, borderWidth: 1 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   cardIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   cardInfo: { flex: 1 },
@@ -364,4 +421,20 @@ const styles = StyleSheet.create({
   goalProgressBar: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
   goalProgressFill: { height: '100%', borderRadius: 3 },
   goalProgressText: { fontSize: 12, fontWeight: '600' },
+  expenseItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 12, 
+    borderRadius: 12, 
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  expenseIcon: { marginRight: 12 },
+  expenseInfo: { flex: 1 },
+  expenseDesc: { fontSize: 14, fontWeight: '600' },
+  expenseDate: { fontSize: 12, marginTop: 2 },
+  expenseAmount: { fontSize: 14, fontWeight: 'bold' },
+  emptyText: { textAlign: 'center', padding: 20, fontSize: 14 },
 });
+
+export default DashboardScreen;
