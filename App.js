@@ -6,7 +6,7 @@ LogBox.ignoreLogs([
 import('./src/utils/InteractionManagerPatch');
 
 import React from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, SafeAreaView, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -144,14 +144,15 @@ function TabNavigator() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
-          height: 60,
-          paddingBottom: 8,
+          height: Platform.OS === 'ios' ? 84 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 12,
           paddingTop: 8,
+          paddingHorizontal: 16,
         },
         tabBarLabelStyle: { 
           fontSize: 11, 
           fontWeight: '500',
-          marginBottom: 4,
+          marginBottom: Platform.OS === 'ios' ? 0 : 4,
         },
         tabBarItemStyle: {
           paddingVertical: 4,
@@ -168,16 +169,16 @@ function TabNavigator() {
         name="Add" 
         component={AddExpenseScreen} 
         options={{ 
-          tabBarLabel: t('add'),
+          tabBarLabel: '',
           tabBarIcon: ({ focused, color, size }) => (
             <View style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
+              width: 56,
+              height: 56,
+              borderRadius: 28,
               backgroundColor: focused ? colors.primary : colors.card,
               justifyContent: 'center',
               alignItems: 'center',
-              marginBottom: 20,
+              marginTop: -28,
               shadowColor: colors.primary,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
@@ -186,7 +187,7 @@ function TabNavigator() {
               borderWidth: 3,
               borderColor: focused ? colors.primary : colors.border,
             }}>
-              <Ionicons name="add" size={28} color={focused ? '#fff' : colors.primary} />
+              <Ionicons name="add" size={32} color={focused ? '#fff' : colors.primary} />
             </View>
           ),
         }} 
