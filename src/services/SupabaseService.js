@@ -1,16 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ============================================
-// SUPABASE SERVICE - SINCRONIZAÇÃO REAL P2P
+// SUPABASE SERVICE - SINCRONIZAÇÃO
 // ============================================
 // 
-// 1. Crie conta gratuita em: https://supabase.com
-// 2. Crie um projeto
-// 3. Vá em Settings > API > URL e anon key
-// 4. Cole abaixo:
+// CONFIGURAÇÃO: Substitua os valores abaixo pelos seus do Supabase
+// 1. Crie conta em: https://supabase.com
+// 2. Novo projeto → Settings → API
+// 3. Copie Project URL e anon/public key
 //
-const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
-const SUPABASE_ANON_KEY = 'sua-anon-key-aqui';
+const SUPABASE_URL = 'https://nrxkqhzrytzomvwqafiz.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_GnrhEybSIiLCS9iDd88z0g_pS_A0wsl';
 
 // ============================================
 // SCHEMA DO BANCO (rode no SQL Editor do Supabase):
@@ -113,223 +113,328 @@ class SupabaseService {
     this.listeners = [];
     this.retryCount = 0;
     this.maxRetries = 5;
+    this.isConfigured = this._checkConfiguration();
+  }
+
+  // ========== CONFIG CHECK ==========
+  _checkConfiguration() {
+    const isDefaultUrl = this.baseUrl.includes('SEU-PROJETO') || this.baseUrl.includes('sua-anon-key');
+    const isDefaultKey = this.apiKey.includes('sua-anon-key');
+    
+    if (isDefaultUrl || isDefaultKey) {
+      console.warn('[Supabase] ⚠️  Configuração não definida! Substitua SUPABASE_URL e SUPABASE_ANON_KEY no arquivo SupabaseService.js');
+      return false;
+    }
+    return true;
+  }
+
+  _ensureConfigured() {
+    if (!this.isConfigured) {
+      throw new Error('Supabase não configurado. Configure SUPABASE_URL e SUPABASE_ANON_KEY em src/services/SupabaseService.js');
+    }
   }
 
   // ========== HTTP HELPERS ==========
   async _get(endpoint) {
-    const res = await fetch(`${this.baseUrl}/rest/v1/${endpoint}`, {
-      method: 'GET',
-      headers: this.headers,
-    });
-    if (!res.ok) throw new Error(`GET ${endpoint}: ${res.status}`);
-    return res.json();
+    this._ensureConfigured();
+    try {
+      const res = await fetch(`${this.baseUrl}/rest/v1/${endpoint}`, {
+        method: 'GET',
+        headers: this.headers,
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`GET ${endpoint}: ${res.status} - ${errorText}`);
+      }
+      return res.json();
+    } catch (error) {
+      console.error('[Supabase] GET error:', error);
+      throw error;
+    }
   }
 
   async _post(endpoint, body) {
-    const res = await fetch(`${this.baseUrl}/rest/v1/${endpoint}`, {
-      method: 'POST',
-      headers: this.headers,
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`POST ${endpoint}: ${res.status} - ${text}`);
+    this._ensureConfigured();
+    try {
+      const res = await fetch(`${this.baseUrl}/rest/v1/${endpoint}`, {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`POST ${endpoint}: ${res.status} - ${text}`);
+      }
+      return res.json();
+    } catch (error) {
+      console.error('[Supabase] POST error:', error);
+      throw error;
     }
-    return res.json();
   }
 
   async _patch(endpoint, body) {
-    const res = await fetch(`${this.baseUrl}/rest/v1/${endpoint}`, {
-      method: 'PATCH',
-      headers: this.headers,
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`PATCH ${endpoint}: ${res.status}`);
-    return res.json();
+    this._ensureConfigured();
+    try {
+      const res = await fetch(`${this.baseUrl}/rest/v1/${endpoint}`, {
+        method: 'PATCH',
+        headers: this.headers,
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`PATCH ${endpoint}: ${res.status} - ${errorText}`);
+      }
+      return res.json();
+    } catch (error) {
+      console.error('[Supabase] PATCH error:', error);
+      throw error;
+    }
   }
 
   async _delete(endpoint) {
-    const res = await fetch(`${this.baseUrl}/rest/v1/${endpoint}`, {
-      method: 'DELETE',
-      headers: this.headers,
-    });
-    if (!res.ok) throw new Error(`DELETE ${endpoint}: ${res.status}`);
-    return true;
+    this._ensureConfigured();
+    try {
+      const res = await fetch(`${this.baseUrl}/rest/v1/${endpoint}`, {
+        method: 'DELETE',
+        headers: this.headers,
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`DELETE ${endpoint}: ${res.status} - ${errorText}`);
+      }
+      return true;
+    } catch (error) {
+      console.error('[Supabase] DELETE error:', error);
+      throw error;
+    }
   }
 
   // ========== GRUPOS ==========
   async createGroup(name, description, userId, username, displayName) {
-    const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    try {
+      const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
 
-    const [group] = await this._post('groups', {
-      name,
-      description,
-      invite_code: inviteCode,
-      created_by: userId,
-    });
+      const [group] = await this._post('groups', {
+        name,
+        description,
+        invite_code: inviteCode,
+        created_by: userId,
+      });
 
-    await this._post('group_members', {
-      group_id: group.id,
-      user_id: userId,
-      username,
-      display_name: displayName,
-      role: 'admin',
-    });
+      await this._post('group_members', {
+        group_id: group.id,
+        user_id: userId,
+        username,
+        display_name: displayName,
+        role: 'admin',
+      });
 
-    return { success: true, group };
+      return { success: true, group };
+    } catch (error) {
+      console.error('[Supabase] createGroup error:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   async joinGroup(inviteCode, userId, username, displayName) {
-    const groups = await this._get(`groups?invite_code=eq.${inviteCode}`);
-    if (!groups || groups.length === 0) {
-      return { success: false, error: 'Código de convite inválido' };
+    try {
+      const groups = await this._get(`groups?invite_code=eq.${inviteCode}`);
+      if (!groups || groups.length === 0) {
+        return { success: false, error: 'Código de convite inválido' };
+      }
+
+      const group = groups[0];
+
+      // Verifica se já é membro
+      const members = await this._get(`group_members?group_id=eq.${group.id}&user_id=eq.${userId}`);
+      if (members && members.length > 0) {
+        return { success: false, error: 'Você já é membro deste grupo' };
+      }
+
+      await this._post('group_members', {
+        group_id: group.id,
+        user_id: userId,
+        username,
+        display_name: displayName,
+        role: 'member',
+      });
+
+      return { success: true, group };
+    } catch (error) {
+      console.error('[Supabase] joinGroup error:', error);
+      return { success: false, error: error.message };
     }
-
-    const group = groups[0];
-
-    // Verifica se já é membro
-    const members = await this._get(`group_members?group_id=eq.${group.id}&user_id=eq.${userId}`);
-    if (members && members.length > 0) {
-      return { success: false, error: 'Você já é membro deste grupo' };
-    }
-
-    await this._post('group_members', {
-      group_id: group.id,
-      user_id: userId,
-      username,
-      display_name: displayName,
-      role: 'member',
-    });
-
-    return { success: true, group };
   }
 
   async getGroupMembers(groupId) {
-    return this._get(`group_members?group_id=eq.${groupId}&select=*`);
+    try {
+      return this._get(`group_members?group_id=eq.${groupId}&select=*`);
+    } catch (error) {
+      console.error('[Supabase] getGroupMembers error:', error);
+      return [];
+    }
   }
 
   async getUserGroups(userId) {
-    const members = await this._get(`group_members?user_id=eq.${userId}&select=group_id,role,joined_at,groups(*)`);
-    return members.map(m => ({
-      ...m.groups,
-      memberRole: m.role,
-      joinedAt: m.joined_at,
-    }));
+    try {
+      const members = await this._get(`group_members?user_id=eq.${userId}&select=group_id,role,joined_at,groups(*)`);
+      return members.map(m => ({
+        ...m.groups,
+        memberRole: m.role,
+        joinedAt: m.joined_at,
+      }));
+    } catch (error) {
+      console.error('[Supabase] getUserGroups error:', error);
+      return [];
+    }
   }
 
   async leaveGroup(groupId, userId) {
-    await this._delete(`group_members?group_id=eq.${groupId}&user_id=eq.${userId}`);
-    return { success: true };
+    try {
+      await this._delete(`group_members?group_id=eq.${groupId}&user_id=eq.${userId}`);
+      return { success: true };
+    } catch (error) {
+      console.error('[Supabase] leaveGroup error:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   // ========== SINCRONIZAÇÃO DE DADOS ==========
   async syncExpenses(groupId, expenses, userId) {
-    // Deleta despesas antigas do usuário no grupo
-    await this._delete(`group_expenses?group_id=eq.${groupId}&user_id=eq.${userId}`);
+    try {
+      await this._delete(`group_expenses?group_id=eq.${groupId}&user_id=eq.${userId}`);
 
-    // Insere despesas atualizadas
-    if (expenses.length > 0) {
-      const payload = expenses.map(e => ({
-        group_id: groupId,
-        user_id: userId,
-        expense_data: e,
-      }));
-      await this._post('group_expenses', payload);
+      if (expenses.length > 0) {
+        const payload = expenses.map(e => ({
+          group_id: groupId,
+          user_id: userId,
+          expense_data: e,
+        }));
+        await this._post('group_expenses', payload);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('[Supabase] syncExpenses error:', error);
+      return { success: false, error: error.message };
     }
-
-    return { success: true };
   }
 
   async syncCards(groupId, cards, userId) {
-    await this._delete(`group_cards?group_id=eq.${groupId}&user_id=eq.${userId}`);
+    try {
+      await this._delete(`group_cards?group_id=eq.${groupId}&user_id=eq.${userId}`);
 
-    if (cards.length > 0) {
-      const payload = cards.map(c => ({
-        group_id: groupId,
-        user_id: userId,
-        card_data: c,
-      }));
-      await this._post('group_cards', payload);
+      if (cards.length > 0) {
+        const payload = cards.map(c => ({
+          group_id: groupId,
+          user_id: userId,
+          card_data: c,
+        }));
+        await this._post('group_cards', payload);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('[Supabase] syncCards error:', error);
+      return { success: false, error: error.message };
     }
-
-    return { success: true };
   }
 
   async syncCategories(groupId, categories, userId) {
-    await this._delete(`group_categories?group_id=eq.${groupId}&user_id=eq.${userId}`);
+    try {
+      await this._delete(`group_categories?group_id=eq.${groupId}&user_id=eq.${userId}`);
 
-    if (categories.length > 0) {
-      const payload = categories.map(c => ({
-        group_id: groupId,
-        user_id: userId,
-        category_data: c,
-      }));
-      await this._post('group_categories', payload);
+      if (categories.length > 0) {
+        const payload = categories.map(c => ({
+          group_id: groupId,
+          user_id: userId,
+          category_data: c,
+        }));
+        await this._post('group_categories', payload);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('[Supabase] syncCategories error:', error);
+      return { success: false, error: error.message };
     }
-
-    return { success: true };
   }
 
   async syncCashTransactions(groupId, transactions, userId) {
-    await this._delete(`group_cash?group_id=eq.${groupId}&user_id=eq.${userId}`);
+    try {
+      await this._delete(`group_cash?group_id=eq.${groupId}&user_id=eq.${userId}`);
 
-    if (transactions.length > 0) {
-      const payload = transactions.map(t => ({
-        group_id: groupId,
-        user_id: userId,
-        transaction_data: t,
-      }));
-      await this._post('group_cash', payload);
+      if (transactions.length > 0) {
+        const payload = transactions.map(t => ({
+          group_id: groupId,
+          user_id: userId,
+          transaction_data: t,
+        }));
+        await this._post('group_cash', payload);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('[Supabase] syncCashTransactions error:', error);
+      return { success: false, error: error.message };
     }
-
-    return { success: true };
   }
 
   // Busca todos os dados do grupo (de TODOS os membros)
   async fetchGroupData(groupId) {
-    const [expenses, cards, categories, cash] = await Promise.all([
-      this._get(`group_expenses?group_id=eq.${groupId}&select=expense_data,user_id,username`),
-      this._get(`group_cards?group_id=eq.${groupId}&select=card_data,user_id`),
-      this._get(`group_categories?group_id=eq.${groupId}&select=category_data,user_id`),
-      this._get(`group_cash?group_id=eq.${groupId}&select=transaction_data,user_id`),
-    ]);
+    try {
+      const [expenses, cards, categories, cash] = await Promise.all([
+        this._get(`group_expenses?group_id=eq.${groupId}&select=expense_data,user_id,username`),
+        this._get(`group_cards?group_id=eq.${groupId}&select=card_data,user_id`),
+        this._get(`group_categories?group_id=eq.${groupId}&select=category_data,user_id`),
+        this._get(`group_cash?group_id=eq.${groupId}&select=transaction_data,user_id`),
+      ]);
 
-    // Merge: mantém o mais recente quando há conflito de ID
-    const mergeById = (items, dataKey) => {
-      const map = new Map();
-      items.forEach(item => {
-        const data = item[dataKey];
-        if (!data || !data.id) return;
-        const existing = map.get(data.id);
-        if (!existing || (data.updatedAt && existing.updatedAt < data.updatedAt)) {
-          map.set(data.id, data);
-        }
-      });
-      return Array.from(map.values());
-    };
+      // Merge: mantém o mais recente quando há conflito de ID
+      const mergeById = (items, dataKey) => {
+        const map = new Map();
+        items.forEach(item => {
+          const data = item[dataKey];
+          if (!data || !data.id) return;
+          const existing = map.get(data.id);
+          if (!existing || (data.updatedAt && existing.updatedAt < data.updatedAt)) {
+            map.set(data.id, data);
+          }
+        });
+        return Array.from(map.values());
+      };
 
-    return {
-      success: true,
-      data: {
-        expenses: mergeById(expenses, 'expense_data'),
-        cards: mergeById(cards, 'card_data'),
-        categories: mergeById(categories, 'category_data'),
-        cashTransactions: mergeById(cash, 'transaction_data'),
-      },
-    };
+      return {
+        success: true,
+        data: {
+          expenses: mergeById(expenses, 'expense_data'),
+          cards: mergeById(cards, 'card_data'),
+          categories: mergeById(categories, 'category_data'),
+          cashTransactions: mergeById(cash, 'transaction_data'),
+        },
+      };
+    } catch (error) {
+      console.error('[Supabase] fetchGroupData error:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   // ========== REALTIME (WebSocket) ==========
   connectRealtime(groupId, onDataChange) {
+    if (!this.isConfigured) {
+      console.warn('[Supabase] Realtime ignorado: Supabase não configurado');
+      return;
+    }
+
     if (this.ws) {
       this.ws.close();
     }
 
-    const wsUrl = this.baseUrl.replace('https://', 'wss://') + '/realtime/v1/websocket';
+    // React Native WebSocket não aceita headers no construtor
+    // Usamos query params para autenticação (padrão Supabase)
+    const wsUrl = this.baseUrl.replace('https://', 'wss://') + `/realtime/v1/websocket?apikey=${this.apiKey}`;
 
-    this.ws = new WebSocket(wsUrl, ['realtime'], {
-      headers: { apikey: this.apiKey },
-    });
+    this.ws = new WebSocket(wsUrl, ['realtime']);
 
     this.ws.onopen = () => {
       console.log('[Supabase] Realtime conectado');
@@ -346,9 +451,13 @@ class SupabaseService {
     };
 
     this.ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'INSERT' || msg.type === 'UPDATE' || msg.type === 'DELETE') {
-        onDataChange(msg);
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'INSERT' || msg.type === 'UPDATE' || msg.type === 'DELETE') {
+          onDataChange(msg);
+        }
+      } catch (error) {
+        console.error('[Supabase] Erro ao processar mensagem:', error);
       }
     };
 
@@ -360,7 +469,9 @@ class SupabaseService {
       console.log('[Supabase] Realtime desconectado');
       if (this.retryCount < this.maxRetries) {
         this.retryCount++;
-        setTimeout(() => this.connectRealtime(groupId, onDataChange), 3000 * this.retryCount);
+        const delay = Math.min(3000 * this.retryCount, 30000); // Max 30s
+        console.log(`[Supabase] Reconectando em ${delay}ms...`);
+        setTimeout(() => this.connectRealtime(groupId, onDataChange), delay);
       }
     };
   }
@@ -389,6 +500,40 @@ class SupabaseService {
     } catch (error) {
       console.error('[Supabase] Erro no fullSync:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  // ========== OFFLINE QUEUE ==========
+  // Quando offline, salva operações para sync posterior
+  async queueOperation(operation) {
+    try {
+      const queue = JSON.parse(await AsyncStorage.getItem('@supabase_sync_queue') || '[]');
+      queue.push({
+        ...operation,
+        timestamp: Date.now(),
+      });
+      await AsyncStorage.setItem('@supabase_sync_queue', JSON.stringify(queue));
+    } catch (error) {
+      console.error('[Supabase] queueOperation error:', error);
+    }
+  }
+
+  async processQueue() {
+    try {
+      const queue = JSON.parse(await AsyncStorage.getItem('@supabase_sync_queue') || '[]');
+      if (queue.length === 0) return;
+
+      console.log(`[Supabase] Processando ${queue.length} operações pendentes...`);
+      
+      // Processa e limpa a fila
+      for (const op of queue) {
+        // Implementar lógica de retry para cada operação
+        console.log('[Supabase] Processando:', op);
+      }
+
+      await AsyncStorage.setItem('@supabase_sync_queue', '[]');
+    } catch (error) {
+      console.error('[Supabase] processQueue error:', error);
     }
   }
 }
