@@ -41,6 +41,7 @@ import SyncScreen from './src/screens/SyncScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+// ========== STACKS ==========
 function HomeStack() {
   const { colors } = useTheme();
   return (
@@ -89,7 +90,7 @@ function ChartStack() {
   );
 }
 
-function MenuStack() {
+function MoreStack() {
   const { colors } = useTheme();
   return (
     <Stack.Navigator
@@ -100,29 +101,22 @@ function MenuStack() {
       }}
     >
       <Stack.Screen 
-        name="More" 
+        name="MoreMenu" 
         component={MoreScreen} 
-        options={{ title: 'Mais' }}
+        options={{ title: 'Mais', headerShown: false }}
       />
-      <Stack.Screen 
-        name="Settings" 
-        component={SettingsScreen} 
-        options={{ title: 'Configurações' }}
-      />
-      <Stack.Screen 
-        name="Language" 
-        component={LanguageScreen} 
-        options={{ title: 'Idioma' }}
-      />
-      <Stack.Screen 
-        name="Categories" 
-        component={CategoriesScreen} 
-        options={{ title: 'Categorias' }}
-      />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configurações' }} />
+      <Stack.Screen name="Language" component={LanguageScreen} options={{ title: 'Idioma' }} />
+      <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: 'Categorias' }} />
+      <Stack.Screen name="Group" component={GroupScreen} options={{ title: 'Grupos' }} />
+      <Stack.Screen name="Sync" component={SyncScreen} options={{ title: 'Sincronização' }} />
+      <Stack.Screen name="Cards" component={CardsScreen} options={{ title: 'Cartões' }} />
+      <Stack.Screen name="Planning" component={PlanningScreen} options={{ title: 'Planejamento' }} />
     </Stack.Navigator>
   );
 }
 
+// ========== TAB NAVIGATOR OTIMIZADO (5 TABS) ==========
 function TabNavigator() {
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
@@ -132,15 +126,11 @@ function TabNavigator() {
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-          if (route.name === 'HomeTab') iconName = focused ? 'home' : 'home-outline';
-          else if (route.name === 'AddTab') iconName = focused ? 'add-circle' : 'add-circle-outline';
-          else if (route.name === 'HistoryTab') iconName = focused ? 'list' : 'list-outline';
-          else if (route.name === 'ChartsTab') iconName = focused ? 'stats-chart' : 'stats-chart-outline';
-          else if (route.name === 'PlanningTab') iconName = focused ? 'calendar' : 'calendar-outline';
-          else if (route.name === 'CardsTab') iconName = focused ? 'card' : 'card-outline';
-          else if (route.name === 'GroupTab') iconName = focused ? 'people' : 'people-outline';
-          else if (route.name === 'SyncTab') iconName = focused ? 'sync' : 'sync-outline';
-          else if (route.name === 'MenuTab') iconName = focused ? 'menu' : 'menu-outline';
+          if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+          else if (route.name === 'Add') iconName = focused ? 'add-circle' : 'add-circle-outline';
+          else if (route.name === 'History') iconName = focused ? 'list' : 'list-outline';
+          else if (route.name === 'Charts') iconName = focused ? 'pie-chart' : 'pie-chart-outline';
+          else if (route.name === 'More') iconName = focused ? 'grid' : 'grid-outline';
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: colors.primary,
@@ -154,20 +144,68 @@ function TabNavigator() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarLabelStyle: { 
+          fontSize: 11, 
+          fontWeight: '500',
+          marginBottom: 4,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
+        },
         headerShown: false,
       })}
     >
-      <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: t('home') }} />
-      <Tab.Screen name="AddTab" component={AddExpenseScreen} options={{ tabBarLabel: t('add') }} />
-      <Tab.Screen name="HistoryTab" component={HistoryScreen} options={{ tabBarLabel: t('history') }} />
-      <Tab.Screen name="ChartsTab" component={ChartStack} options={{ tabBarLabel: t('charts') }} />
-      <Tab.Screen name="PlanningTab" component={PlanningScreen} options={{ tabBarLabel: t('planning') }} />
-      <Tab.Screen name="CardsTab" component={CardsScreen} options={{ tabBarLabel: t('cards') }} />
-      <Tab.Screen name="GroupTab" component={GroupScreen} options={{ tabBarLabel: t('group') || 'Grupo' }} />
-      <Tab.Screen name="SyncTab" component={SyncScreen} options={{ tabBarLabel: t('sync') || 'Sync' }} />
-      <Tab.Screen name="MenuTab" component={MenuStack} options={{ tabBarLabel: t('menu') }} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeStack} 
+        options={{ tabBarLabel: t('home') }} 
+      />
+      <Tab.Screen 
+        name="Add" 
+        component={AddExpenseScreen} 
+        options={{ 
+          tabBarLabel: t('add'),
+          tabBarIcon: ({ focused, color, size }) => (
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: focused ? colors.primary : colors.card,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 20,
+              shadowColor: colors.primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+              borderWidth: 3,
+              borderColor: focused ? colors.primary : colors.border,
+            }}>
+              <Ionicons name="add" size={28} color={focused ? '#fff' : colors.primary} />
+            </View>
+          ),
+        }} 
+      />
+      <Tab.Screen 
+        name="History" 
+        component={HistoryScreen} 
+        options={{ tabBarLabel: t('history') }} 
+      />
+      <Tab.Screen 
+        name="Charts" 
+        component={ChartStack} 
+        options={{ tabBarLabel: t('charts') }} 
+      />
+      <Tab.Screen 
+        name="More" 
+        component={MoreStack} 
+        options={{ tabBarLabel: t('menu') }} 
+      />
     </Tab.Navigator>
   );
 }
