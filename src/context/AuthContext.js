@@ -1,151 +1,137 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
 
 const AuthContext = createContext();
 
-const AUTH_STORAGE_KEY = '@checkfinances_auth';
-const USER_STORAGE_KEY = '@checkfinances_user';
+const STORAGE_KEY = '@auth_user';
 
-export const AuthProvider = ({ children }) => {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Carregar usuário salvo ao iniciar
   useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const savedUser = await AsyncStorage.getItem(STORAGE_KEY);
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          setUser(parsed);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('[Auth] Erro ao carregar usuário:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     loadUser();
   }, []);
 
-  const loadUser = async () => {
-    try {
-      const userData = await AsyncStorage.getItem(USER_STORAGE_KEY);
-      if (userData) {
-        const parsed = JSON.parse(userData);
-        setUser(parsed);
-        setIsAuthenticated(true);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar usuário:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const hashPassword = async (password, salt) => {
-    const digest = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      password + salt
-    );
-    return digest;
-  };
-
-  const register = useCallback(async (username, password, displayName) => {
-    try {
-      const existingUsers = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-      const users = existingUsers ? JSON.parse(existingUsers) : {};
-
-      if (users[username]) {
-        return { success: false, error: 'Usuário já existe' };
-      }
-
-      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const salt = Math.random().toString(36).substr(2, 16);
-      const passwordHash = await hashPassword(password, salt);
-
-      const newUser = {
-        id: userId,
-        username,
-        displayName: displayName || username,
-        passwordHash,
-        salt,
-        createdAt: Date.now(),
-      };
-
-      users[username] = newUser;
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(users));
-
-      const sessionUser = { ...newUser };
-      delete sessionUser.passwordHash;
-      delete sessionUser.salt;
-
-      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(sessionUser));
-      setUser(sessionUser);
-      setIsAuthenticated(true);
-
-      return { success: true, user: sessionUser };
-    } catch (error) {
-      console.error('Erro no registro:', error);
-      return { success: false, error: 'Erro ao criar conta' };
-    }
-  }, []);
-
+  // Login simples (local)
   const login = useCallback(async (username, password) => {
     try {
-      const existingUsers = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-      const users = existingUsers ? JSON.parse(existingUsers) : {};
-
-      const storedUser = users[username];
-      if (!storedUser) {
-        return { success: false, error: 'Usuário não encontrado' };
+      // Verifica se existe usuário cadastrado
+      const savedUser = await AsyncStorage.getItem(STORAGE_KEY);
+      if (!savedUser) {
+        return { success: false, error: 'Usuário não encontrado. Crie uma conta primeiro.' };
       }
 
-      const passwordHash = await hashPassword(password, storedUser.salt);
-      if (passwordHash !== storedUser.passwordHash) {
-        return { success: false, error: 'Senha incorreta' };
+      const parsed = JSON.parse(savedUser);
+      if (parsed.username !== username) {
+        return { success: false, error: 'Usuário ou senha incorretos.' };
+      }
+      if (parsed.password !== password) {
+        return { success: false, error: 'Usuário ou senha incorretos.' };
       }
 
-      const sessionUser = { ...storedUser };
-      delete sessionUser.passwordHash;
-      delete sessionUser.salt;
-
-      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(sessionUser));
-      setUser(sessionUser);
+      setUser(parsed);
       setIsAuthenticated(true);
-
-      return { success: true, user: sessionUser };
+      return { success: true, user: parsed };
     } catch (error) {
-      console.error('Erro no login:', error);
-      return { success: false, error: 'Erro ao fazer login' };
+      console.error('[Auth] Erro no login:', error);
+      return { success: false, error: 'Erro ao fazer login. Tente novamente.' };
     }
   }, []);
 
+  // Registro simples (local)
+  const register = useCallback(async (username, password, displayName) => {
+    try {
+      // Verifica se usuário já existe
+      const savedUser = await AsyncStorage.getItem(STORAGE_KEY);
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.username === username) {
+          return { success: false, error: 'Este usuário já existe. Faça login.' };
+        }
+      }
+
+      const newUser = {
+        id: `user_${Date.now()}`,
+        username,
+        password, // ⚠️ Em produção, use hash!
+        displayName: displayName || username,
+        createdAt: new Date().toISOString(),
+      };
+
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
+      setUser(newUser);
+      setIsAuthenticated(true);
+      return { success: true, user: newUser };
+    } catch (error) {
+      console.error('[Auth] Erro no registro:', error);
+      return { success: false, error: 'Erro ao criar conta. Tente novamente.' };
+    }
+  }, []);
+
+  // Logout
   const logout = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem(USER_STORAGE_KEY);
-      await AsyncStorage.removeItem('@checkfinances_active_group');
+      await AsyncStorage.removeItem(STORAGE_KEY);
       setUser(null);
       setIsAuthenticated(false);
+      return { success: true };
     } catch (error) {
-      console.error('Erro no logout:', error);
+      console.error('[Auth] Erro no logout:', error);
+      return { success: false, error: 'Erro ao sair.' };
     }
   }, []);
 
+  // Atualizar perfil
   const updateProfile = useCallback(async (updates) => {
     try {
-      const updatedUser = { ...user, ...updates, updatedAt: Date.now() };
-      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+      const updatedUser = { ...user, ...updates, updatedAt: new Date().toISOString() };
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
       setUser(updatedUser);
-      return { success: true };
+      return { success: true, user: updatedUser };
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('[Auth] Erro ao atualizar perfil:', error);
+      return { success: false, error: 'Erro ao atualizar perfil.' };
     }
   }, [user]);
 
   const value = {
     user,
-    isLoading,
     isAuthenticated,
-    register,
+    isLoading,
     login,
+    register,
     logout,
     updateProfile,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
 
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth deve ser usado dentro de AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
   return context;
-};
+}
