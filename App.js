@@ -3,7 +3,7 @@ import { LogBox } from 'react-native';
 LogBox.ignoreLogs([
   'InteractionManager has been deprecated',
 ]);
-require('./src/utils/InteractionManagerPatch');
+import('./src/utils/InteractionManagerPatch');
 
 import React from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
