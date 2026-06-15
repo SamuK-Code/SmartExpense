@@ -8,10 +8,10 @@ import {
   FlatList,
   Modal,
   Alert,
-  Clipboard,
   Share,
   ActivityIndicator,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useAuth } from '../contexts/AuthContext';
 import { useGroup } from '../contexts/GroupContext';
 
@@ -42,11 +42,22 @@ const GroupScreen = () => {
       return;
     }
 
+    if (!user) {
+      Alert.alert('Erro', 'Você precisa estar logado para criar um grupo');
+      return;
+    }
+
     setIsLoading(true);
-    const result = await createGroup({
-      name: groupName.trim(),
-      description: groupDescription.trim(),
-    });
+    
+    // ✅ CORREÇÃO: Passa os parâmetros na ordem correta
+    const result = await createGroup(
+      groupName.trim(),
+      groupDescription.trim(),
+      user.id,
+      user.username,
+      user.displayName || user.username
+    );
+    
     setIsLoading(false);
 
     if (result.success) {
@@ -69,7 +80,7 @@ const GroupScreen = () => {
     } else {
       Alert.alert('Erro', result.error);
     }
-  }, [groupName, groupDescription, createGroup]);
+  }, [groupName, groupDescription, createGroup, user]);
 
   const handleJoinGroup = useCallback(async () => {
     if (!inviteCode.trim()) {
@@ -77,8 +88,21 @@ const GroupScreen = () => {
       return;
     }
 
+    if (!user) {
+      Alert.alert('Erro', 'Você precisa estar logado para entrar em um grupo');
+      return;
+    }
+
     setIsLoading(true);
-    const result = await joinGroup(inviteCode.trim().toUpperCase());
+    
+    // ✅ CORREÇÃO: Passa os parâmetros na ordem correta
+    const result = await joinGroup(
+      inviteCode.trim().toUpperCase(),
+      user.id,
+      user.username,
+      user.displayName || user.username
+    );
+    
     setIsLoading(false);
 
     if (result.success) {
@@ -88,7 +112,7 @@ const GroupScreen = () => {
     } else {
       Alert.alert('Erro', result.error);
     }
-  }, [inviteCode, joinGroup]);
+  }, [inviteCode, joinGroup, user]);
 
   const handleShareCode = useCallback(async (code, groupName) => {
     try {
@@ -123,13 +147,17 @@ const GroupScreen = () => {
 
   const renderGroupItem = useCallback(({ item }) => {
     const isActive = activeGroup?.id === item.id;
-    const isAdmin = item.created_by === user.id;
+    const isAdmin = item.created_by === user?.id;
     const memberCount = item.members_count || 1;
 
     return (
       <TouchableOpacity
-        style={[styles.groupCard, isActive && styles.groupCardActive]}
+        style={[
+          styles.groupCard,
+          isActive && styles.groupCardActive,
+        ]}
         onPress={() => selectActiveGroup(item.id)}
+        activeOpacity={0.8}
       >
         <View style={styles.groupHeader}>
           <View style={styles.groupIcon}>
@@ -148,22 +176,20 @@ const GroupScreen = () => {
           )}
         </View>
 
-        <View style={styles.actionsRow}>
-          {isAdmin && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleShareCode(item.invite_code, item.name)}
-            >
-              <Text style={styles.actionButtonText}>📋 Convite</Text>
-            </TouchableOpacity>
-          )}
+        {isAdmin && (
           <TouchableOpacity
-            style={[styles.actionButton, styles.leaveButton]}
-            onPress={() => handleLeaveGroup(item)}
+            style={styles.actionButton}
+            onPress={() => handleShareCode(item.invite_code, item.name)}
           >
-            <Text style={[styles.actionButtonText, styles.leaveText]}>🚪 Sair</Text>
+            <Text style={styles.actionButtonText}>📋 Convite</Text>
           </TouchableOpacity>
-        </View>
+        )}
+        <TouchableOpacity
+          style={[styles.actionButton, styles.leaveButton]}
+          onPress={() => handleLeaveGroup(item)}
+        >
+          <Text style={[styles.actionButtonText, styles.leaveText]}>🚪 Sair</Text>
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   }, [activeGroup, user, selectActiveGroup, handleShareCode, handleLeaveGroup]);
@@ -197,7 +223,7 @@ const GroupScreen = () => {
 
       {groupLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#58a6ff" size="large" />
+          <ActivityIndicator size="large" color="#58a6ff" />
         </View>
       ) : groups.length > 0 ? (
         <FlatList
@@ -211,7 +237,7 @@ const GroupScreen = () => {
           <Text style={styles.emptyIcon}>👥</Text>
           <Text style={styles.emptyTitle}>Nenhum grupo</Text>
           <Text style={styles.emptyText}>
-            Crie um grupo para sincronizar finanças com alguém.\nPerfeito para casais! 💑
+            Crie um grupo para sincronizar finanças com alguém.{'\n'}Perfeito para casais! 💑
           </Text>
         </View>
       )}
@@ -232,26 +258,30 @@ const GroupScreen = () => {
       </View>
 
       {/* Modal Criar */}
-      <Modal visible={showCreateModal} transparent animationType="slide">
+      <Modal
+        visible={showCreateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Criar Grupo</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="Nome do grupo"
-              placeholderTextColor="#666"
+              placeholderTextColor="#8b949e"
               value={groupName}
               onChangeText={setGroupName}
-              maxLength={50}
             />
             <TextInput
               style={[styles.modalInput, styles.modalInputMultiline]}
               placeholder="Descrição (opcional)"
-              placeholderTextColor="#666"
+              placeholderTextColor="#8b949e"
               value={groupDescription}
               onChangeText={setGroupDescription}
               multiline
-              maxLength={100}
+              numberOfLines={3}
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -265,7 +295,11 @@ const GroupScreen = () => {
                 onPress={handleCreateGroup}
                 disabled={isLoading}
               >
-                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalButtonText}>Criar</Text>}
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonText}>Criar</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -273,15 +307,20 @@ const GroupScreen = () => {
       </Modal>
 
       {/* Modal Entrar */}
-      <Modal visible={showJoinModal} transparent animationType="slide">
+      <Modal
+        visible={showJoinModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowJoinModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Entrar no Grupo</Text>
             <Text style={styles.modalSubtitle}>Peça o código de convite</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Código (ex: ABC123XY)"
-              placeholderTextColor="#666"
+              placeholder="CÓDIGO"
+              placeholderTextColor="#8b949e"
               value={inviteCode}
               onChangeText={(text) => setInviteCode(text.toUpperCase())}
               autoCapitalize="characters"
@@ -299,7 +338,11 @@ const GroupScreen = () => {
                 onPress={handleJoinGroup}
                 disabled={isLoading}
               >
-                {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalButtonText}>Entrar</Text>}
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonText}>Entrar</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -329,7 +372,7 @@ const styles = StyleSheet.create({
   activeBadge: { backgroundColor: '#58a6ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   activeBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   actionsRow: { flexDirection: 'row', gap: 8 },
-  actionButton: { flex: 1, backgroundColor: '#21262d', paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  actionButton: { flex: 1, backgroundColor: '#21262d', paddingVertical: 10, borderRadius: 10, alignItems: 'center', marginTop: 8 },
   actionButtonText: { color: '#fff', fontSize: 13, fontWeight: '600' },
   leaveButton: { backgroundColor: 'rgba(248, 81, 73, 0.15)' },
   leaveText: { color: '#f85149' },
