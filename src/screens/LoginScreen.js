@@ -12,6 +12,8 @@ import {
   Alert,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../context/I18nContext';
 
 const LoginScreen = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -23,25 +25,27 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const { login, register } = useAuth();
+  const { colors, isDark } = useTheme();
+  const { t } = useI18n();
 
   const validateInputs = useCallback(() => {
-    if (!username.trim()) return 'Digite um nome de usuário';
-    if (username.length < 3) return 'Usuário deve ter pelo menos 3 caracteres';
-    if (!password) return 'Digite uma senha';
+    if (!username.trim()) return t('requiredField');
+    if (username.length < 3) return t('invalidDescription'); // ou criar key específica
+    if (!password) return t('requiredField');
     if (password.length < 4) return 'Senha deve ter pelo menos 4 caracteres';
 
     if (!isLogin) {
       if (password !== confirmPassword) return 'As senhas não coincidem';
-      if (!displayName.trim()) return 'Digite seu nome';
+      if (!displayName.trim()) return t('requiredField');
     }
 
     return null;
-  }, [username, password, confirmPassword, displayName, isLogin]);
+  }, [username, password, confirmPassword, displayName, isLogin, t]);
 
   const handleSubmit = useCallback(async () => {
     const error = validateInputs();
     if (error) {
-      Alert.alert('Atenção', error);
+      Alert.alert(t('error'), error);
       return;
     }
 
@@ -56,14 +60,14 @@ const LoginScreen = () => {
       }
 
       if (!result.success) {
-        Alert.alert('Erro', result.error);
+        Alert.alert(t('error'), result.error);
       }
     } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro inesperado');
+      Alert.alert(t('error'), t('appError'));
     } finally {
       setIsLoading(false);
     }
-  }, [username, password, displayName, confirmPassword, isLogin, login, register, validateInputs]);
+  }, [username, password, displayName, confirmPassword, isLogin, login, register, validateInputs, t]);
 
   const toggleMode = useCallback(() => {
     setIsLogin(prev => !prev);
@@ -75,7 +79,7 @@ const LoginScreen = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -83,8 +87,8 @@ const LoginScreen = () => {
       >
         <View style={styles.header}>
           <Text style={styles.logoIcon}>💰</Text>
-          <Text style={styles.title}>Check Finances</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: colors.text }]}>Check Finances</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             {isLogin ? 'Entre na sua conta' : 'Crie sua conta'}
           </Text>
         </View>
@@ -92,11 +96,18 @@ const LoginScreen = () => {
         <View style={styles.form}>
           {!isLogin && (
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Seu Nome</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Seu Nome</Text>
               <TextInput
-                style={styles.input}
-                placeholder="Ex: João Silva"
-                placeholderTextColor="#666"
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.inputBg,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Seu nome completo"
+                placeholderTextColor={colors.textLight}
                 value={displayName}
                 onChangeText={setDisplayName}
                 autoCapitalize="words"
@@ -105,11 +116,18 @@ const LoginScreen = () => {
           )}
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Usuário</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Usuário</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Seu nome de usuário"
-              placeholderTextColor="#666"
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.inputBg,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Nome de usuário"
+              placeholderTextColor={colors.textLight}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -118,16 +136,23 @@ const LoginScreen = () => {
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Senha</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Senha</Text>
             <View style={styles.passwordContainer}>
               <TextInput
-                style={[styles.input, styles.passwordInput]}
+                style={[
+                  styles.input,
+                  styles.passwordInput,
+                  {
+                    backgroundColor: colors.inputBg,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
                 placeholder="Sua senha"
-                placeholderTextColor="#666"
+                placeholderTextColor={colors.textLight}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                autoCapitalize="none"
               />
               <TouchableOpacity
                 style={styles.showPasswordButton}
@@ -142,21 +167,31 @@ const LoginScreen = () => {
 
           {!isLogin && (
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirmar Senha</Text>
+              <Text style={[styles.label, { color: colors.textSecondary }]}>Confirmar Senha</Text>
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.inputBg,
+                    color: colors.text,
+                    borderColor: colors.border,
+                  },
+                ]}
                 placeholder="Confirme sua senha"
-                placeholderTextColor="#666"
+                placeholderTextColor={colors.textLight}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                secureTextEntry
-                autoCapitalize="none"
+                secureTextEntry={!showPassword}
               />
             </View>
           )}
 
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[
+              styles.button,
+              { backgroundColor: colors.primary },
+              isLoading && styles.buttonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={isLoading}
           >
@@ -170,7 +205,7 @@ const LoginScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.toggleButton} onPress={toggleMode}>
-            <Text style={styles.toggleText}>
+            <Text style={[styles.toggleText, { color: colors.primary }]}>
               {isLogin
                 ? 'Não tem conta? Cadastre-se'
                 : 'Já tem conta? Faça login'}
@@ -179,7 +214,7 @@ const LoginScreen = () => {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, { color: colors.textLight }]}>
             💡 Use o mesmo usuário em todos os seus dispositivos
           </Text>
         </View>
@@ -191,7 +226,6 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d1117',
   },
   scrollContent: {
     flexGrow: 1,
@@ -209,12 +243,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#8b949e',
   },
   form: {
     width: '100%',
@@ -224,19 +256,15 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#c9d1d9',
     marginBottom: 6,
     fontWeight: '600',
   },
   input: {
-    backgroundColor: '#161b22',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#fff',
     borderWidth: 1,
-    borderColor: '#30363d',
   },
   passwordContainer: {
     flexDirection: 'row',
@@ -254,7 +282,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   button: {
-    backgroundColor: '#58a6ff',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -274,7 +301,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   toggleText: {
-    color: '#58a6ff',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -283,7 +309,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: '#484f58',
     fontSize: 12,
     textAlign: 'center',
   },
