@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useCash } from '../context/CashContext';
@@ -35,37 +35,43 @@ export default function AppHeader({ title, showStats = true }) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.primary }]}>
-      <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: '#fff' }]}>{title}</Text>
-      </View>
-
-      {showStats && (
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Ionicons name="wallet-outline" size={18} color="#fff" />
-            <Text style={[styles.statLabel, { color: '#fff' }]}>{t('balance')}</Text>
-            <Text style={[styles.statValue, { color: '#fff' }]}>{formatCurrency(cashBalance)}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="card-outline" size={18} color="#fff" />
-            <Text style={[styles.statLabel, { color: '#fff' }]}>{t('mostUsed')}</Text>
-            <Text style={[styles.statValue, { color: '#fff' }]}>{mostUsedCard ? mostUsedCard.customName || mostUsedCard.name : t('none')}</Text>
-          </View>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.header }]}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.header} />
+      <View style={[styles.container, { backgroundColor: colors.header }]}>
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, { color: colors.headerText }]}>{title}</Text>
         </View>
-      )}
-    </View>
+
+        {showStats && (
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Ionicons name="wallet-outline" size={20} color={colors.headerText} />
+              <Text style={[styles.statLabel, { color: colors.headerText }]}>{t('balance')}</Text>
+              <Text style={[styles.statValue, { color: colors.headerText }]}>{formatCurrency(cashBalance)}</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: 'rgba(255,255,255,0.2)' }]} />
+            <View style={styles.statItem}>
+              <Ionicons name="card-outline" size={20} color={colors.headerText} />
+              <Text style={[styles.statLabel, { color: colors.headerText }]}>{t('mostUsed')}</Text>
+              <Text style={[styles.statValue, { color: colors.headerText }]}>{mostUsedCard ? mostUsedCard.customName || mostUsedCard.name : t('none')}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+  safeArea: {
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    overflow: 'hidden',
+  },
+  container: {
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,

@@ -6,6 +6,7 @@ import SupabaseService from '../services/SupabaseService';
 const GroupContext = createContext();
 
 const ACTIVE_GROUP_KEY = '@checkfinances_active_group';
+const GROUPS_STORAGE_KEY = '@checkfinances_groups_local';
 
 export const GroupProvider = ({ children }) => {
   const { user } = useAuth();
@@ -30,88 +31,191 @@ export const GroupProvider = ({ children }) => {
   const loadGroups = async () => {
     try {
       setIsLoading(true);
-      const result = await SupabaseService.getUserGroups(user.id);
-      setGroups(result);
 
-      const activeId = await AsyncStorage.getItem(ACTIVE_GROUP_KEY);
-      if (activeId) {
-        const active = result.find(g => g.id === activeId);
-        if (active) setActiveGroup(active);
+      // Try Supabase first
+      if (SupabaseService.isConfigured) {
+        const result = await SupabaseService.getUserGroups(user.id);
+        if (result && result.length > 0) {
+          setGroups(result);
+          await AsyncStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(result));
+
+          const activeId = await AsyncStorage.getItem(ACTIVE_GROUP_KEY);
+          if (activeId) {
+            const active = result.find(g => g.id === activeId);
+            if (active) setActiveGroup(active);
+          }
+          setIsLoading(false);
+          return;
+        }
       }
-    } catch (error) {
-      console.error('Erro ao carregar grupos:', error);
-      // Fallback: tenta carregar do AsyncStorage
-      const stored = await AsyncStorage.getItem('@checkfinances_groups_local');
+
+      // Fallback: load from AsyncStorage
+      const stored = await AsyncStorage.getItem(GROUPS_STORAGE_KEY);
       if (stored) {
         const localGroups = JSON.parse(stored);
         setGroups(localGroups);
+
+        const activeId = await AsyncStorage.getItem(ACTIVE_GROUP_KEY);
+        if (activeId) {
+          const active = localGroups.find(g => g.id === activeId);
+          if (active) setActiveGroup(active);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar grupos:', error);
+      try {
+        const stored = await AsyncStorage.getItem(GROUPS_STORAGE_KEY);
+        if (stored) {
+          const localGroups = JSON.parse(stored);
+          setGroups(localGroups);
+        }
+      } catch (e) {
+        console.error('Fallback error:', e);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const createGroup = useCallback(async (groupData) => {
+  // Accept individual parameters to match GroupScreen calls
+  const createGroup = useCallback(async (name, description = '', userId, username, displayName) => {
     try {
-      const result = await SupabaseService.createGroup(
-        groupData.name,
-        groupData.description,
-        user.id,
-        user.username,
-        user.displayName
-      );
-
-      if (result.success) {
-        const newGroup = result.group;
-        setGroups(prev => [...prev, newGroup]);
-        setActiveGroup(newGroup);
-        await AsyncStorage.setItem(ACTIVE_GROUP_KEY, newGroup.id);
-        return { success: true, group: newGroup };
+      if (!user) {
+        return { success: false, error: 'Usuário não autenticado' };
       }
-      return result;
+
+      const groupData = {
+        name: name.trim(),
+        description: description.trim(),
+        created_by: userId || user.id,
+        creator_username: username || user.username,
+        creator_display_name: displayName || user.displayName || user.username,
+      };
+
+      let newGroup;
+
+      // Try Supabase first
+      if (SupabaseService.isConfigured) {
+        const result = await SupabaseService.createGroup(
+          groupData.name,
+          groupData.description,
+          groupData.created_by,
+          groupData.creator_username,
+          groupData.creator_display_name
+        );
+
+        if (result.success) {
+          newGroup = result.group;
+        } else {
+          return result;
+        }
+      } else {
+        // Local fallback
+        newGroup = {
+          id: `local_group_${Date.now()}`,
+          name: groupData.name,
+          description: groupData.description,
+          invite_code: Math.random().toString(36).substring(2, 10).toUpperCase(),
+          created_by: groupData.created_by,
+          members_count: 1,
+          created_at: new Date().toISOString(),
+        };
+      }
+
+      const updatedGroups = [...groups, newGroup];
+      setGroups(updatedGroups);
+      setActiveGroup(newGroup);
+      await AsyncStorage.setItem(ACTIVE_GROUP_KEY, newGroup.id);
+      await AsyncStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
+
+      return { success: true, group: newGroup };
     } catch (error) {
       console.error('Erro ao criar grupo:', error);
-      return { success: false, error: 'Erro ao criar grupo' };
+      return { success: false, error: 'Erro ao criar grupo: ' + error.message };
     }
-  }, [user]);
+  }, [user, groups]);
 
-  const joinGroup = useCallback(async (inviteCode) => {
+  // Accept individual parameters to match GroupScreen calls
+  const joinGroup = useCallback(async (inviteCode, userId, username, displayName) => {
     try {
-      const result = await SupabaseService.joinGroup(
-        inviteCode,
-        user.id,
-        user.username,
-        user.displayName
-      );
-
-      if (result.success) {
-        const group = result.group;
-        setGroups(prev => [...prev, group]);
-        setActiveGroup(group);
-        await AsyncStorage.setItem(ACTIVE_GROUP_KEY, group.id);
-        return { success: true, group };
+      if (!user) {
+        return { success: false, error: 'Usuário não autenticado' };
       }
-      return result;
+
+      const joinData = {
+        invite_code: inviteCode.trim().toUpperCase(),
+        user_id: userId || user.id,
+        username: username || user.username,
+        display_name: displayName || user.displayName || user.username,
+      };
+
+      let group;
+
+      // Try Supabase first
+      if (SupabaseService.isConfigured) {
+        const result = await SupabaseService.joinGroup(
+          joinData.invite_code,
+          joinData.user_id,
+          joinData.username,
+          joinData.display_name
+        );
+
+        if (result.success) {
+          group = result.group;
+        } else {
+          return result;
+        }
+      } else {
+        // Local fallback - find group by invite code
+        const stored = await AsyncStorage.getItem(GROUPS_STORAGE_KEY);
+        const allGroups = stored ? JSON.parse(stored) : [];
+        const foundGroup = allGroups.find(g => g.invite_code === joinData.invite_code);
+
+        if (!foundGroup) {
+          return { success: false, error: 'Código de convite inválido' };
+        }
+
+        group = foundGroup;
+      }
+
+      // Check if already in group
+      if (groups.find(g => g.id === group.id)) {
+        return { success: false, error: 'Você já está neste grupo' };
+      }
+
+      const updatedGroups = [...groups, group];
+      setGroups(updatedGroups);
+      setActiveGroup(group);
+      await AsyncStorage.setItem(ACTIVE_GROUP_KEY, group.id);
+      await AsyncStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
+
+      return { success: true, group };
     } catch (error) {
       console.error('Erro ao entrar no grupo:', error);
-      return { success: false, error: 'Erro ao entrar no grupo' };
+      return { success: false, error: 'Erro ao entrar no grupo: ' + error.message };
     }
-  }, [user]);
+  }, [user, groups]);
 
   const leaveGroup = useCallback(async (groupId) => {
     try {
-      await SupabaseService.leaveGroup(groupId, user.id);
+      if (SupabaseService.isConfigured) {
+        await SupabaseService.leaveGroup(groupId, user.id);
+      }
 
-      setGroups(prev => prev.filter(g => g.id !== groupId));
+      const updatedGroups = groups.filter(g => g.id !== groupId);
+      setGroups(updatedGroups);
+
       if (activeGroup?.id === groupId) {
         setActiveGroup(null);
         await AsyncStorage.removeItem(ACTIVE_GROUP_KEY);
       }
+
+      await AsyncStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(updatedGroups));
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
     }
-  }, [user, activeGroup]);
+  }, [user, activeGroup, groups]);
 
   const selectActiveGroup = useCallback(async (groupId) => {
     const group = groups.find(g => g.id === groupId);
@@ -122,11 +226,9 @@ export const GroupProvider = ({ children }) => {
   }, [groups]);
 
   const updateGroupSettings = useCallback(async (groupId, settings) => {
-    // Placeholder - pode ser implementado no Supabase depois
     return { success: true };
   }, []);
 
-  // Sincronização: recebe dados de outro dispositivo
   const receiveSyncData = useCallback(async (syncPayload) => {
     try {
       setSyncStatus('syncing');
@@ -171,7 +273,11 @@ export const GroupProvider = ({ children }) => {
     loadGroups,
   };
 
-  return <GroupContext.Provider value={value}>{children}</GroupContext.Provider>;
+  return (
+    <GroupContext.Provider value={value}>
+      {children}
+    </GroupContext.Provider>
+  );
 };
 
 export const useGroup = () => {

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, Modal,
-  KeyboardAvoidingView, Platform, FlatList, ScrollView,
+  KeyboardAvoidingView, Platform, ScrollView, SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
@@ -9,7 +9,8 @@ import { usePlanning } from '../context/PlanningContext';
 import { useCash } from '../context/CashContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
-import AppHeader from '../components/AppHeader';
+import GoalMapItem from '../components/GoalMapItem';
+import { SPACING, BORDER_RADIUS } from '../constants/DesignSystem';
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -165,125 +166,139 @@ export default function PlanningScreen() {
   }, [deleteGoal, t]);
 
   const renderGoal = useCallback(({ item }) => (
-    <GoalCard
-      goal={item}
-      colors={colors}
-      t={t}
-      getCategoryInfo={getCategoryInfo}
-      onToggle={toggleGoalComplete}
-      onEdit={openEditGoal}
-      onDelete={handleDeleteGoal}
-      feasibility={goalFeasibilities[item.id] || { feasible: false, reason: 'Sem dinheiro em caixa' }}
-    />
+    <View style={{ width: '48%' }}>
+      <GoalMapItem
+        goal={item}
+        colors={colors}
+        t={t}
+        category={getCategoryInfo(item.category)}
+        onToggle={toggleGoalComplete}
+        onEdit={openEditGoal}
+        onDelete={handleDeleteGoal}
+        feasibility={goalFeasibilities[item.id] || { feasible: false, reason: 'Sem dinheiro em caixa' }}
+      />
+    </View>
   ), [colors, t, getCategoryInfo, toggleGoalComplete, openEditGoal, handleDeleteGoal, goalFeasibilities]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader title={t('planning')} />
-      <FlatList
-        data={goals}
-        renderItem={renderGoal}
-        keyExtractor={g => g.id}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={(
-          <View style={{ padding: 16 }}>
-            <View style={[styles.cashCard, { backgroundColor: colors.card }]}>
-              <View style={styles.cashRow}>
-                <View>
-                  <Text style={[styles.cashLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
-                  <Text style={[styles.cashValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
-                </View>
-                <View style={[styles.cashIcon, { backgroundColor: colors.primary + '15' }]}>
-                  <Ionicons name="wallet" size={24} color={colors.primary} />
-                </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Header and Budget Overview */}
+        <View style={{ padding: SPACING.lg }}>
+          <View style={[styles.cashCard, { backgroundColor: colors.card }]}>
+            <View style={styles.cashRow}>
+              <View>
+                <Text style={[styles.cashLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
+                <Text style={[styles.cashValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
+              </View>
+              <View style={[styles.cashIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="wallet" size={24} color={colors.primary} />
               </View>
             </View>
+          </View>
 
-            <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
-              <Text style={[styles.budgetTitle, { color: colors.text }]}>{t('cashStatus')}</Text>
-              <View style={styles.budgetRow}>
-                <View style={styles.budgetItem}>
-                  <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
-                  <Text style={[styles.budgetItemValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
-                </View>
-                <View style={styles.budgetItem}>
-                  <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('monthlyExpenses')}</Text>
-                  <Text style={[styles.budgetItemValue, { color: colors.danger }]}>{formatCurrency(totalExpenses)}</Text>
-                </View>
-                <View style={styles.budgetItem}>
-                  <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('remaining')}</Text>
-                  <Text style={[styles.budgetItemValue, { color: remaining >= 0 ? colors.primary : colors.danger }]}>{formatCurrency(remaining)}</Text>
-                </View>
+          <View style={[styles.budgetCard, { backgroundColor: colors.card }]}>
+            <Text style={[styles.budgetTitle, { color: colors.text }]}>{t('cashStatus')}</Text>
+            <View style={styles.budgetRow}>
+              <View style={styles.budgetItem}>
+                <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('availableCash')}</Text>
+                <Text style={[styles.budgetItemValue, { color: colors.primary }]}>{formatCurrency(cashBalance)}</Text>
               </View>
-              <View style={styles.budgetProgressContainer}>
-                <View style={[styles.budgetProgressBar, { backgroundColor: colors.background }]}>
-                  <View style={[styles.budgetProgressFill, { width: `${Math.min(expensePercent, 100)}%`, backgroundColor: expensePercent >= 100 ? colors.danger : expensePercent >= 80 ? colors.warning : colors.primary }]} />
-                </View>
-                <Text style={[styles.budgetProgressText, { color: expensePercent >= 100 ? colors.danger : expensePercent >= 80 ? colors.warning : colors.primary }]}>
-                  {expensePercent.toFixed(1)}% {t('cashCommitted')}
-                </Text>
+              <View style={styles.budgetItem}>
+                <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('monthlyExpenses')}</Text>
+                <Text style={[styles.budgetItemValue, { color: colors.danger }]}>{formatCurrency(totalExpenses)}</Text>
               </View>
-              {!isCashSufficient && cashBalance > 0 && (
-                <View style={[styles.insufficientAlert, { backgroundColor: colors.danger + '10' }]}>
-                  <Ionicons name="warning" size={20} color={colors.danger} />
-                  <View style={{ marginLeft: 10 }}>
-                    <Text style={[styles.insufficientTitle, { color: colors.danger }]}>{t('insufficientCash')}</Text>
-                    <Text style={[styles.insufficientText, { color: colors.danger }]}>{t('missing')} {formatCurrency(totalExpenses - cashBalance)}</Text>
-                  </View>
-                </View>
-              )}
-              {cashBalance <= 0 && (
-                <View style={[styles.insufficientAlert, { backgroundColor: colors.warning + '10' }]}>
-                  <Ionicons name="alert-circle" size={20} color={colors.warning} />
-                  <View style={{ marginLeft: 10 }}>
-                    <Text style={[styles.insufficientTitle, { color: colors.warning }]}>{t('noCash')}</Text>
-                  </View>
-                </View>
-              )}
+              <View style={styles.budgetItem}>
+                <Text style={[styles.budgetItemLabel, { color: colors.textLight }]}>{t('remaining')}</Text>
+                <Text style={[styles.budgetItemValue, { color: remaining >= 0 ? colors.primary : colors.danger }]}>{formatCurrency(remaining)}</Text>
+              </View>
             </View>
-
-            {remaining > 0 && (
-              <View style={[styles.dailyBudgetCard, { backgroundColor: colors.card }]}>
-                <View style={styles.dailyBudgetHeader}>
-                  <Ionicons name="calendar" size={20} color={colors.secondary} />
-                  <Text style={[styles.dailyBudgetTitle, { color: colors.text }]}>{t('dailyBudget')}</Text>
-                </View>
-                <View style={styles.dailyBudgetRow}>
-                  <View style={styles.dailyBudgetItem}>
-                    <Text style={[styles.dailyBudgetValue, { color: colors.primary }]}>{formatCurrency(dailyBudget.daily)}</Text>
-                    <Text style={[styles.dailyBudgetLabel, { color: colors.textLight }]}>{t('perDay')}</Text>
-                  </View>
-                  <View style={styles.dailyBudgetItem}>
-                    <Text style={[styles.dailyBudgetValue, { color: colors.secondary }]}>{formatCurrency(dailyBudget.weekly)}</Text>
-                    <Text style={[styles.dailyBudgetLabel, { color: colors.textLight }]}>{t('perWeek')}</Text>
-                  </View>
+            <View style={styles.budgetProgressContainer}>
+              <View style={[styles.budgetProgressBar, { backgroundColor: colors.background }]}>
+                <View style={[styles.budgetProgressFill, { width: `${Math.min(expensePercent, 100)}%`, backgroundColor: expensePercent >= 100 ? colors.danger : expensePercent >= 80 ? colors.warning : colors.primary }]} />
+              </View>
+              <Text style={[styles.budgetProgressText, { color: expensePercent >= 100 ? colors.danger : expensePercent >= 80 ? colors.warning : colors.primary }]}>
+                {expensePercent.toFixed(1)}% {t('cashCommitted')}
+              </Text>
+            </View>
+            {!isCashSufficient && cashBalance > 0 && (
+              <View style={[styles.insufficientAlert, { backgroundColor: colors.danger + '10' }]}>
+                <Ionicons name="warning" size={20} color={colors.danger} />
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={[styles.insufficientTitle, { color: colors.danger }]}>{t('insufficientCash')}</Text>
+                  <Text style={[styles.insufficientText, { color: colors.danger }]}>{t('missing')} {formatCurrency(totalExpenses - cashBalance)}</Text>
                 </View>
               </View>
             )}
-
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('goals')}</Text>
-              <TouchableOpacity style={[styles.addGoalButton, { backgroundColor: colors.primary }]} onPress={openAddGoal}>
-                <Ionicons name="add" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            {goals.length === 0 && (
-              <View style={styles.emptyGoals}>
-                <Ionicons name="flag-outline" size={40} color={colors.textLight} />
-                <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noGoals')}</Text>
-                <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstGoal')}</Text>
-                <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={openAddGoal}>
-                  <Ionicons name="add" size={16} color="#fff" />
-                  <Text style={styles.addButtonText}>{t('addGoal')}</Text>
-                </TouchableOpacity>
+            {cashBalance <= 0 && (
+              <View style={[styles.insufficientAlert, { backgroundColor: colors.warning + '10' }]}>
+                <Ionicons name="alert-circle" size={20} color={colors.warning} />
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={[styles.insufficientTitle, { color: colors.warning }]}>{t('noCash')}</Text>
+                </View>
               </View>
             )}
           </View>
+
+          {remaining > 0 && (
+            <View style={[styles.dailyBudgetCard, { backgroundColor: colors.card }]}>
+              <View style={styles.dailyBudgetHeader}>
+                <Ionicons name="calendar" size={20} color={colors.secondary} />
+                <Text style={[styles.dailyBudgetTitle, { color: colors.text }]}>{t('dailyBudget')}</Text>
+              </View>
+              <View style={styles.dailyBudgetRow}>
+                <View style={styles.dailyBudgetItem}>
+                  <Text style={[styles.dailyBudgetValue, { color: colors.primary }]}>{formatCurrency(dailyBudget.daily)}</Text>
+                  <Text style={[styles.dailyBudgetLabel, { color: colors.textLight }]}>{t('perDay')}</Text>
+                </View>
+                <View style={styles.dailyBudgetItem}>
+                  <Text style={[styles.dailyBudgetValue, { color: colors.secondary }]}>{formatCurrency(dailyBudget.weekly)}</Text>
+                  <Text style={[styles.dailyBudgetLabel, { color: colors.textLight }]}>{t('perWeek')}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('goals')}</Text>
+            <TouchableOpacity style={[styles.addGoalButton, { backgroundColor: colors.primary }]} onPress={openAddGoal}>
+              <Ionicons name="add" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Goals Grid View */}
+        {goals.length === 0 ? (
+          <View style={styles.emptyGoals}>
+            <Ionicons name="flag-outline" size={40} color={colors.textLight} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noGoals')}</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textLight }]}>{t('addFirstGoal')}</Text>
+            <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.primary }]} onPress={openAddGoal}>
+              <Ionicons name="add" size={16} color="#fff" />
+              <Text style={styles.addButtonText}>{t('addGoal')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.goalsGridContainer}>
+            {goals.map((goal) => (
+              <View key={goal.id} style={{ width: '50%', padding: SPACING.sm }}>
+                <GoalMapItem
+                  goal={goal}
+                  colors={colors}
+                  t={t}
+                  category={getCategoryInfo(goal.category)}
+                  onToggle={toggleGoalComplete}
+                  onEdit={openEditGoal}
+                  onDelete={handleDeleteGoal}
+                  feasibility={goalFeasibilities[goal.id] || { feasible: false, reason: 'Sem dinheiro em caixa' }}
+                />
+              </View>
+            ))}
+          </View>
         )}
-        ListFooterComponent={<View style={{ height: 100 }} />}
-        contentContainerStyle={{ paddingBottom: 30 }}
-      />
+
+        <View style={{ height: SPACING.xxl }} />
+      </ScrollView>
 
       <Modal visible={goalModalVisible} transparent animationType="fade">
         <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
@@ -318,12 +333,14 @@ export default function PlanningScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  scrollContent: { paddingBottom: SPACING.xxl },
+  goalsGridContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: SPACING.lg },
   cashCard: { padding: 20, borderRadius: 18, marginBottom: 12 },
   cashRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cashLabel: { fontSize: 14, marginBottom: 4 },
@@ -352,20 +369,6 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 16 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold' },
   addGoalButton: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  goalCard: { marginHorizontal: 16, marginBottom: 12, padding: 16, borderRadius: 18, borderLeftWidth: 4 },
-  goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  goalTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  goalCategoryIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  goalTitleInfo: { flex: 1 },
-  goalName: { fontSize: 15, fontWeight: 'bold' },
-  goalAmount: { fontSize: 14, fontWeight: '600', marginTop: 2 },
-  goalActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  feasibilityBadge: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 6 },
-  feasibilityText: { fontSize: 12, fontWeight: '600', marginLeft: 6 },
-  buyNowBadge: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 8, alignSelf: 'flex-start', marginTop: 4 },
-  buyNowText: { fontSize: 12, fontWeight: '600', marginLeft: 6 },
-  completedBadge: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 8, alignSelf: 'flex-start', marginTop: 8 },
-  completedText: { fontSize: 12, fontWeight: '600', marginLeft: 6 },
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', maxWidth: 340, borderRadius: 20, padding: 24 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },

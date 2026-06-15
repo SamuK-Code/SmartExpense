@@ -45,23 +45,12 @@ const Stack = createStackNavigator();
 function HomeStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.header },
-        headerTintColor: colors.headerText,
-        headerTitleStyle: { fontWeight: 'bold' },
-      }}
-    >
-      <Stack.Screen 
-        name="Dashboard" 
-        component={DashboardScreen} 
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen 
-        name="EditExpense" 
-        component={EditExpenseScreen} 
-        options={{ title: 'Editar Gasto' }}
-      />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
+      <Stack.Screen name="EditExpense" component={EditExpenseScreen} />
+      <Stack.Screen name="History" component={HistoryScreen} />
+      <Stack.Screen name="Cards" component={CardsScreen} />
     </Stack.Navigator>
   );
 }
@@ -69,23 +58,9 @@ function HomeStack() {
 function ChartStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.header },
-        headerTintColor: colors.headerText,
-        headerTitleStyle: { fontWeight: 'bold' },
-      }}
-    >
-      <Stack.Screen 
-        name="Charts" 
-        component={ChartScreen} 
-        options={{ title: 'Gráficos' }}
-      />
-      <Stack.Screen 
-        name="ChartDetail" 
-        component={ChartDetailScreen} 
-        options={{ title: 'Detalhes' }}
-      />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Charts" component={ChartScreen} />
+      <Stack.Screen name="ChartDetail" component={ChartDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -93,30 +68,19 @@ function ChartStack() {
 function MoreStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.header },
-        headerTintColor: colors.headerText,
-        headerTitleStyle: { fontWeight: 'bold' },
-      }}
-    >
-      <Stack.Screen 
-        name="MoreMenu" 
-        component={MoreScreen} 
-        options={{ title: 'Mais', headerShown: false }}
-      />
-      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Configurações' }} />
-      <Stack.Screen name="Language" component={LanguageScreen} options={{ title: 'Idioma' }} />
-      <Stack.Screen name="Categories" component={CategoriesScreen} options={{ title: 'Categorias' }} />
-      <Stack.Screen name="Group" component={GroupScreen} options={{ title: 'Grupos' }} />
-      <Stack.Screen name="Sync" component={SyncScreen} options={{ title: 'Sincronização' }} />
-      <Stack.Screen name="Cards" component={CardsScreen} options={{ title: 'Cartões' }} />
-      <Stack.Screen name="Planning" component={PlanningScreen} options={{ title: 'Planejamento' }} />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="More" component={MoreScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Language" component={LanguageScreen} />
+      <Stack.Screen name="Categories" component={CategoriesScreen} />
+      <Stack.Screen name="Group" component={GroupScreen} />
+      <Stack.Screen name="Sync" component={SyncScreen} />
+      <Stack.Screen name="Planning" component={PlanningScreen} />
     </Stack.Navigator>
   );
 }
 
-// ========== TAB NAVIGATOR OTIMIZADO (5 TABS) ==========
+// ========== TAB NAVIGATOR (5 TABS) ==========
 function TabNavigator() {
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
@@ -144,15 +108,15 @@ function TabNavigator() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 4,
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+          height: Platform.OS === 'ios' ? 70 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 12 : 8,
           paddingTop: 8,
           paddingHorizontal: 16,
         },
-        tabBarLabelStyle: { 
-          fontSize: 11, 
+        tabBarLabelStyle: {
+          fontSize: 11,
           fontWeight: '500',
-          marginBottom: Platform.OS === 'ios' ? 0 : 4,
+          marginBottom: Platform.OS === 'ios' ? 0 : 2,
         },
         tabBarItemStyle: {
           paddingVertical: 4,
@@ -160,66 +124,36 @@ function TabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeStack} 
-        options={{ tabBarLabel: t('home') }} 
-      />
+      <Tab.Screen name="Home" component={HomeStack} options={{ title: t('home') }} />
       <Tab.Screen 
         name="Add" 
         component={AddExpenseScreen} 
         options={{ 
-          tabBarLabel: '',
-          tabBarIcon: ({ focused, color, size }) => (
-            <View style={{
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: focused ? colors.primary : colors.card,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginTop: -28,
-              shadowColor: colors.primary,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
-              borderWidth: 3,
-              borderColor: focused ? colors.primary : colors.border,
-            }}>
-              <Ionicons name="add" size={32} color={focused ? '#fff' : colors.primary} />
-            </View>
-          ),
+          title: t('addExpense'),
+          tabBarItemStyle: {
+            paddingVertical: 4,
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
         }} 
       />
-      <Tab.Screen 
-        name="History" 
-        component={HistoryScreen} 
-        options={{ tabBarLabel: t('history') }} 
-      />
-      <Tab.Screen 
-        name="Charts" 
-        component={ChartStack} 
-        options={{ tabBarLabel: t('charts') }} 
-      />
-      <Tab.Screen 
-        name="More" 
-        component={MoreStack} 
-        options={{ tabBarLabel: t('menu') }} 
-      />
+      <Tab.Screen name="History" component={HistoryScreen} options={{ title: t('history') }} />
+      <Tab.Screen name="Charts" component={ChartStack} options={{ title: t('charts') }} />
+      <Tab.Screen name="More" component={MoreStack} options={{ title: t('menu') }} />
     </Tab.Navigator>
   );
 }
+
 
 function AppRoot() {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117' }}>
-        <ActivityIndicator size="large" color="#58a6ff" />
-        <Text style={{ color: '#fff', marginTop: 16, fontSize: 16 }}>Carregando...</Text>
-      </View>
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+        <Text>Carregando...</Text>
+      </SafeAreaView>
     );
   }
 
@@ -233,22 +167,21 @@ function AppRoot() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
+      <AuthProvider>
         <I18nProvider>
-          <AuthProvider>
-            <GroupProvider>
+          <ThemeProvider>
+            <CashProvider>
               <ExpenseProvider>
-                <CashProvider>
-                  <PlanningProvider>
-                    <StatusBar style="auto" />
+                <PlanningProvider>
+                  <GroupProvider>
                     <AppRoot />
-                  </PlanningProvider>
-                </CashProvider>
+                  </GroupProvider>
+                </PlanningProvider>
               </ExpenseProvider>
-            </GroupProvider>
-          </AuthProvider>
+            </CashProvider>
+          </ThemeProvider>
         </I18nProvider>
-      </ThemeProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

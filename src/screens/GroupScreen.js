@@ -10,10 +10,16 @@ import {
   Alert,
   Share,
   ActivityIndicator,
+  ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
+import { useTheme } from '../context/ThemeContext';
+import { useI18n } from '../context/I18nContext';
+import { FadeInView, SlideInView } from '../components/AnimatedComponents';
 
 const GroupScreen = () => {
   const { user } = useAuth();
@@ -28,6 +34,8 @@ const GroupScreen = () => {
     lastSyncTime,
     isLoading: groupLoading,
   } = useGroup();
+  const { colors, isDark } = useTheme();
+  const { t } = useI18n();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -38,86 +46,102 @@ const GroupScreen = () => {
 
   const handleCreateGroup = useCallback(async () => {
     if (!groupName.trim()) {
-      Alert.alert('Atenção', 'Digite um nome para o grupo');
+      Alert.alert(t('error'), 'Digite um nome para o grupo');
       return;
     }
 
     if (!user) {
-      Alert.alert('Erro', 'Você precisa estar logado para criar um grupo');
+      Alert.alert(t('error'), 'Você precisa estar logado para criar um grupo');
       return;
     }
 
     setIsLoading(true);
-    
-    // ✅ CORREÇÃO: Passa os parâmetros na ordem correta
-    const result = await createGroup(
-      groupName.trim(),
-      groupDescription.trim(),
-      user.id,
-      user.username,
-      user.displayName || user.username
-    );
-    
-    setIsLoading(false);
 
-    if (result.success) {
-      Alert.alert(
-        'Grupo Criado!',
-        `Código: ${result.group.invite_code}\n\nCompartilhe com quem quiser adicionar.`,
-        [
-          {
-            text: 'Copiar',
-            onPress: async () => {
-              await Clipboard.setStringAsync(result.group.invite_code);
-            },
-          },
-          { text: 'OK', style: 'cancel' },
-        ]
+    try {
+      const result = await createGroup(
+        groupName.trim(),
+        groupDescription.trim(),
+        user.id,
+        user.username,
+        user.displayName || user.username
       );
-      setShowCreateModal(false);
-      setGroupName('');
-      setGroupDescription('');
-    } else {
-      Alert.alert('Erro', result.error);
+
+      setIsLoading(false);
+
+      if (result.success) {
+        Alert.alert(
+          'Grupo Criado!',
+          `Código: ${result.group.invite_code}
+
+Compartilhe com quem quiser adicionar.`,
+          [
+            {
+              text: 'Copiar',
+              onPress: async () => {
+                await Clipboard.setStringAsync(result.group.invite_code);
+              },
+            },
+            { text: 'OK', style: 'cancel' },
+          ]
+        );
+        setShowCreateModal(false);
+        setGroupName('');
+        setGroupDescription('');
+      } else {
+        Alert.alert(t('error'), result.error || 'Erro ao criar grupo');
+      }
+    } catch (error) {
+      setIsLoading(false);
+      Alert.alert(t('error'), 'Erro inesperado ao criar grupo');
+      console.error(error);
     }
-  }, [groupName, groupDescription, createGroup, user]);
+  }, [groupName, groupDescription, createGroup, user, t]);
 
   const handleJoinGroup = useCallback(async () => {
     if (!inviteCode.trim()) {
-      Alert.alert('Atenção', 'Digite o código de convite');
+      Alert.alert(t('error'), 'Digite o código de convite');
       return;
     }
 
     if (!user) {
-      Alert.alert('Erro', 'Você precisa estar logado para entrar em um grupo');
+      Alert.alert(t('error'), 'Você precisa estar logado para entrar em um grupo');
       return;
     }
 
     setIsLoading(true);
-    
-    // ✅ CORREÇÃO: Passa os parâmetros na ordem correta
-    const result = await joinGroup(
-      inviteCode.trim().toUpperCase(),
-      user.id,
-      user.username,
-      user.displayName || user.username
-    );
-    
-    setIsLoading(false);
 
-    if (result.success) {
-      Alert.alert('Sucesso!', `Você entrou no grupo "${result.group.name}"`);
-      setShowJoinModal(false);
-      setInviteCode('');
-    } else {
-      Alert.alert('Erro', result.error);
+    try {
+      const result = await joinGroup(
+        inviteCode.trim().toUpperCase(),
+        user.id,
+        user.username,
+        user.displayName || user.username
+      );
+
+      setIsLoading(false);
+
+      if (result.success) {
+        Alert.alert('Sucesso!', `Você entrou no grupo "${result.group.name}"`);
+        setShowJoinModal(false);
+        setInviteCode('');
+      } else {
+        Alert.alert(t('error'), result.error || 'Erro ao entrar no grupo');
+      }
+    } catch (error) {
+      setIsLoading(false);
+      Alert.alert(t('error'), 'Erro inesperado ao entrar no grupo');
+      console.error(error);
     }
-  }, [inviteCode, joinGroup, user]);
+  }, [inviteCode, joinGroup, user, t]);
 
   const handleShareCode = useCallback(async (code, groupName) => {
     try {
       await Share.share({
-        message: `Entre no grupo "${groupName}" no Check Finances!\n\nCódigo: ${code}\n\nBaixe o app e sincronize as finanças juntos.`,
+        message: `Entre no grupo "${groupName}" no Check Finances!
+
+Código: ${code}
+
+Baixe o app e sincronize as finanças juntos.`,
       });
     } catch {
       await Clipboard.setStringAsync(code);
@@ -130,7 +154,7 @@ const GroupScreen = () => {
       'Sair do Grupo',
       `Deseja sair de "${group.name}"?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
           text: 'Sair',
           style: 'destructive',
@@ -138,12 +162,12 @@ const GroupScreen = () => {
             setIsLoading(true);
             const result = await leaveGroup(group.id);
             setIsLoading(false);
-            if (!result.success) Alert.alert('Erro', result.error);
+            if (!result.success) Alert.alert(t('error'), result.error);
           },
         },
       ]
     );
-  }, [leaveGroup]);
+  }, [leaveGroup, t]);
 
   const renderGroupItem = useCallback(({ item }) => {
     const isActive = activeGroup?.id === item.id;
@@ -154,149 +178,176 @@ const GroupScreen = () => {
       <TouchableOpacity
         style={[
           styles.groupCard,
-          isActive && styles.groupCardActive,
+          { backgroundColor: colors.card, borderColor: isActive ? colors.primary : colors.border }
         ]}
         onPress={() => selectActiveGroup(item.id)}
         activeOpacity={0.8}
       >
         <View style={styles.groupHeader}>
-          <View style={styles.groupIcon}>
-            <Text style={styles.groupIconText}>👥</Text>
+          <View style={[styles.groupIcon, { backgroundColor: colors.primary + '20' }]}>
+            <Ionicons name="people" size={24} color={colors.primary} />
           </View>
           <View style={styles.groupInfo}>
-            <Text style={styles.groupName}>{item.name}</Text>
-            <Text style={styles.groupMeta}>
+            <Text style={[styles.groupName, { color: colors.text }]}>{item.name}</Text>
+            <Text style={[styles.groupMeta, { color: colors.textSecondary }]}>
               {memberCount} {memberCount === 1 ? 'membro' : 'membros'} • {isAdmin ? 'Admin' : 'Membro'}
             </Text>
           </View>
           {isActive && (
-            <View style={styles.activeBadge}>
+            <View style={[styles.activeBadge, { backgroundColor: colors.primary }]}>
               <Text style={styles.activeBadgeText}>ATIVO</Text>
             </View>
           )}
         </View>
 
-        {isAdmin && (
+        <View style={styles.actionsRow}>
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary + '15' }]}
+              onPress={() => handleShareCode(item.invite_code, item.name)}
+            >
+              <Ionicons name="share-outline" size={16} color={colors.primary} />
+              <Text style={[styles.actionButtonText, { color: colors.primary }]}>Convite</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleShareCode(item.invite_code, item.name)}
+            style={[styles.actionButton, { backgroundColor: colors.danger + '15' }]}
+            onPress={() => handleLeaveGroup(item)}
           >
-            <Text style={styles.actionButtonText}>📋 Convite</Text>
+            <Ionicons name="exit-outline" size={16} color={colors.danger} />
+            <Text style={[styles.actionButtonText, { color: colors.danger }]}>Sair</Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          style={[styles.actionButton, styles.leaveButton]}
-          onPress={() => handleLeaveGroup(item)}
-        >
-          <Text style={[styles.actionButtonText, styles.leaveText]}>🚪 Sair</Text>
-        </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
-  }, [activeGroup, user, selectActiveGroup, handleShareCode, handleLeaveGroup]);
+  }, [activeGroup, user, colors, selectActiveGroup, handleShareCode, handleLeaveGroup]);
 
-  const getSyncStatusText = () => {
-    switch (syncStatus) {
-      case 'syncing': return '🔄 Sincronizando...';
-      case 'synced': return '✅ Sincronizado';
-      case 'error': return '❌ Erro';
-      default: return '⏸️ Inativo';
-    }
+  const syncStatusConfig = {
+    syncing: { text: '🔄 Sincronizando...', color: colors.info },
+    synced: { text: '✅ Sincronizado', color: colors.success },
+    error: { text: '❌ Erro', color: colors.danger },
+    idle: { text: '⏸️ Inativo', color: colors.textLight },
   };
+  const statusConfig = syncStatusConfig[syncStatus] || syncStatusConfig.idle;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Grupos</Text>
-        <Text style={styles.headerSubtitle}>Conta Casal & Sincronização</Text>
-      </View>
-
-      {activeGroup && (
-        <View style={styles.syncStatusBar}>
-          <Text style={styles.syncStatusText}>{getSyncStatusText()}</Text>
-          {lastSyncTime && (
-            <Text style={styles.syncTimeText}>
-              {new Date(lastSyncTime).toLocaleTimeString()}
-            </Text>
-          )}
-        </View>
-      )}
-
-      {groupLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#58a6ff" />
-        </View>
-      ) : groups.length > 0 ? (
-        <FlatList
-          data={groups}
-          keyExtractor={(item) => item.id}
-          renderItem={renderGroupItem}
-          contentContainerStyle={styles.listContent}
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>👥</Text>
-          <Text style={styles.emptyTitle}>Nenhum grupo</Text>
-          <Text style={styles.emptyText}>
-            Crie um grupo para sincronizar finanças com alguém.{'\n'}Perfeito para casais! 💑
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: colors.card }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Grupos</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Conta Casal & Sincronização
           </Text>
         </View>
-      )}
 
-      <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={[styles.fab, styles.fabSecondary]}
-          onPress={() => setShowJoinModal(true)}
-        >
-          <Text style={styles.fabText}>🔗 Entrar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => setShowCreateModal(true)}
-        >
-          <Text style={styles.fabText}>➕ Criar</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Sync Status */}
+        {activeGroup && (
+          <View style={[styles.syncStatusBar, { backgroundColor: colors.card }]}>
+            <View style={styles.syncStatusLeft}>
+              <Ionicons name="sync" size={16} color={statusConfig.color} />
+              <Text style={[styles.syncStatusText, { color: statusConfig.color }]}>
+                {statusConfig.text}
+              </Text>
+            </View>
+            {lastSyncTime && (
+              <Text style={[styles.syncTimeText, { color: colors.textLight }]}>
+                {new Date(lastSyncTime).toLocaleTimeString()}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Groups List */}
+        {groupLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Carregando...</Text>
+          </View>
+        ) : groups.length > 0 ? (
+          <View style={styles.listContainer}>
+            {groups.map(item => (
+              <View key={item.id}>
+                {renderGroupItem({ item })}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <View style={[styles.emptyIconContainer, { backgroundColor: colors.primary + '15' }]}>
+              <Ionicons name="people-outline" size={48} color={colors.primary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>Nenhum grupo</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              {'Crie um grupo para sincronizar finanças com alguém.Perfeito para casais! 💑'}
+            </Text>
+          </View>
+        )}
+
+        {/* Action Buttons */}
+        <View style={styles.fabContainer}>
+          <TouchableOpacity
+            style={[styles.fabSecondary, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => setShowJoinModal(true)}
+          >
+            <Ionicons name="link-outline" size={20} color={colors.text} />
+            <Text style={[styles.fabText, { color: colors.text }]}>Entrar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.fab, { backgroundColor: colors.primary }]}
+            onPress={() => setShowCreateModal(true)}
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={[styles.fabText, { color: '#fff' }]}>Criar</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
       {/* Modal Criar */}
       <Modal
-        visible={showCreateModal}
-        transparent
         animationType="slide"
+        transparent={true}
+        visible={showCreateModal}
         onRequestClose={() => setShowCreateModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Criar Grupo</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Criar Grupo</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Crie um grupo para sincronizar finanças
+            </Text>
+
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
               placeholder="Nome do grupo"
-              placeholderTextColor="#8b949e"
+              placeholderTextColor={colors.textLight}
               value={groupName}
               onChangeText={setGroupName}
             />
             <TextInput
-              style={[styles.modalInput, styles.modalInputMultiline]}
+              style={[styles.modalInput, styles.modalInputMultiline, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
               placeholder="Descrição (opcional)"
-              placeholderTextColor="#8b949e"
+              placeholderTextColor={colors.textLight}
               value={groupDescription}
               onChangeText={setGroupDescription}
               multiline
-              numberOfLines={3}
+              numberOfLines={2}
             />
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setShowCreateModal(false)}
+                style={[styles.modalButton, styles.modalButtonSecondary, { backgroundColor: colors.textLight }]}
+                onPress={() => { setShowCreateModal(false); setGroupName(''); setGroupDescription(''); }}
               >
-                <Text style={styles.modalButtonTextSecondary}>Cancelar</Text>
+                <Text style={[styles.modalButtonTextSecondary, { color: colors.text }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, isLoading && styles.buttonDisabled]}
+                style={[styles.modalButton, { backgroundColor: colors.primary }, isLoading && styles.buttonDisabled]}
                 onPress={handleCreateGroup}
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text style={styles.modalButtonText}>Criar</Text>
                 )}
@@ -308,38 +359,42 @@ const GroupScreen = () => {
 
       {/* Modal Entrar */}
       <Modal
-        visible={showJoinModal}
-        transparent
         animationType="slide"
+        transparent={true}
+        visible={showJoinModal}
         onRequestClose={() => setShowJoinModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Entrar no Grupo</Text>
-            <Text style={styles.modalSubtitle}>Peça o código de convite</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Entrar no Grupo</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+              Peça o código de convite
+            </Text>
+
             <TextInput
-              style={styles.modalInput}
-              placeholder="CÓDIGO"
-              placeholderTextColor="#8b949e"
+              style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+              placeholder="Código de convite"
+              placeholderTextColor={colors.textLight}
               value={inviteCode}
               onChangeText={(text) => setInviteCode(text.toUpperCase())}
               autoCapitalize="characters"
               maxLength={8}
             />
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setShowJoinModal(false)}
+                style={[styles.modalButton, styles.modalButtonSecondary, { backgroundColor: colors.textLight }]}
+                onPress={() => { setShowJoinModal(false); setInviteCode(''); }}
               >
-                <Text style={styles.modalButtonTextSecondary}>Cancelar</Text>
+                <Text style={[styles.modalButtonTextSecondary, { color: colors.text }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, isLoading && styles.buttonDisabled]}
+                style={[styles.modalButton, { backgroundColor: colors.primary }, isLoading && styles.buttonDisabled]}
                 onPress={handleJoinGroup}
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text style={styles.modalButtonText}>Entrar</Text>
                 )}
@@ -348,54 +403,151 @@ const GroupScreen = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d1117' },
-  header: { padding: 20, paddingTop: 60, backgroundColor: '#161b22', borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
-  headerSubtitle: { fontSize: 14, color: '#8b949e', marginTop: 4 },
-  syncStatusBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#21262d' },
-  syncStatusText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  syncTimeText: { color: '#484f58', fontSize: 11 },
-  listContent: { padding: 16 },
-  groupCard: { backgroundColor: '#161b22', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 2, borderColor: 'transparent' },
-  groupCardActive: { borderColor: '#58a6ff' },
+  container: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  header: {
+    padding: 20,
+    paddingTop: 16,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  headerTitle: { fontSize: 28, fontWeight: 'bold' },
+  headerSubtitle: { fontSize: 14, marginTop: 4 },
+  syncStatusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 16,
+  },
+  syncStatusLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  syncStatusText: { fontSize: 13, fontWeight: '600' },
+  syncTimeText: { fontSize: 11 },
+  listContainer: { gap: 12 },
+  groupCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   groupHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  groupIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#21262d', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  groupIconText: { fontSize: 24 },
+  groupIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   groupInfo: { flex: 1 },
-  groupName: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-  groupMeta: { fontSize: 13, color: '#8b949e', marginTop: 2 },
-  activeBadge: { backgroundColor: '#58a6ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  groupName: { fontSize: 18, fontWeight: 'bold' },
+  groupMeta: { fontSize: 13, marginTop: 2 },
+  activeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   activeBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   actionsRow: { flexDirection: 'row', gap: 8 },
-  actionButton: { flex: 1, backgroundColor: '#21262d', paddingVertical: 10, borderRadius: 10, alignItems: 'center', marginTop: 8 },
-  actionButtonText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  leaveButton: { backgroundColor: 'rgba(248, 81, 73, 0.15)' },
-  leaveText: { color: '#f85149' },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  emptyIcon: { fontSize: 64, marginBottom: 16 },
-  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
-  emptyText: { fontSize: 14, color: '#8b949e', textAlign: 'center', lineHeight: 20 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  fabContainer: { flexDirection: 'row', justifyContent: 'flex-end', padding: 16, gap: 12 },
-  fab: { backgroundColor: '#58a6ff', paddingHorizontal: 20, paddingVertical: 14, borderRadius: 28 },
-  fabSecondary: { backgroundColor: '#21262d' },
-  fabText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#161b22', borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
-  modalSubtitle: { fontSize: 14, color: '#8b949e', marginBottom: 20 },
-  modalInput: { backgroundColor: '#0d1117', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#fff', marginBottom: 12, borderWidth: 1, borderColor: '#30363d' },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  actionButtonText: { fontSize: 13, fontWeight: '600' },
+  emptyState: { alignItems: 'center', padding: 40, marginTop: 20 },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  loadingText: { fontSize: 14, marginTop: 12 },
+  fabContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 12,
+    marginTop: 8,
+  },
+  fab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 28,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  fabSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 28,
+    borderWidth: 1,
+    gap: 8,
+  },
+  fabText: { fontSize: 14, fontWeight: 'bold' },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
+  modalSubtitle: { fontSize: 14, marginBottom: 20 },
+  modalInput: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
   modalInputMultiline: { height: 70, textAlignVertical: 'top' },
   modalButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  modalButton: { flex: 1, backgroundColor: '#58a6ff', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  modalButtonSecondary: { backgroundColor: '#21262d' },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonSecondary: {},
   modalButtonText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
-  modalButtonTextSecondary: { color: '#c9d1d9', fontSize: 15, fontWeight: '600' },
+  modalButtonTextSecondary: { fontSize: 15, fontWeight: '600' },
   buttonDisabled: { opacity: 0.5 },
 });
 

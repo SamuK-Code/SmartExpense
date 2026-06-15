@@ -14,8 +14,6 @@ import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
 import { ScaleInView } from '../components/AnimatedComponents';
-import AppHeader from '../components/AppHeader';
-import BackButton from '../components/BackButton';
 
 export default function CategoriesScreen({ navigation }) {
   const { categories, addCategory, updateCategory, deleteCategory, CATEGORIES } = useExpenses();
@@ -123,68 +121,62 @@ export default function CategoriesScreen({ navigation }) {
     setEditingCategory(null);
   };
 
-  // Fallback seguro: se categories for null/undefined/vazio, usar CATEGORIES padrões
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 50, paddingBottom: 16 }}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('categories')}</Text>
-      </View>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('categories')}</Text>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        
         {displayCategories.map((category, index) => (
-          <View key={category.id || index}>
-            <TouchableOpacity
-              style={[styles.categoryItem, { backgroundColor: colors.card }]}
-              onPress={() => openEdit(category)}
-              onLongPress={() => handleDelete(category)}
-            >
-              <View style={[styles.categoryIcon, { backgroundColor: (category.color || '#999') + '15' }]}>
-                <Ionicons name={category.icon || 'pricetag'} size={22} color={category.color || '#999'} />
-              </View>
-              <View style={styles.categoryInfo}>
-                <Text style={[styles.categoryName, { color: colors.text }]}>{category.name || 'Sem nome'}</Text>
-                <View style={[styles.colorDot, { backgroundColor: category.color || '#999' }]} />
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            key={category.id || index}
+            style={[styles.categoryItem, { backgroundColor: colors.card }]}
+            onPress={() => openEdit(category)}
+            onLongPress={() => handleDelete(category)}
+          >
+            <View style={[styles.categoryIcon, { backgroundColor: category.color + '20' }]}>
+              <Ionicons name={category.icon || 'pricetag'} size={22} color={category.color} />
+            </View>
+            <View style={styles.categoryInfo}>
+              <Text style={[styles.categoryName, { color: colors.text }]}>{category.name || 'Sem nome'}</Text>
+              <View style={[styles.colorDot, { backgroundColor: category.color }]} />
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textLight} />
+          </TouchableOpacity>
         ))}
+
+        <TouchableOpacity
+          style={[styles.resetButton, { backgroundColor: colors.danger + '15' }]}
+          onPress={() => {
+            Alert.alert(
+              t('resetCategories'),
+              t('resetCategoriesDesc'),
+              [
+                { text: t('cancel'), style: 'cancel' },
+                { text: t('reset'), style: 'destructive', onPress: () => {
+                  // 1. Deletar TODAS as categorias existentes
+                  const allCats = [...(categories || [])];
+                  allCats.forEach(cat => {
+                    try { deleteCategory(cat.id); } catch(e) {}
+                  });
+                  // 2. Adicionar as padrões com IDs únicos baseados no timestamp
+                  const now = Date.now();
+                  defaultCategories.forEach((cat, idx) => {
+                    addCategory({
+                      ...cat,
+                      id: 'default_' + cat.id + '_' + (now + idx),
+                    });
+                  });
+                }},
+              ]
+            );
+          }}
+        >
+          <Ionicons name="refresh-outline" size={18} color={colors.danger} />
+          <Text style={{ color: colors.danger, marginLeft: 8, fontWeight: '600' }}>Resetar</Text>
+        </TouchableOpacity>
       </ScrollView>
 
-      <TouchableOpacity
-        style={[styles.resetButton, { backgroundColor: colors.warning }]}
-        onPress={() => {
-          Alert.alert(
-            t('resetCategories'),
-            t('resetCategoriesDesc'),
-            [
-              { text: t('cancel'), style: 'cancel' },
-              { text: t('reset'), style: 'destructive', onPress: () => {
-                // 1. Deletar TODAS as categorias existentes
-                const allCats = [...(categories || [])];
-                allCats.forEach(cat => {
-                  try { deleteCategory(cat.id); } catch(e) {}
-                });
-                // 2. Adicionar as padrões com IDs únicos baseados no timestamp
-                const now = Date.now();
-                defaultCategories.forEach((cat, idx) => {
-                  addCategory({
-                    ...cat,
-                    id: 'default_' + cat.id + '_' + (now + idx),
-                  });
-                });
-              }},
-            ]
-          );
-        }}
-      >
-        <Ionicons name="refresh" size={20} color="#fff" />
-        <Text style={{ color: '#fff', fontSize: 12, marginLeft: 6 }}>Resetar</Text>
-      </TouchableOpacity>
-
+      {/* FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={openAdd}
@@ -193,76 +185,76 @@ export default function CategoriesScreen({ navigation }) {
       </TouchableOpacity>
 
       {/* Modal */}
-      <Modal visible={modalVisible} transparent animationType="fade">
-        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
-          <ScaleInView style={[styles.modalContent, { backgroundColor: colors.card }]}>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => { setModalVisible(false); resetForm(); }}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
               {editingCategory ? t('editCategory') : t('newCategory')}
             </Text>
 
             <TextInput
-              style={[styles.input, { backgroundColor: colors.background, color: colors.text }]}
+              style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+              placeholder="Nome da categoria"
+              placeholderTextColor={colors.textLight}
               value={categoryName}
               onChangeText={setCategoryName}
-              placeholder={t('categoryName')}
-              placeholderTextColor={colors.textLight}
             />
 
             <Text style={[styles.label, { color: colors.text }]}>{t('categoryColor')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-              <View style={styles.colorRow}>
-                {colorsList.map((color, idx) => (
-                  <TouchableOpacity
-                    key={color + idx}
-                    style={[
-                      styles.colorOption,
-                      { backgroundColor: color },
-                      selectedColor === color && styles.colorOptionSelected
-                    ]}
-                    onPress={() => setSelectedColor(color)}
-                  >
-                    {selectedColor === color && (
-                      <Ionicons name="checkmark" size={16} color="#fff" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <View style={styles.colorRow}>
+              {colorsList.map((color, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.colorOption,
+                    { backgroundColor: color },
+                    selectedColor === color && styles.colorOptionSelected
+                  ]}
+                  onPress={() => setSelectedColor(color)}
+                >
+                  {selectedColor === color && (
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <Text style={[styles.label, { color: colors.text }]}>{t('categoryIcon')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-              <View style={styles.iconRow}>
-                {iconsList.map((icon, idx) => (
-                  <TouchableOpacity
-                    key={icon + idx}
-                    style={[
-                      styles.iconOption,
-                      { backgroundColor: selectedIcon === icon ? colors.primary + '15' : colors.background },
-                      selectedIcon === icon && styles.iconOptionSelected
-                    ]}
-                    onPress={() => setSelectedIcon(icon)}
-                  >
-                    <Ionicons name={icon} size={20} color={selectedIcon === icon ? colors.primary : colors.textLight} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
+            <View style={styles.iconRow}>
+              {iconsList.map((icon, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.iconOption,
+                    { backgroundColor: selectedIcon === icon ? colors.primary + '20' : colors.inputBg, borderColor: selectedIcon === icon ? colors.primary : colors.border }
+                  ]}
+                  onPress={() => setSelectedIcon(icon)}
+                >
+                  <Ionicons name={icon} size={20} color={selectedIcon === icon ? colors.primary : colors.textSecondary} />
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: colors.danger }]} 
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: colors.textLight }]}
                 onPress={() => { setModalVisible(false); resetForm(); }}
               >
                 <Text style={styles.modalButtonText}>{t('cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, { backgroundColor: colors.primary }]} 
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: colors.primary }]}
                 onPress={handleSave}
               >
                 <Text style={styles.modalButtonText}>{t('save')}</Text>
               </TouchableOpacity>
             </View>
-          </ScaleInView>
+          </View>
         </View>
       </Modal>
     </View>
@@ -271,38 +263,39 @@ export default function CategoriesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  categoryItem: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    padding: 16, 
-    borderRadius: 14, 
-    marginBottom: 10, 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 1 }, 
-    shadowOpacity: 0.05, 
-    shadowRadius: 3, 
-    elevation: 1 
+  sectionTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
+  categoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1
   },
-  categoryIcon: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 12, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  categoryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  categoryInfo: { 
-    flex: 1, 
-    marginLeft: 12 
+  categoryInfo: {
+    flex: 1,
+    marginLeft: 12
   },
-  categoryName: { 
-    fontSize: 15, 
-    fontWeight: '600' 
+  categoryName: {
+    fontSize: 15,
+    fontWeight: '600'
   },
-  colorDot: { 
-    width: 12, 
-    height: 12, 
-    borderRadius: 6, 
-    marginTop: 4 
+  colorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginTop: 4
   },
   resetButton: {
     position: 'absolute',
@@ -319,113 +312,106 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  fab: { 
-    position: 'absolute', 
-    right: 20, 
-    bottom: 20, 
-    width: 56, 
-    height: 56, 
-    borderRadius: 28, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.2, 
-    shadowRadius: 8, 
-    elevation: 5 
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5
   },
-  modalOverlay: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    padding: 20 
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
   },
-  modalContent: { 
-    width: '100%', 
-    maxWidth: 360, 
-    borderRadius: 20, 
-    padding: 24, 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 8 }, 
-    shadowOpacity: 0.2, 
-    shadowRadius: 16, 
-    elevation: 10 
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10
   },
-  modalTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    marginBottom: 16 
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16
   },
-  input: { 
-    borderRadius: 12, 
-    padding: 14, 
-    fontSize: 16, 
-    marginBottom: 16 
+  input: {
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    marginBottom: 16,
+    borderWidth: 1,
   },
-  label: { 
-    fontSize: 14, 
-    fontWeight: '600', 
-    marginBottom: 10, 
-    marginTop: 8 
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+    marginTop: 8
   },
-  colorRow: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 8, 
-    paddingRight: 16 
+  colorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingRight: 16
   },
-  colorOption: { 
-    width: 36, 
-    height: 36, 
-    borderRadius: 18, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
+  colorOption: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  colorOptionSelected: { 
-    borderWidth: 3, 
-    borderColor: '#fff', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.3, 
-    shadowRadius: 4, 
-    elevation: 4 
+  colorOptionSelected: {
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4
   },
-  iconRow: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 8, 
-    paddingRight: 16 
+  iconRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingRight: 16
   },
-  iconOption: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 10, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 1, 
-    borderColor: 'transparent' 
+  iconOption: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
   },
-  iconOptionSelected: { 
-    borderColor: '#fff', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.2, 
-    shadowRadius: 3, 
-    elevation: 3 
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
   },
-  modalButtons: { 
-    flexDirection: 'row', 
-    gap: 10 
+  modalButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center'
   },
-  modalButton: { 
-    flex: 1, 
-    padding: 14, 
-    borderRadius: 12, 
-    alignItems: 'center' 
-  },
-  modalButtonText: { 
-    color: '#fff', 
-    fontSize: 16, 
-    fontWeight: '600' 
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600'
   },
 });

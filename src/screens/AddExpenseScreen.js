@@ -15,6 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useExpenses } from '../context/ExpenseContext';
 import { useTheme } from '../context/ThemeContext';
 import { useI18n } from '../context/I18nContext';
+import ExpenseListItem from '../components/ExpenseListItem';
+import { StaggeredList } from '../components/AnimatedComponents';
+import { SPACING, BORDER_RADIUS } from '../constants/DesignSystem';
 
 const PaymentTypeButton = ({ selected, onPress, icon, title, subtitle, colors }) => (
   <TouchableOpacity
@@ -257,6 +260,25 @@ export default function AddExpenseScreen({ navigation }) {
             />
           </View>
 
+          {/* Recent Expenses Section */}
+          {expenses.length > 0 && (
+            <View style={[styles.recentSection, { marginTop: SPACING.xl, marginBottom: SPACING.lg }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Gastos Recentes</Text>
+              <StaggeredList staggerDelay={50}>
+                {expenses.slice(0, 5).map((expense) => (
+                  <View key={expense.id} style={{ marginBottom: SPACING.sm }}>
+                    <ExpenseListItem
+                      expense={expense}
+                      onPay={() => {}}
+                      onDelete={() => {}}
+                      compact
+                    />
+                  </View>
+                ))}
+              </StaggeredList>
+            </View>
+          )}
+
           {/* Botão Salvar */}
           <TouchableOpacity
             style={[styles.button, { backgroundColor: colors.primary }, isLoading && styles.buttonDisabled]}
@@ -282,6 +304,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 40 },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 24 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: SPACING.md },
+  recentSection: { borderTopWidth: 1, paddingTop: SPACING.lg },
   inputContainer: { marginBottom: 20 },
   label: { fontSize: 14, marginBottom: 8, fontWeight: '600' },
   input: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, borderWidth: 1 },
