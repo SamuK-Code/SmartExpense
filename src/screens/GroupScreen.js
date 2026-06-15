@@ -11,7 +11,7 @@ import {
   Share,
   ActivityIndicator,
 } from 'react-native';
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../context/AuthContext';
 import { useGroup } from '../context/GroupContext';
 
@@ -68,7 +68,7 @@ const GroupScreen = () => {
           {
             text: 'Copiar',
             onPress: () => {
-              Clipboard.setString(result.group.invite_code);
+              await Clipboard.setStringAsync(result.group.invite_code);
             },
           },
           { text: 'OK', style: 'cancel' },
@@ -120,7 +120,7 @@ const GroupScreen = () => {
         message: `Entre no grupo "${groupName}" no Check Finances!\n\nCódigo: ${code}\n\nBaixe o app e sincronize as finanças juntos.`,
       });
     } catch {
-      Clipboard.setString(code);
+      await Clipboard.setStringAsync(code);
       Alert.alert('Copiado!', 'Código copiado para área de transferência.');
     }
   }, []);
