@@ -36,8 +36,8 @@ export const safeGetItem = async (key, defaultValue = null) => {
     }
 
     // Check for incomplete JSON (starts with [ or { but doesn't end properly)
-    if ((trimmed.startsWith('[') && !trimmed.endsWith(']')) || 
-        (trimmed.startsWith('{') && !trimmed.endsWith('}'))) {
+    if ((trimmed.startsWith('[') && !trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && !trimmed.endsWith('}'))) {
       console.warn(`Incomplete JSON for key ${key}, returning default`);
       return defaultValue;
     }
@@ -83,7 +83,7 @@ export const safeSetItem = async (key, value) => {
     }
 
     // Check size limit (2MB for AsyncStorage)
-    const sizeInBytes = jsonValue.length;
+    const sizeInBytes = new TextEncoder().encode(jsonValue).length;
     if (sizeInBytes > 2 * 1024 * 1024) {
       throw new Error('Data too large to save');
     }
@@ -188,7 +188,8 @@ export const getStorageInfo = async () => {
 
     items.forEach(([key, value]) => {
       if (value) {
-        const size = new Blob([value]).size;
+        // ✅ CORREÇÃO: Usa length da string em vez de new Blob()
+        const size = value.length * 2; // UTF-16 = 2 bytes por char
         totalSize += size;
         info[key] = {
           size: `${(size / 1024).toFixed(2)} KB`,
