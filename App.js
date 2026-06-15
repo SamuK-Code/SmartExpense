@@ -13,9 +13,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 
-// ========== CONTEXTS ==========
-import { AuthProvider, useAuth } from './src/contexts/AuthContext';
-import { GroupProvider } from './src/contexts/GroupContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { GroupProvider } from './src/context/GroupContext';
 import { ExpenseProvider } from './src/context/ExpenseContext';
 import { PlanningProvider } from './src/context/PlanningContext';
 import { CashProvider } from './src/context/CashContext';
@@ -23,7 +22,6 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { I18nProvider, useI18n } from './src/context/I18nContext';
 import ErrorBoundary from './src/utils/ErrorBoundary';
 
-// ========== SCREENS ==========
 import DashboardScreen from './src/screens/DashboardScreen';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import EditExpenseScreen from './src/screens/EditExpenseScreen';
@@ -43,7 +41,6 @@ import SyncScreen from './src/screens/SyncScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// ========== STACK NAVIGATORS ==========
 function HomeStack() {
   const { colors } = useTheme();
   return (
@@ -126,7 +123,6 @@ function MenuStack() {
   );
 }
 
-// ========== TAB NAVIGATOR (LOGADO) ==========
 function TabNavigator() {
   const { colors, isDark } = useTheme();
   const { t } = useI18n();
@@ -176,7 +172,6 @@ function TabNavigator() {
   );
 }
 
-// ========== APP ROOT COM AUTH ==========
 function AppRoot() {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -196,7 +191,6 @@ function AppRoot() {
   );
 }
 
-// ========== EXPORT ==========
 export default function App() {
   return (
     <ErrorBoundary>
