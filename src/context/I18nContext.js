@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const I18nContext = createContext();
+export const I18nContext = createContext();
 
 const STORAGE_KEY = '@app_language';
 
