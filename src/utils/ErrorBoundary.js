@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { I18nContext } from '../context/I18nContext';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -15,7 +14,6 @@ class ErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     this.setState({ error, errorInfo });
-    // Log error for debugging
     console.error('ErrorBoundary caught error:', error, errorInfo);
   }
 
@@ -26,25 +24,19 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <I18nContext.Consumer>
-          {({ t }) => (
-            <View style={styles.container}>
-              <Ionicons name="alert-circle-outline" size={64} color="#e74c3c" />
-              <Text style={styles.title}>{t('error')}</Text>
-              <Text style={styles.subtitle}>
-                {t('appError')}
-              </Text>
-              {this.state.error && (
-                <Text style={styles.errorText}>
-                  {this.state.error.toString()}
-                </Text>
-              )}
-              <TouchableOpacity style={styles.button} onPress={this.handleReset}>
-                <Text style={styles.buttonText}>{t('tryAgain')}</Text>
-              </TouchableOpacity>
+        <View style={styles.container}>
+          <Ionicons name="alert-circle" size={64} color="#e74c3c" />
+          <Text style={styles.title}>Erro</Text>
+          <Text style={styles.subtitle}>O aplicativo encontrou um erro inesperado. Tente reiniciar.</Text>
+          {this.state.error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{this.state.error.toString()}</Text>
             </View>
           )}
-        </I18nContext.Consumer>
+          <TouchableOpacity style={styles.button} onPress={this.handleReset}>
+            <Text style={styles.buttonText}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
       );
     }
 
@@ -74,15 +66,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 20,
   },
+  errorContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
   errorText: {
     fontSize: 12,
     color: '#e74c3c',
     textAlign: 'center',
-    marginBottom: 20,
     padding: 10,
     backgroundColor: '#fdeaea',
     borderRadius: 8,
-    width: '100%',
   },
   button: {
     backgroundColor: '#1a237e',
