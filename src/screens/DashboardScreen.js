@@ -15,7 +15,6 @@ import { useI18n } from '../context/I18nContext';
 
 const { width } = Dimensions.get('window');
 
-// Componente de saudação
 const Greeting = React.memo(function Greeting({ t, colors }) {
   const hour = new Date().getHours();
   let text = t('evening');
@@ -29,7 +28,6 @@ const Greeting = React.memo(function Greeting({ t, colors }) {
   );
 });
 
-// Banner de caixa
 const CashBanner = React.memo(function CashBanner({ value, colors, t }) {
   const fmt = useMemo(() =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value),
@@ -49,7 +47,6 @@ const CashBanner = React.memo(function CashBanner({ value, colors, t }) {
   );
 });
 
-// Banner de despesas pendentes
 const UnpaidBanner = React.memo(function UnpaidBanner({ count, total, colors, t }) {
   const fmt = useMemo(() =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total),
@@ -69,7 +66,6 @@ const UnpaidBanner = React.memo(function UnpaidBanner({ count, total, colors, t 
   );
 });
 
-// Carrossel de cartões
 const CardCarousel = React.memo(function CardCarousel({ cards, colors, t, onNavigate }) {
   if (!cards || cards.length === 0) return null;
   
@@ -147,7 +143,6 @@ const CardCarousel = React.memo(function CardCarousel({ cards, colors, t, onNavi
   );
 });
 
-// Top categorias
 const TopCategories = React.memo(function TopCategories({ categories, monthTotal, colors, t, getCategoryInfo, onNavigate }) {
   if (!categories || categories.length === 0) return null;
   
@@ -185,45 +180,6 @@ const TopCategories = React.memo(function TopCategories({ categories, monthTotal
   );
 });
 
-// Preview de metas
-const GoalsPreview = React.memo(function GoalsPreview({ goals, colors, t, onNavigate }) {
-  const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-  if (!goals || goals.length === 0) return null;
-  
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('goals')}</Text>
-        <TouchableOpacity onPress={() => onNavigate('Planning')}>
-          <Text style={[styles.seeAll, { color: colors.primary }]}>{t('seeAll')}</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.goalsList}>
-        {goals.slice(0, 3).map(goal => {
-          const percentage = goal.targetAmount > 0 ? ((goal.currentAmount || 0) / goal.targetAmount) * 100 : 0;
-          return (
-            <View key={goal.id} style={[styles.goalItem, { backgroundColor: colors.card }]}>
-              <View style={styles.goalHeader}>
-                <Text style={[styles.goalName, { color: colors.text }]}>{goal.name}</Text>
-                <Text style={[styles.goalAmount, { color: colors.textSecondary }]}>
-                  {fmt(goal.currentAmount || 0)} / {fmt(goal.targetAmount)}
-                </Text>
-              </View>
-              <View style={styles.goalProgress}>
-                <View style={[styles.goalProgressBar, { backgroundColor: colors.border }]}>
-                  <View style={[styles.goalProgressFill, { width: `${Math.min(percentage, 100)}%`, backgroundColor: colors.primary }]} />
-                </View>
-                <Text style={[styles.goalProgressText, { color: colors.primary }]}>{percentage.toFixed(1)}%</Text>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-});
-
-// Item de despesa simples
 const SimpleExpenseItem = React.memo(({ item, colors, t, onPress }) => {
   const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.amount);
   return (
@@ -250,7 +206,6 @@ export default function DashboardScreen({ navigation }) {
 
   const [showAll, setShowAll] = useState(false);
 
-  // Estatísticas calculadas localmente
   const stats = useMemo(() => {
     const now = new Date();
     const monthExpenses = expenses.filter(e => {
@@ -301,22 +256,18 @@ export default function DashboardScreen({ navigation }) {
       <View style={styles.scrollContent}>
         <Greeting t={t} colors={colors} />
         
-        {/* Cards de resumo */}
         <View style={styles.summaryCards}>
           <CashBanner value={0} colors={colors} t={t} />
         </View>
 
-        {/* Despesas pendentes */}
         {stats.unpaidCount > 0 && (
           <UnpaidBanner count={stats.unpaidCount} total={stats.unpaidTotal} colors={colors} t={t} />
         )}
 
-        {/* Carrossel de cartões */}
         {cards.length > 0 && (
           <CardCarousel cards={cards} colors={colors} t={t} onNavigate={handleNavigate} />
         )}
 
-        {/* Top categorias */}
         {stats.topCategories.length > 0 && (
           <TopCategories 
             categories={stats.topCategories} 
@@ -328,7 +279,6 @@ export default function DashboardScreen({ navigation }) {
           />
         )}
 
-        {/* Despesas recentes */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('recentExpenses')}</Text>
@@ -412,15 +362,6 @@ const styles = StyleSheet.create({
   categoryBarFill: { height: '100%', borderRadius: 3 },
   showAllButton: { padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   showAllText: { fontSize: 14, fontWeight: '600' },
-  goalsList: { gap: 8 },
-  goalItem: { padding: 14, borderRadius: 14 },
-  goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  goalName: { fontSize: 14, fontWeight: '600' },
-  goalAmount: { fontSize: 12 },
-  goalProgress: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  goalProgressBar: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
-  goalProgressFill: { height: '100%', borderRadius: 3 },
-  goalProgressText: { fontSize: 12, fontWeight: '600' },
   expenseItem: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -436,5 +377,3 @@ const styles = StyleSheet.create({
   expenseAmount: { fontSize: 14, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', padding: 20, fontSize: 14 },
 });
-
-export default DashboardScreen;
