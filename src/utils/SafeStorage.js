@@ -83,7 +83,8 @@ export const safeSetItem = async (key, value) => {
     }
 
     // Check size limit (2MB for AsyncStorage)
-    const sizeInBytes = new TextEncoder().encode(jsonValue).length;
+    // ✅ CORREÇÃO: Usa length da string em vez de new Blob()
+    const sizeInBytes = jsonValue.length * 2; // UTF-16 = 2 bytes por char
     if (sizeInBytes > 2 * 1024 * 1024) {
       throw new Error('Data too large to save');
     }
