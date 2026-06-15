@@ -12,11 +12,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 
-// ========== NOVOS CONTEXTS ==========
+// ========== CONTEXTS ==========
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { GroupProvider } from './src/contexts/GroupContext';
-
-// ========== CONTEXTS EXISTENTES ==========
 import { ExpenseProvider } from './src/context/ExpenseContext';
 import { PlanningProvider } from './src/context/PlanningContext';
 import { CashProvider } from './src/context/CashContext';
@@ -24,7 +22,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { I18nProvider, useI18n } from './src/context/I18nContext';
 import ErrorBoundary from './src/utils/ErrorBoundary';
 
-// ========== SCREENS EXISTENTES ==========
+// ========== SCREENS ==========
 import DashboardScreen from './src/screens/DashboardScreen';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import EditExpenseScreen from './src/screens/EditExpenseScreen';
@@ -37,8 +35,6 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import LanguageScreen from './src/screens/LanguageScreen';
 import CategoriesScreen from './src/screens/CategoriesScreen';
 import MoreScreen from './src/screens/MoreScreen';
-
-// ========== NOVAS SCREENS ==========
 import LoginScreen from './src/screens/LoginScreen';
 import GroupScreen from './src/screens/GroupScreen';
 import SyncScreen from './src/screens/SyncScreen';
@@ -46,13 +42,27 @@ import SyncScreen from './src/screens/SyncScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-// ========== STACKS EXISTENTES ==========
+// ========== STACK NAVIGATORS ==========
 function HomeStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
-      <Stack.Screen name="HomeMain" component={DashboardScreen} />
-      <Stack.Screen name="EditExpense" component={EditExpenseScreen} />
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.header },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: { fontWeight: 'bold' },
+      }}
+    >
+      <Stack.Screen 
+        name="Dashboard" 
+        component={DashboardScreen} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="EditExpense" 
+        component={EditExpenseScreen} 
+        options={{ title: 'Editar Gasto' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -60,9 +70,23 @@ function HomeStack() {
 function ChartStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
-      <Stack.Screen name="ChartMain" component={ChartScreen} />
-      <Stack.Screen name="ChartDetail" component={ChartDetailScreen} />
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.header },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: { fontWeight: 'bold' },
+      }}
+    >
+      <Stack.Screen 
+        name="Charts" 
+        component={ChartScreen} 
+        options={{ title: 'Gráficos' }}
+      />
+      <Stack.Screen 
+        name="ChartDetail" 
+        component={ChartDetailScreen} 
+        options={{ title: 'Detalhes' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -70,11 +94,33 @@ function ChartStack() {
 function MenuStack() {
   const { colors } = useTheme();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: colors.background } }}>
-      <Stack.Screen name="MenuMain" component={MoreScreen} />
-      <Stack.Screen name="Language" component={LanguageScreen} />
-      <Stack.Screen name="Categories" component={CategoriesScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.header },
+        headerTintColor: colors.headerText,
+        headerTitleStyle: { fontWeight: 'bold' },
+      }}
+    >
+      <Stack.Screen 
+        name="More" 
+        component={MoreScreen} 
+        options={{ title: 'Mais' }}
+      />
+      <Stack.Screen 
+        name="Settings" 
+        component={SettingsScreen} 
+        options={{ title: 'Configurações' }}
+      />
+      <Stack.Screen 
+        name="Language" 
+        component={LanguageScreen} 
+        options={{ title: 'Idioma' }}
+      />
+      <Stack.Screen 
+        name="Categories" 
+        component={CategoriesScreen} 
+        options={{ title: 'Categorias' }}
+      />
     </Stack.Navigator>
   );
 }
@@ -117,14 +163,14 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="HomeTab" component={HomeStack} options={{ tabBarLabel: t('home') }} />
-      <Tab.Screen name="AddTab" component={AddExpenseScreen} options={{ tabBarLabel: t('addExpense') }} />
+      <Tab.Screen name="AddTab" component={AddExpenseScreen} options={{ tabBarLabel: t('add') }} />
       <Tab.Screen name="HistoryTab" component={HistoryScreen} options={{ tabBarLabel: t('history') }} />
       <Tab.Screen name="ChartsTab" component={ChartStack} options={{ tabBarLabel: t('charts') }} />
       <Tab.Screen name="PlanningTab" component={PlanningScreen} options={{ tabBarLabel: t('planning') }} />
       <Tab.Screen name="CardsTab" component={CardsScreen} options={{ tabBarLabel: t('cards') }} />
-      <Tab.Screen name="GroupTab" component={GroupScreen} options={{ tabBarLabel: 'Grupo' }} />
-      <Tab.Screen name="SyncTab" component={SyncScreen} options={{ tabBarLabel: 'Sync' }} />
-      <Tab.Screen name="MenuTab" component={MenuStack} options={{ tabBarLabel: t('settings') }} />
+      <Tab.Screen name="GroupTab" component={GroupScreen} options={{ tabBarLabel: t('group') || 'Grupo' }} />
+      <Tab.Screen name="SyncTab" component={SyncScreen} options={{ tabBarLabel: t('sync') || 'Sync' }} />
+      <Tab.Screen name="MenuTab" component={MenuStack} options={{ tabBarLabel: t('menu') }} />
     </Tab.Navigator>
   );
 }
@@ -135,15 +181,15 @@ function AppRoot() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0d1117', justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0d1117' }}>
         <ActivityIndicator size="large" color="#58a6ff" />
+        <Text style={{ color: '#fff', marginTop: 16, fontSize: 16 }}>Carregando...</Text>
       </View>
     );
   }
 
   return (
     <NavigationContainer>
-      <StatusBar style="auto" />
       {isAuthenticated ? <TabNavigator /> : <LoginScreen />}
     </NavigationContainer>
   );
@@ -153,21 +199,22 @@ function AppRoot() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <I18nProvider>
-        <ThemeProvider>
+      <ThemeProvider>
+        <I18nProvider>
           <AuthProvider>
             <GroupProvider>
-              <CashProvider>
-                <PlanningProvider>
-                  <ExpenseProvider>
+              <ExpenseProvider>
+                <CashProvider>
+                  <PlanningProvider>
+                    <StatusBar style="auto" />
                     <AppRoot />
-                  </ExpenseProvider>
-                </PlanningProvider>
-              </CashProvider>
+                  </PlanningProvider>
+                </CashProvider>
+              </ExpenseProvider>
             </GroupProvider>
           </AuthProvider>
-        </ThemeProvider>
-      </I18nProvider>
+        </I18nProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
