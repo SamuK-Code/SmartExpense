@@ -1,171 +1,83 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
-import { useAuth } from '../contexts/AuthContext';
+import HomeScreen from '../screens/HomeScreen';
+import AddScreen from '../screens/AddScreen';
+import HistoryScreen from '../screens/HistoryScreen';
+import CardsScreen from '../screens/CardsScreen';
+import GoalsScreen from '../screens/GoalsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
-// Screens
-import LoginScreen from '../screens/LoginScreen';
-import GroupScreen from '../screens/GroupScreen';
-import SyncScreen from '../screens/SyncScreen';
-
-// Placeholder para screens existentes do seu app
-// Substitua por suas telas reais
-const HomePlaceholder = () => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>🏠 Home (sua tela principal)</Text>
-  </View>
-);
-
-const ExpensesPlaceholder = () => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>💸 Despesas (sua tela)</Text>
-  </View>
-);
-
-const StatsPlaceholder = () => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>📊 Estatísticas (sua tela)</Text>
-  </View>
-);
-
-const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-// Ícones simples para tabs
-const TabIcon = ({ icon, focused }) => (
-  <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-    {icon}
-  </Text>
-);
+function TabNavigator() {
+  const { colors, isDarkMode } = useTheme();
 
-// Tab Navigator principal (logado)
-const MainTabs = () => {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#e94560',
-        tabBarInactiveTintColor: '#888',
-        tabBarLabelStyle: styles.tabLabel,
-      }}
+        tabBarStyle: {
+          backgroundColor: colors.bgCard,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 70,
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 20,
+          elevation: 10,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600',
+          marginTop: 4,
+        },
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+          switch (route.name) {
+            case 'Início':
+              iconName = 'home';
+              break;
+            case 'Adicionar':
+              iconName = 'plus-circle';
+              break;
+            case 'Histórico':
+              iconName = 'history';
+              break;
+            case 'Cartões':
+              iconName = 'credit-card';
+              break;
+            case 'Metas':
+              iconName = 'bullseye';
+              break;
+          }
+          return <FontAwesome5 name={iconName} size={focused ? 22 : 20} color={color} />;
+        },
+      })}
     >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomePlaceholder}
-        options={{
-          tabBarLabel: 'Início',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="ExpensesTab"
-        component={ExpensesPlaceholder}
-        options={{
-          tabBarLabel: 'Despesas',
-          tabBarIcon: ({ focused }) => <TabIcon icon="💸" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="GroupTab"
-        component={GroupScreen}
-        options={{
-          tabBarLabel: 'Grupo',
-          tabBarIcon: ({ focused }) => <TabIcon icon="👥" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="SyncTab"
-        component={SyncScreen}
-        options={{
-          tabBarLabel: 'Sync',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🔄" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="StatsTab"
-        component={StatsPlaceholder}
-        options={{
-          tabBarLabel: 'Stats',
-          tabBarIcon: ({ focused }) => <TabIcon icon="📊" focused={focused} />,
-        }}
-      />
+      <Tab.Screen name="Início" component={HomeScreen} />
+      <Tab.Screen name="Adicionar" component={AddScreen} />
+      <Tab.Screen name="Histórico" component={HistoryScreen} />
+      <Tab.Screen name="Cartões" component={CardsScreen} />
+      <Tab.Screen name="Metas" component={GoalsScreen} />
     </Tab.Navigator>
   );
-};
+}
 
-// Stack Navigator raiz
-const AppNavigator = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Carregando...</Text>
-      </View>
-    );
-  }
-
+export default function AppNavigator() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
-          <Stack.Screen name="Main" component={MainTabs} />
-        ) : (
-          <Stack.Screen name="Login" component={LoginScreen} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Main" component={TabNavigator} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+    </Stack.Navigator>
   );
-};
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-  },
-  loadingText: {
-    color: '#fff',
-    fontSize: 18,
-  },
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-  },
-  placeholderText: {
-    color: '#888',
-    fontSize: 18,
-  },
-  tabBar: {
-    backgroundColor: '#16213e',
-    borderTopWidth: 0,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    paddingBottom: 8,
-    paddingTop: 8,
-    height: 64,
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  tabIcon: {
-    fontSize: 22,
-    opacity: 0.5,
-  },
-  tabIconFocused: {
-    opacity: 1,
-  },
-});
-
-export default AppNavigator;
+}

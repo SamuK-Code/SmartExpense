@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "SmartExpense",
-    "slug": "smart-expense",
+    "name": "Finanças Pro",
+    "slug": "financas-pro",
     "version": "3.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,28 +9,28 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1a237e"
+      "backgroundColor": "#8B5CF6"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.seunome.financaspro",
+      "deploymentTarget": "16.4"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1a237e"
-      }
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+        "backgroundColor": "#8B5CF6"
+      },
+      "package": "com.seunome.financaspro"
     },
     "plugins": [
+      "expo-audio",
       "expo-sharing",
-      "expo-status-bar",
-      "expo-font",
-      "@react-native-community/datetimepicker"
+      "expo-splash-screen",
+      "expo-status-bar"
     ]
   }
 }
