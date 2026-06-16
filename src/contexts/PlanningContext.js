@@ -1,8 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
-import { useAuth } from '../context/AuthContext';
-import { useGroup } from '../context/GroupContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useGroup } from '../contexts/GroupContext';
 import SupabaseService from '../services/SupabaseService';
 
 const PlanningContext = createContext();

@@ -1,19 +1,19 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  StatusBar, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  StatusBar,
   TouchableOpacity,
   Platform,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../context/ThemeContext';
-import { useI18n } from '../context/I18nContext';
-import { useExpenses } from '../context/ExpenseContext';
-import { useCash } from '../context/CashContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useI18n } from '../contexts/I18nContext';
+import { useExpenses } from '../contexts/ExpenseContext';
+import { useCash } from '../contexts/CashContext';
 
 // ========== BACK BUTTON ==========
 export function BackButton({ onPress, style }) {
@@ -139,9 +139,9 @@ const headerStyles = StyleSheet.create({
 });
 
 // ========== SCREEN LAYOUT ==========
-export default function ScreenLayout({ 
-  children, 
-  title, 
+export default function ScreenLayout({
+  children,
+  title,
   showStats = false,
   showHeader = true,
   style,
@@ -152,7 +152,7 @@ export default function ScreenLayout({
   const { colors, isDark } = useTheme();
 
   const content = scrollable ? (
-    <ScrollView 
+    <ScrollView
       style={[layoutStyles.content, contentStyle]}
       contentContainerStyle={[layoutStyles.scrollContent, scrollContentStyle]}
       showsVerticalScrollIndicator={false}
@@ -166,17 +166,17 @@ export default function ScreenLayout({
   );
 
   return (
-    <SafeAreaView 
+    <SafeAreaView
       style={[layoutStyles.container, { backgroundColor: colors.background }, style]}
       edges={['top', 'left', 'right']}
     >
-      <StatusBar 
-        barStyle={isDark ? 'light-content' : 'dark-content'} 
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.header}
       />
-      
+
       {showHeader && <AppHeader title={title} showStats={showStats} />}
-      
+
       {content}
     </SafeAreaView>
   );

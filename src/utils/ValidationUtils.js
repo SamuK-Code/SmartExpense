@@ -226,3 +226,69 @@ export const validateCard = (card) => {
     }
   };
 };
+
+// ADICIONAR no final de ValidationUtils.js:
+
+// ═══════════════════════════════════════════════════════════
+// FORMATTING UTILITIES (adicionadas para componentes consolidados)
+// ═══════════════════════════════════════════════════════════
+
+// Format currency (BRL)
+export const formatCurrency = (value, showSymbol = true) => {
+  if (value === null || value === undefined || isNaN(value)) return showSymbol ? 'R$ 0,00' : '0,00';
+  const num = parseFloat(value);
+  const formatted = num.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return showSymbol ? `R$ ${formatted}` : formatted;
+};
+
+// Remove currency formatting and return number
+export const unformatCurrency = (value) => {
+  if (!value) return 0;
+  const clean = String(value)
+    .replace(/R\$\s?/g, '')
+    .replace(/\./g, '')
+    .replace(/,/g, '.')
+    .replace(/[^0-9.-]/g, '');
+  return parseFloat(clean) || 0;
+};
+
+// Format date to short string (DD/MM/YYYY)
+export const formatDateShort = (date) => {
+  if (!date) return '';
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return '';
+  
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  
+  return `${day}/${month}/${year}`;
+};
+
+// Parse date string to Date object
+export const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return dateStr;
+  
+  // Try DD/MM/YYYY
+  if (dateStr.includes('/')) {
+    const [day, month, year] = dateStr.split('/').map(Number);
+    if (day && month && year) {
+      return new Date(year, month - 1, day);
+    }
+  }
+  
+  // Try ISO string or other formats
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+// Format percentage
+export const formatPercentage = (value, decimals = 0) => {
+  if (value === null || value === undefined || isNaN(value)) return '0%';
+  const num = parseFloat(value);
+  return `${num.toFixed(decimals)}%`;
+};

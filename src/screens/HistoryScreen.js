@@ -12,34 +12,6 @@ import { SearchBar } from '../components/Forms';
 import { Screen, SectionHeader, EmptyState } from '../components/Layout';
 import { LoadingSpinner } from '../components/Indicators';
 
-const PeriodFilter = ({ current, onChange, colors, t }) => {
-  const periods = ['all', 'today', 'week', 'month', 'year'];
-  return (
-    <View style={styles.filterContainer}>
-      {periods.map((period) => (
-        <TouchableOpacity
-          key={period}
-          style={[
-            styles.filterButton,
-            {
-              backgroundColor: current === period ? colors.primary : colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-          onPress={() => onChange(period)}
-        >
-          <Text style={[
-            styles.filterText,
-            { color: current === period ? '#fff' : colors.text }
-          ]}>
-            {t(period)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-};
-
 const ExpenseItem = ({ item, colors, onToggle, onDelete }) => {
   const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.amount);
   return (

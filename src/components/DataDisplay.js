@@ -14,6 +14,7 @@ import { useI18n } from '../contexts/I18nContext';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import { formatCurrency, formatPercentage } from '../utils/ValidationUtils';
 import { Badge } from './Indicators';
+import Svg, { Circle } from 'react-native-svg';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_WIDTH = SCREEN_WIDTH - 48;
 
@@ -215,6 +216,22 @@ const useDisplayStyles = () => {
         fontSize: 15,
         color: theme.colors.textSecondary,
         textAlign: 'center',
+      },
+      // ─── Budget Bar extras ───
+      progressContainer: {
+        height: 8,
+        backgroundColor: isDark ? '#333' : '#E5E5EA',
+        borderRadius: 4,
+        overflow: 'hidden',
+      },
+      progressBar: {
+        height: '100%',
+        borderRadius: 4,
+      },
+      itemRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
       },
     }),
   };

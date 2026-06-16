@@ -12,7 +12,7 @@ import {
   Platform,
   Keyboard,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+//import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../contexts/I18nContext';
 import { formatCurrency, unformatCurrency } from '../utils/ValidationUtils';
@@ -515,10 +515,10 @@ export const Select = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// DATE PICKER
+// DATE PICKER (COMENTADO - descomente se tiver @react-native-community/datetimepicker)
 // ═══════════════════════════════════════════════════════════
 
-export const DatePicker = ({
+/*export const DatePicker = ({
   label,
   value,
   onChange,
@@ -602,7 +602,7 @@ export const DatePicker = ({
       )}
     </View>
   );
-};
+};*/
 
 // ═══════════════════════════════════════════════════════════
 // TOGGLE / SWITCH
@@ -746,7 +746,6 @@ export default {
   Input,
   CurrencyInput,
   Select,
-  DatePicker,
   Toggle,
   SearchBar,
   TextArea,
