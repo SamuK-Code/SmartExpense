@@ -14,6 +14,7 @@ import {
 import { useTheme } from '../contexts/ThemeContext';
 import { useI18n } from '../contexts/I18nContext';
 import { triggerHaptic } from '../utils/InteractionManagerPatch';
+import { formatDateShort, formatPercentage } from '../utils/ValidationUtils';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
