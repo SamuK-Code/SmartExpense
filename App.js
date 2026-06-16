@@ -170,15 +170,15 @@ export default function App() {
       <AuthProvider>
         <I18nProvider>
           <ThemeProvider>
-            <CashProvider>
-              <ExpenseProvider>
-                <PlanningProvider>
-                  <GroupProvider>
+            <GroupProvider>
+              <CashProvider>
+                <ExpenseProvider>
+                  <PlanningProvider>
                     <AppRoot />
-                  </GroupProvider>
-                </PlanningProvider>
-              </ExpenseProvider>
-            </CashProvider>
+                  </PlanningProvider>
+                </ExpenseProvider>
+              </CashProvider>
+            </GroupProvider>
           </ThemeProvider>
         </I18nProvider>
       </AuthProvider>
