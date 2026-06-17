@@ -1,145 +1,182 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Platform, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getCardGradientColors, formatCurrency, formatDate } from '../utils/helpers';
+import { getCardGradientColors, isCardTemplate, getCardTemplateImage, isCardSolid } from '../utils/helpers';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH - 40; 
+const CARD_HEIGHT = 185;
 
 const CreditCard = ({ card, used = 0, compact = false }) => {
-  const colors = getCardGradientColors(card.gradientClass);
+  const colors = getCardGradientColors(card.gradientClass || 'card-gradient-purple');
+  const isTemplate = isCardTemplate(card.gradientClass);
+  const isSolid = isCardSolid(card.gradientClass);
+  const templateImage = isTemplate ? getCardTemplateImage(card.gradientClass) : null;
   const available = card.limit - used;
 
+  const cardWidth = compact ? 290 : CARD_WIDTH;
+  const cardHeight = compact ? 165 : CARD_HEIGHT;
+
+  // Cores de texto adaptáveis
+  const isLightSolid = card.gradientClass === 'card-solid-white' || card.gradientClass === 'card-solid-gold' || card.gradientClass === 'card-template-marble' || card.gradientClass === 'card-template-glass';
+  const textColor = isLightSolid ? '#1C1917' : '#FFFFFF';
+  const textMuted = isLightSolid ? 'rgba(28,25,23,0.65)' : 'rgba(255,255,255,0.65)';
+  const chipColor = isLightSolid ? '#D4AF37' : '#ECC94B';
+  const chipBorder = isLightSolid ? '#B8941F' : '#D69E2E';
+  const faturaColor = isLightSolid ? '#991B1B' : '#FFE4E6';
+
+  const formatCardNumber = (num) => {
+    if (!num) return '••••  ••••  ••••  ••••';
+    const cleanNum = num.replace(/\s/g, '');
+    const lastFour = cleanNum.slice(-4);
+    return `••••  ••••  ••••  ${lastFour}`;
+  };
+
+  const CardContent = () => (
+    <View style={styles.gradient}>
+      {/* Topo do Cartão: Nome do Banco e Bandeira */}
+      <View style={styles.headerRow}>
+        <Text style={[styles.bankName, { color: textColor }]} numberOfLines={1}>Finanças Pro</Text>
+        <View style={styles.brandCircleContainer}>
+          <View style={[styles.brandCircle, { backgroundColor: isLightSolid ? 'rgba(28,25,23,0.4)' : 'rgba(255,255,255,0.4)', marginRight: -10 }]} />
+          <View style={[styles.brandCircle, { backgroundColor: isLightSolid ? 'rgba(28,25,23,0.25)' : 'rgba(255,255,255,0.25)' }]} />
+        </View>
+      </View>
+
+      {/* Meio: Chip e Número Mascarado */}
+      <View style={styles.middleRow}>
+        <View style={[styles.chip, { backgroundColor: chipColor, borderColor: chipBorder }]} />
+        <Text style={[styles.cardNumber, { color: textColor }]} numberOfLines={1}>
+          {formatCardNumber(card.number)}
+        </Text>
+      </View>
+
+      {/* Rodapé: Saldos/Limites */}
+      <View style={[styles.footerRow, { borderTopColor: isLightSolid ? 'rgba(28,25,23,0.15)' : 'rgba(255, 255, 255, 0.2)' }]}>
+        <View style={styles.footerColumn}>
+          <Text style={[styles.footerLabel, { color: textMuted }]}>LIMITE DISPONÍVEL</Text>
+          <Text style={[styles.footerValue, { color: textColor }]} numberOfLines={1}>
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(available)}
+          </Text>
+        </View>
+        <View style={[styles.footerColumn, { alignItems: 'flex-end' }]}>
+          <Text style={[styles.footerLabel, { color: textMuted }]}>Fatura Atual</Text>
+          <Text style={[styles.footerValue, { color: faturaColor }]} numberOfLines={1}>
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(used)}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
   return (
-    <LinearGradient
-      colors={colors}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.card, compact && styles.cardCompact]}
-    >
-      <View style={styles.datesContainer}>
-        <View style={styles.dateBadge}>
-          <Text style={styles.dateText}>Fecha: {formatDate(card.closeDate)}</Text>
-        </View>
-        {!compact && (
-          <View style={styles.dateBadge}>
-            <Text style={styles.dateText}>Vence: {formatDate(card.dueDate)}</Text>
+    <View style={[styles.wrapper, { width: cardWidth, height: cardHeight }]}>
+      {isTemplate && templateImage ? (
+        <ImageBackground
+          source={templateImage}
+          style={styles.imageBackground}
+          imageStyle={{ borderRadius: 16 }}
+        >
+          <View style={styles.imageOverlay}>
+            <CardContent />
           </View>
-        )}
-      </View>
-
-      <View style={styles.chip} />
-
-      <Text style={styles.number}>{card.number}</Text>
-
-      <View style={styles.footer}>
-        <Text style={styles.holder}>{card.name.toUpperCase()}</Text>
-        <View style={styles.balance}>
-          <Text style={styles.balanceLabel}>{compact ? 'Disp' : 'Disponível'}</Text>
-          <Text style={styles.balanceValue}>{formatCurrency(available)}</Text>
-        </View>
-      </View>
-
-      {!compact && (
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>💳</Text>
-        </View>
+        </ImageBackground>
+      ) : (
+        <LinearGradient
+          colors={colors}
+          start={{ x: 0.0, y: 0.0 }}
+          end={{ x: 1.0, y: 1.0 }}
+          style={styles.gradient}
+        >
+          <CardContent />
+        </LinearGradient>
       )}
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    width: width - 48,
-    height: 180,
+  wrapper: {
     borderRadius: 16,
-    padding: 20,
-    position: 'relative',
     overflow: 'hidden',
+    marginBottom: 16,
+    alignSelf: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  cardCompact: {
-    width: 280,
-    height: 160,
-    padding: 16,
+  imageBackground: {
+    flex: 1,
+    borderRadius: 16,
   },
-  datesContainer: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    alignItems: 'flex-end',
-    gap: 4,
+  imageOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)', // Overlay escuro para legibilidade
+    borderRadius: 16,
   },
-  dateBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  gradient: {
+    flex: 1,
+    padding: 18,
+    justifyContent: 'space-between',
+    borderRadius: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bankName: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    opacity: 0.9,
+  },
+  brandCircleContainer: {
+    flexDirection: 'row',
+  },
+  brandCircle: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
   },
-  dateText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '500',
+  middleRow: {
+    alignItems: 'flex-start',
+    marginVertical: 4,
   },
   chip: {
-    width: 44,
-    height: 32,
-    backgroundColor: '#FCD34D',
-    borderRadius: 8,
-    marginBottom: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(0,0,0,0.3)',
+    width: 36,
+    height: 26,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    marginBottom: 6,
   },
-  number: {
-    fontSize: 20,
-    letterSpacing: 3,
-    color: '#FFFFFF',
-    fontFamily: 'Courier',
-    marginBottom: 24,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+  cardNumber: {
+    fontSize: 17,
+    fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
+    letterSpacing: 1.5,
+    fontWeight: '600',
   },
-  footer: {
+  footerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
+    borderTopWidth: 0.5,
+    paddingTop: 8,
   },
-  holder: {
-    fontSize: 13,
-    color: '#FFFFFF',
+  footerColumn: {
+    flex: 1,
+  },
+  footerLabel: {
+    fontSize: 9,
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    fontWeight: '500',
-    opacity: 0.95,
+    marginBottom: 2,
   },
-  balance: {
-    alignItems: 'flex-end',
-  },
-  balanceLabel: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    opacity: 0.8,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  balanceValue: {
-    fontSize: 18,
-    color: '#FFFFFF',
+  footerValue: {
+    fontSize: 15,
     fontWeight: '700',
-  },
-  logo: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    opacity: 0.3,
-  },
-  logoText: {
-    fontSize: 32,
   },
 });
 

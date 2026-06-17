@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated, StatusBar, Dimensions } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const SplashScreen = ({ onFinish }) => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -8,28 +10,36 @@ const SplashScreen = ({ onFinish }) => {
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    StatusBar.setHidden(true);
+
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: 2000,
-      useNativeDriver: false,
+      useNativeDriver: false, // Necessário false para animar largura percentual
     }).start();
 
     const timer = setTimeout(() => {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 800,
+          duration: 600,
           useNativeDriver: true,
         }),
         Animated.timing(scaleAnim, {
-          toValue: 1.2,
-          duration: 800,
+          toValue: 1.15,
+          duration: 600,
           useNativeDriver: true,
         }),
-      ]).start(() => onFinish && onFinish());
-    }, 2500);
+      ]).start(() => {
+        StatusBar.setHidden(false);
+        if (onFinish) onFinish();
+      });
+    }, 2400);
 
-    return () => clearTimeout(timer);
+    return () => {
+      StatusBar.setHidden(false);
+      clearTimeout(timer);
+    };
   }, []);
 
   const progressWidth = progressAnim.interpolate({
@@ -41,7 +51,7 @@ const SplashScreen = ({ onFinish }) => {
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <Animated.View style={[styles.content, { transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.logoContainer}>
-          <Ionicons name="wallet" size={64} color="#FFFFFF" />
+          <Ionicons name="wallet" size={85} color="#FFFFFF" />
         </View>
         <Text style={styles.title}>Finanças Pro</Text>
         <View style={styles.loader}>
@@ -54,29 +64,36 @@ const SplashScreen = ({ onFinish }) => {
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    // Força cobertura total absoluta sem depender de estruturas superiores do flex
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
     backgroundColor: '#8B5CF6',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10000,
+    zIndex: 99999,
+    elevation: 99999,
   },
   content: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
   logoContainer: {
     marginBottom: 16,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 34,
+    fontWeight: 'bold',
     color: '#FFFFFF',
-    letterSpacing: 1,
-    marginBottom: 32,
+    letterSpacing: 0.5,
+    marginBottom: 30,
   },
   loader: {
-    width: 200,
+    width: 140,
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.24)',
     borderRadius: 2,
     overflow: 'hidden',
   },

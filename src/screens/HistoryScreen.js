@@ -22,7 +22,7 @@ const HistoryScreen = () => {
   const monthTransactions = transactions.filter(t => t.date.startsWith(month));
 
   const monthTotal = monthTransactions.reduce((sum, t) => {
-    return sum + (t.type === 'income' ? -t.amount : t.amount);
+    return sum + (t.type === 'income' ? t.amount : -t.amount);
   }, 0);
 
   const categoryTotals = {};

@@ -31,20 +31,15 @@ const HomeScreen = () => {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Configurações')}>
-            <Ionicons name="person" size={20} color="#FFFFFF" />
+          <TouchableOpacity style={styles.avatar} onPress={() => navigation.navigate('Configuracoes')}>
+            <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
-
-          <View style={styles.headerTitle}>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.balance}>{formatCurrency(balance)}</Text>
-          </View>
 
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.iconBtn} onPress={toggleDarkMode}>
               <Ionicons name={darkMode ? 'sunny' : 'moon'} size={20} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => showToast('Notificações em breve!', 'info')}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notificacoes')}>
               <Ionicons name="notifications" size={20} color="#FFFFFF" />
               {unreadCount > 0 && (
                 <View style={styles.badge}>
@@ -55,22 +50,16 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {/* Quick Stats */}
-        <View style={styles.quickStats}>
-          <View style={[styles.statCard, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-            <Ionicons name="arrow-up" size={20} color="#6EE7B7" />
-            <View>
-              <Text style={styles.statLabel}>Receitas</Text>
-              <Text style={styles.statValue}>{formatCurrency(income)}</Text>
-            </View>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-            <Ionicons name="arrow-down" size={20} color="#FCA5A5" />
-            <View>
-              <Text style={styles.statLabel}>Despesas</Text>
-              <Text style={styles.statValue}>{formatCurrency(expense)}</Text>
-            </View>
-          </View>
+        {/* Balance destacado */}
+        <View style={styles.balanceBox}>
+          <Text style={styles.balanceLabel}>Saldo em Caixa</Text>
+          <Text style={styles.balanceValue}>{formatCurrency(balance)}</Text>
+        </View>
+
+        {/* Greeting */}
+        <View style={styles.greetingBox}>
+          <Text style={styles.greetingText}>{getGreeting()}</Text>
+          <Text style={styles.greetingSub}>Aqui está seu resumo financeiro</Text>
         </View>
       </View>
 
@@ -81,7 +70,7 @@ const HomeScreen = () => {
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               <Ionicons name="card" size={18} color={colors.primary} />  Meus Cartões
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Cartões')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Cartoes')}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>Ver todos</Text>
             </TouchableOpacity>
           </View>
@@ -108,7 +97,7 @@ const HomeScreen = () => {
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               <Ionicons name="time" size={18} color={colors.primary} />  Últimas Movimentações
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Histórico')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Historico')}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>Ver todas</Text>
             </TouchableOpacity>
           </View>
@@ -146,16 +135,16 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { flex: 1, alignItems: 'center' },
-  greeting: { fontSize: 13, color: 'rgba(255,255,255,0.9)', marginBottom: 4 },
-  balance: { fontSize: 24, fontWeight: '700', color: '#FFFFFF' },
   headerActions: { flexDirection: 'row', gap: 8 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', position: 'relative' },
   badge: { position: 'absolute', top: -2, right: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center' },
   badgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
-  quickStats: { flexDirection: 'row', gap: 12 },
-  statCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12 },
-  statLabel: { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
-  statValue: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  balanceBox: { alignItems: 'center', marginTop: 8, marginBottom: 4 },
+  balanceLabel: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
+  balanceValue: { fontSize: 36, fontWeight: '800', color: '#FFFFFF' },
+  greetingBox: { alignItems: 'center', marginTop: 12 },
+  greetingText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF', marginBottom: 4 },
+  greetingSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
   content: { flex: 1, paddingHorizontal: 16, paddingTop: 20 },
   section: { marginBottom: 24 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
