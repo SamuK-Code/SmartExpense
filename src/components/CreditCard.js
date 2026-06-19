@@ -36,7 +36,7 @@ const CreditCard = ({ card, used = 0, compact = false, pendingInvoices = 0 }) =>
     <View style={styles.gradient}>
       {/* Topo do Cartão: Nome do Banco e Bandeira */}
       <View style={styles.headerRow}>
-        <Text style={[styles.bankName, { color: textColor }]} numberOfLines={1}>Finanças Pro</Text>
+        <Text style={[styles.bankName, { color: textColor }]} numberOfLines={1}>{card.shortName || card.name || 'Finanças Pro'}</Text>
         <View style={styles.brandCircleContainer}>
           <View style={[styles.brandCircle, { backgroundColor: isLightSolid ? 'rgba(28,25,23,0.4)' : 'rgba(255,255,255,0.4)', marginRight: -10 }]} />
           <View style={[styles.brandCircle, { backgroundColor: isLightSolid ? 'rgba(28,25,23,0.25)' : 'rgba(255,255,255,0.25)' }]} />

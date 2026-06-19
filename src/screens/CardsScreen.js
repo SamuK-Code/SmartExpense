@@ -13,6 +13,41 @@ import Toast from '../components/Toast';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const BRAZILIAN_BANKS = [
+  { code: '001', name: 'Banco do Brasil', shortName: 'Banco do Brasil' },
+  { code: '104', name: 'Caixa Econômica Federal', shortName: 'Caixa' },
+  { code: '237', name: 'Bradesco', shortName: 'Bradesco' },
+  { code: '341', name: 'Itaú Unibanco', shortName: 'Itaú' },
+  { code: '033', name: 'Santander', shortName: 'Santander' },
+  { code: '077', name: 'Banco Inter', shortName: 'Inter' },
+  { code: '260', name: 'Nubank', shortName: 'Nubank' },
+  { code: '336', name: 'C6 Bank', shortName: 'C6 Bank' },
+  { code: '212', name: 'Banco Original', shortName: 'Original' },
+  { code: '422', name: 'Banco Safra', shortName: 'Safra' },
+  { code: '745', name: 'Citibank', shortName: 'Citi' },
+  { code: '623', name: 'Banco PAN', shortName: 'PAN' },
+  { code: '707', name: 'Banco Daycoval', shortName: 'Daycoval' },
+  { code: '655', name: 'Banco Votorantim', shortName: 'BV' },
+  { code: '318', name: 'Banco BMG', shortName: 'BMG' },
+  { code: '070', name: 'Banco de Brasília (BRB)', shortName: 'BRB' },
+  { code: '041', name: 'Banrisul', shortName: 'Banrisul' },
+  { code: '047', name: 'Banese', shortName: 'Banese' },
+  { code: '004', name: 'Banco do Nordeste', shortName: 'BNB' },
+  { code: '003', name: 'Banco da Amazônia', shortName: 'Basa' },
+  { code: '021', name: 'Banestes', shortName: 'Banestes' },
+  { code: '748', name: 'Sicredi', shortName: 'Sicredi' },
+  { code: '756', name: 'Sicoob', shortName: 'Sicoob' },
+  { code: '121', name: 'Agibank', shortName: 'Agibank' },
+  { code: '380', name: 'PicPay', shortName: 'PicPay' },
+  { code: '290', name: 'PagBank', shortName: 'PagBank' },
+  { code: '254', name: 'Paraná Banco', shortName: 'Paraná Banco' },
+  { code: '208', name: 'BTG Pactual', shortName: 'BTG' },
+  { code: '376', name: 'Banco JP Morgan', shortName: 'JP Morgan' },
+  { code: '064', name: 'Goldman Sachs', shortName: 'Goldman Sachs' },
+];
+
+
+
 const CardsScreen = () => {
   const { 
     cards, 
@@ -32,10 +67,9 @@ const CardsScreen = () => {
 
   // Modal de adicionar cartão
   const [modalVisible, setModalVisible] = useState(false);
-  const [name, setName] = useState('');
+  const [selectedBank, setSelectedBank] = useState(null);
   const [number, setNumber] = useState('');
   const [limit, setLimit] = useState('');
-  const [closeDate, setCloseDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [selectedGradient, setSelectedGradient] = useState(cardGradients[0]?.class || 'card-gradient-purple');
 
@@ -45,11 +79,15 @@ const CardsScreen = () => {
 
   // Modal de editar cartão
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editName, setEditName] = useState('');
+  const [editBank, setEditBank] = useState(null);
   const [editLimit, setEditLimit] = useState('');
-  const [editCloseDate, setEditCloseDate] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
   const [editGradient, setEditGradient] = useState('');
+
+  // Modal de seleção de banco
+  const [bankModalVisible, setBankModalVisible] = useState(false);
+  const [bankSearch, setBankSearch] = useState('');
+  const [bankModalMode, setBankModalMode] = useState('add'); // 'add' ou 'edit'
 
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
 
@@ -93,18 +131,26 @@ const CardsScreen = () => {
   };
 
   const handleAddCard = () => {
-    if (!name || !limit) {
+    if (!selectedBank || !limit || !dueDate) {
       showToast(t('add.fillRequired'), 'error');
       return;
     }
 
     const selectedGradientObj = cardGradients.find(g => g.class === selectedGradient) || cardGradients[0];
+    // Fechamento é calculado: 7 dias antes do vencimento
+    const dueDay = parseInt(dueDate, 10);
+    let closeDay = dueDay - 7;
+    if (closeDay <= 0) closeDay += 30;
+    const closeDateStr = String(closeDay).padStart(2, '0');
+
     const card = {
-      name,
+      name: selectedBank.name,
+      bankCode: selectedBank.code,
+      shortName: selectedBank.shortName,
       number: number ? `**** ${number.padStart(4, '0')}` : '**** 0000',
       limit: parseFloat(limit),
-      closeDate,
-      dueDate: dueDate || closeDate,
+      closeDate: closeDateStr,
+      dueDate,
       gradientClass: selectedGradient,
       color: selectedGradientObj.color,
     };
@@ -116,12 +162,12 @@ const CardsScreen = () => {
   };
 
   const resetForm = () => {
-    setName('');
+    setSelectedBank(null);
     setNumber('');
     setLimit('');
-    setCloseDate('');
     setDueDate('');
     setSelectedGradient(cardGradients[0]?.class || 'card-gradient-purple');
+    setBankSearch('');
   };
 
   const handleDeleteCard = (id) => {
@@ -150,37 +196,48 @@ const CardsScreen = () => {
 
   const openEditModal = () => {
     if (!selectedCard) return;
-    setEditName(selectedCard.name);
+    const bank = BRAZILIAN_BANKS.find(b => b.code === selectedCard.bankCode) || 
+                 BRAZILIAN_BANKS.find(b => b.name === selectedCard.name) ||
+                 { code: '000', name: selectedCard.name, shortName: selectedCard.name };
+    setEditBank(bank);
     setEditLimit(selectedCard.limit.toString());
-    setEditCloseDate(selectedCard.closeDate || '');
     setEditDueDate(selectedCard.dueDate || '');
     setEditGradient(selectedCard.gradientClass);
     setEditModalVisible(true);
   };
 
   const handleEditCard = () => {
-    if (!editName || !editLimit) {
+    if (!editBank || !editLimit || !editDueDate) {
       showToast(t('add.fillRequired'), 'error');
       return;
     }
 
     const selectedGradientObj = cardGradients.find(g => g.class === editGradient) || cardGradients[0];
+    // Fechamento é calculado: 7 dias antes do vencimento
+    const dueDay = parseInt(editDueDate, 10);
+    let closeDay = dueDay - 7;
+    if (closeDay <= 0) closeDay += 30;
+    const closeDateStr = String(closeDay).padStart(2, '0');
 
     editCard(selectedCard.id, {
-      name: editName,
+      name: editBank.name,
+      bankCode: editBank.code,
+      shortName: editBank.shortName,
       limit: parseFloat(editLimit),
-      closeDate: editCloseDate,
-      dueDate: editDueDate || editCloseDate,
+      closeDate: closeDateStr,
+      dueDate: editDueDate,
       gradientClass: editGradient,
       color: selectedGradientObj.color,
     });
 
     setSelectedCard(prev => ({
       ...prev,
-      name: editName,
+      name: editBank.name,
+      bankCode: editBank.code,
+      shortName: editBank.shortName,
       limit: parseFloat(editLimit),
-      closeDate: editCloseDate,
-      dueDate: editDueDate || editCloseDate,
+      closeDate: closeDateStr,
+      dueDate: editDueDate,
       gradientClass: editGradient,
       color: selectedGradientObj.color,
     }));
@@ -192,19 +249,19 @@ const CardsScreen = () => {
   // NOVO: Handler para quitar fatura
   const handlePayInvoice = (invoice) => {
     Alert.alert(
-      'Quitar Fatura',
-      `Deseja quitar a fatura de ${invoice.cardName} no valor de ${formatCurrency(invoice.totalAmount)}?`,
+      t('cards.payInvoice'),
+      `${t('common.confirm')} ${t('cards.payInvoice').toLowerCase()} ${invoice.cardName} ${t('common.value').toLowerCase()} ${formatCurrency(invoice.totalAmount)}?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Quitar',
+          text: t('cards.payInvoice'),
           style: 'default',
           onPress: () => {
             const success = payInvoice(invoice.id);
             if (success) {
-              showToast('Fatura quitada com sucesso!', 'success');
+              showToast(t('invoices.invoicePaidSuccess'), 'success');
             } else {
-              showToast('Saldo insuficiente para quitar a fatura', 'error');
+              showToast(t('invoices.invoicePaidError'), 'error');
             }
           }
         },
@@ -242,12 +299,12 @@ const CardsScreen = () => {
                 activeOpacity={0.85}
               >
                 <CreditCard card={card} used={getCardUsage(card.id)} />
-                {/* NOVO: Badge de fatura pendente */}
+                {/* Badge de fatura pendente */}
                 {getCardPendingInvoices(card.id).length > 0 && (
                   <View style={[styles.invoiceBadge, { backgroundColor: colors.danger }]}>
                     <Ionicons name="document-text" size={12} color="#FFFFFF" />
                     <Text style={styles.invoiceBadgeText}>
-                      {getCardPendingInvoices(card.id).length} fatura(s) pendente(s)
+                      {getCardPendingInvoices(card.id).length} {t('cards.invoiceCount')}
                     </Text>
                   </View>
                 )}
@@ -295,21 +352,21 @@ const CardsScreen = () => {
                     <CreditCard card={selectedCard} used={getCardUsage(selectedCard.id)} />
                   </View>
 
-                  {/* NOVO: Próximo fechamento */}
+                  {/* Próximo fechamento */}
                   {selectedCard.closeDate && (
                     <View style={[styles.closingInfo, { backgroundColor: colors.bgTertiary }]}>
                       <View style={styles.closingRow}>
                         <Ionicons name="calendar" size={16} color={colors.primary} />
                         <Text style={[styles.closingText, { color: colors.textSecondary }]}>
-                          Fechamento: dia {selectedCard.closeDate}
+                          {t('cards.closing')}: {t('add.day')} {selectedCard.closeDate}
                         </Text>
                       </View>
                       <View style={styles.closingRow}>
                         <Ionicons name="time" size={16} color={colors.warning} />
                         <Text style={[styles.closingText, { color: colors.textSecondary }]}>
                           {getDaysUntilClosing(selectedCard.closeDate) !== null 
-                            ? `Próximo fechamento em ${getDaysUntilClosing(selectedCard.closeDate)} dias`
-                            : 'Data de fechamento não configurada'
+                            ? `${t('cards.nextClosingDays')} ${getDaysUntilClosing(selectedCard.closeDate)} ${t('cards.daysUntilClosing')}`
+                            : t('cards.closingNotConfigured')
                           }
                         </Text>
                       </View>
@@ -367,11 +424,11 @@ const CardsScreen = () => {
                     );
                   })()}
 
-                  {/* NOVO: Seção de Faturas Pendentes */}
+                  {/* Seção de Faturas Pendentes */}
                   {pendingInvoices.length > 0 && (
                     <View style={styles.invoicesSection}>
                       <Text style={[styles.invoicesTitle, { color: colors.textPrimary }]}>
-                        <Ionicons name="document-text" size={16} color={colors.danger} />  Faturas Pendentes
+                        <Ionicons name="document-text" size={16} color={colors.danger} />  {t('cards.pendingInvoices')}
                       </Text>
                       {pendingInvoices.map(invoice => (
                         <View key={invoice.id} style={[styles.invoiceCard, { backgroundColor: colors.bgTertiary }]}>
@@ -385,7 +442,7 @@ const CardsScreen = () => {
                               </Text>
                             </View>
                             <View style={[styles.invoiceStatus, { backgroundColor: colors.danger + '15' }]}>
-                              <Text style={[styles.invoiceStatusText, { color: colors.danger }]}>Pendente</Text>
+                              <Text style={[styles.invoiceStatusText, { color: colors.danger }]}>{t('common.pending')}</Text>
                             </View>
                           </View>
                           <TouchableOpacity
@@ -393,18 +450,18 @@ const CardsScreen = () => {
                             onPress={() => handlePayInvoice(invoice)}
                           >
                             <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                            <Text style={styles.payButtonText}>Quitar Fatura</Text>
+                            <Text style={styles.payButtonText}>{t('cards.payInvoice')}</Text>
                           </TouchableOpacity>
                         </View>
                       ))}
                     </View>
                   )}
 
-                  {/* NOVO: Histórico de Faturas Pagas */}
+                  {/* Histórico de Faturas Pagas */}
                   {allInvoices.filter(inv => inv.status === 'paid').length > 0 && (
                     <View style={styles.invoicesSection}>
                       <Text style={[styles.invoicesTitle, { color: colors.textPrimary }]}>
-                        <Ionicons name="checkmark-done" size={16} color={colors.success} />  Faturas Quitadas
+                        <Ionicons name="checkmark-done" size={16} color={colors.success} />  {t('cards.paidInvoices')}
                       </Text>
                       {allInvoices
                         .filter(inv => inv.status === 'paid')
@@ -420,12 +477,12 @@ const CardsScreen = () => {
                                 </Text>
                               </View>
                               <View style={[styles.invoiceStatus, { backgroundColor: colors.success + '15' }]}>
-                                <Text style={[styles.invoiceStatusText, { color: colors.success }]}>Quitada</Text>
+                                <Text style={[styles.invoiceStatusText, { color: colors.success }]}>{t('common.completed')}</Text>
                               </View>
                             </View>
                             {invoice.paidAt && (
                               <Text style={[styles.paidDate, { color: colors.textMuted }]}>
-                                Quitada em {new Date(invoice.paidAt).toLocaleDateString('pt-BR')}
+                                {t('invoices.paidOn')} {new Date(invoice.paidAt).toLocaleDateString('pt-BR')}
                               </Text>
                             )}
                           </View>
@@ -433,14 +490,8 @@ const CardsScreen = () => {
                     </View>
                   )}
 
-                  {/* Info do Cartão */}
+                  {/* Info do Cartão — Limite Total (fechamento removido pois já aparece acima) */}
                   <View style={[styles.infoSection, { backgroundColor: colors.bgTertiary }]}>
-                    <View style={styles.infoRow}>
-                      <Ionicons name="calendar" size={16} color={colors.textMuted} />
-                      <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-                        {t('cards.closing')}: {t('common.date')} {selectedCard.closeDate || 'N/A'}
-                      </Text>
-                    </View>
                     <View style={styles.infoRow}>
                       <Ionicons name="cash" size={16} color={colors.textMuted} />
                       <Text style={[styles.infoText, { color: colors.textSecondary }]}>
@@ -545,15 +596,28 @@ const CardsScreen = () => {
             </View>
 
             <ScrollView style={styles.modalBody}>
+              {/* Seleção de Banco */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.cardName')}</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                  placeholder="Ex: Nubank, Inter..."
-                  placeholderTextColor={colors.textMuted}
-                  value={editName}
-                  onChangeText={setEditName}
-                />
+                <TouchableOpacity
+                  style={[styles.bankSelector, { backgroundColor: colors.bgTertiary }]}
+                  onPress={() => {
+                    setBankModalMode('edit');
+                    setBankSearch('');
+                    setBankModalVisible(true);
+                  }}
+                >
+                  {editBank ? (
+                    <Text style={[styles.bankSelectorText, { color: colors.textPrimary }]}>
+                      {editBank.name}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.bankSelectorPlaceholder, { color: colors.textMuted }]}>
+                      {t('add.selectBank')}
+                    </Text>
+                  )}
+                  <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
               </View>
 
               <View style={styles.formRow}>
@@ -569,56 +633,42 @@ const CardsScreen = () => {
                   />
                 </View>
                 <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.closeDate')}</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Dia de Vencimento</Text>
                   <TextInput
                     style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
                     placeholder="DD"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="number-pad"
                     maxLength={2}
-                    value={editCloseDate}
+                    value={editDueDate}
                     onChangeText={(text) => {
                       const numeric = text.replace(/[^0-9]/g, '');
                       const day = parseInt(numeric, 10);
                       if (numeric === '') {
-                        setEditCloseDate('');
+                        setEditDueDate('');
                       } else if (day >= 1 && day <= 31) {
-                        setEditCloseDate(numeric);
+                        setEditDueDate(numeric);
                       } else if (numeric.length <= 2) {
-                        setEditCloseDate(numeric);
+                        setEditDueDate(numeric);
                       }
                     }}
                   />
                 </View>
               </View>
 
-              {/* NOVO: Campo de data de vencimento */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>Dia de Vencimento</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                  placeholder="DD"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  value={editDueDate}
-                  onChangeText={(text) => {
-                    const numeric = text.replace(/[^0-9]/g, '');
-                    const day = parseInt(numeric, 10);
-                    if (numeric === '') {
-                      setEditDueDate('');
-                    } else if (day >= 1 && day <= 31) {
-                      setEditDueDate(numeric);
-                    } else if (numeric.length <= 2) {
-                      setEditDueDate(numeric);
-                    }
-                  }}
-                />
-              </View>
+              {/* Info de fechamento automático */}
+              {editDueDate && (
+                <View style={[styles.autoCloseInfo, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="information-circle" size={16} color={colors.primary} />
+                  <Text style={[styles.autoCloseText, { color: colors.textSecondary }]}>
+                    {t('add.autoClose')}: {t('add.day')} {String((parseInt(editDueDate, 10) - 7 <= 0 ? parseInt(editDueDate, 10) - 7 + 30 : parseInt(editDueDate, 10) - 7)).padStart(2, '0')}
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.cardColor')}</Text>
-                <View style={styles.colorPicker}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorPickerHorizontal}>
                   {cardGradients.map((gradObj) => {
                     const isSelected = editGradient === gradObj.class;
                     const isTemplate = gradObj.type === 'template';
@@ -631,38 +681,38 @@ const CardsScreen = () => {
                         key={gradObj.class}
                         onPress={() => setEditGradient(gradObj.class)}
                         style={[
-                          styles.colorOption,
-                          isSelected && styles.colorSelected,
-                          isTemplate && styles.templateOption
+                          styles.colorOptionHorizontal,
+                          isSelected && styles.colorSelectedHorizontal,
+                          isTemplate && styles.templateOptionHorizontal
                         ]}
                         activeOpacity={0.8}
                       >
                         {isTemplate && templateImage ? (
                           <ImageBackground
                             source={templateImage}
-                            style={styles.gradientPreview}
-                            imageStyle={{ borderRadius: 20 }}
+                            style={styles.gradientPreviewHorizontal}
+                            imageStyle={{ borderRadius: 12 }}
                           >
                             <View style={styles.templateOverlay}>
                               <Text style={styles.templateLabel}>IMG</Text>
                             </View>
                           </ImageBackground>
                         ) : isSolid ? (
-                          <View style={[styles.gradientPreview, { backgroundColor: gradObj.color, borderRadius: 20 }]}>
-                            <Text style={styles.solidLabel}>S</Text>
+                          <View style={[styles.gradientPreviewHorizontal, { backgroundColor: gradObj.color, borderRadius: 12 }]}>
+                            <Text style={styles.solidLabelHorizontal}>S</Text>
                           </View>
                         ) : (
                           <LinearGradient
                             colors={gradientColors}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
-                            style={styles.gradientPreview}
+                            style={styles.gradientPreviewHorizontal}
                           />
                         )}
                       </TouchableOpacity>
                     );
                   })}
-                </View>
+                </ScrollView>
               </View>
 
               <TouchableOpacity
@@ -702,15 +752,28 @@ const CardsScreen = () => {
             </View>
 
             <ScrollView style={styles.modalBody}>
+              {/* Seleção de Banco */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.cardName')}</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                  placeholder="Ex: Nubank, Inter..."
-                  placeholderTextColor={colors.textMuted}
-                  value={name}
-                  onChangeText={setName}
-                />
+                <TouchableOpacity
+                  style={[styles.bankSelector, { backgroundColor: colors.bgTertiary }]}
+                  onPress={() => {
+                    setBankModalMode('add');
+                    setBankSearch('');
+                    setBankModalVisible(true);
+                  }}
+                >
+                  {selectedBank ? (
+                    <Text style={[styles.bankSelectorText, { color: colors.textPrimary }]}>
+                      {selectedBank.name}
+                    </Text>
+                  ) : (
+                    <Text style={[styles.bankSelectorPlaceholder, { color: colors.textMuted }]}>
+                      {t('add.selectBank')}
+                    </Text>
+                  )}
+                  <Ionicons name="chevron-down" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
               </View>
 
               <View style={styles.formGroup}>
@@ -739,56 +802,42 @@ const CardsScreen = () => {
                   />
                 </View>
                 <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.closeDate')}</Text>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>Dia de Vencimento</Text>
                   <TextInput
                     style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
                     placeholder="DD"
                     placeholderTextColor={colors.textMuted}
                     keyboardType="number-pad"
                     maxLength={2}
-                    value={closeDate}
+                    value={dueDate}
                     onChangeText={(text) => {
                       const numeric = text.replace(/[^0-9]/g, '');
                       const day = parseInt(numeric, 10);
                       if (numeric === '') {
-                        setCloseDate('');
+                        setDueDate('');
                       } else if (day >= 1 && day <= 31) {
-                        setCloseDate(numeric);
+                        setDueDate(numeric);
                       } else if (numeric.length <= 2) {
-                        setCloseDate(numeric);
+                        setDueDate(numeric);
                       }
                     }}
                   />
                 </View>
               </View>
 
-              {/* NOVO: Campo de data de vencimento */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>Dia de Vencimento</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                  placeholder="DD (opcional, usa fechamento se vazio)"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  value={dueDate}
-                  onChangeText={(text) => {
-                    const numeric = text.replace(/[^0-9]/g, '');
-                    const day = parseInt(numeric, 10);
-                    if (numeric === '') {
-                      setDueDate('');
-                    } else if (day >= 1 && day <= 31) {
-                      setDueDate(numeric);
-                    } else if (numeric.length <= 2) {
-                      setDueDate(numeric);
-                    }
-                  }}
-                />
-              </View>
+              {/* Info de fechamento automático */}
+              {dueDate && (
+                <View style={[styles.autoCloseInfo, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="information-circle" size={16} color={colors.primary} />
+                  <Text style={[styles.autoCloseText, { color: colors.textSecondary }]}>
+                    {t('add.autoClose')}: {t('add.day')} {String((parseInt(dueDate, 10) - 7 <= 0 ? parseInt(dueDate, 10) - 7 + 30 : parseInt(dueDate, 10) - 7)).padStart(2, '0')}
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.cardColor')}</Text>
-                <View style={styles.colorPicker}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorPickerHorizontal}>
                   {cardGradients.map((gradObj) => {
                     const isSelected = selectedGradient === gradObj.class;
                     const isTemplate = gradObj.type === 'template';
@@ -801,38 +850,38 @@ const CardsScreen = () => {
                         key={gradObj.class}
                         onPress={() => setSelectedGradient(gradObj.class)}
                         style={[
-                          styles.colorOption,
-                          isSelected && styles.colorSelected,
-                          isTemplate && styles.templateOption
+                          styles.colorOptionHorizontal,
+                          isSelected && styles.colorSelectedHorizontal,
+                          isTemplate && styles.templateOptionHorizontal
                         ]}
                         activeOpacity={0.8}
                       >
                         {isTemplate && templateImage ? (
                           <ImageBackground
                             source={templateImage}
-                            style={styles.gradientPreview}
-                            imageStyle={{ borderRadius: 20 }}
+                            style={styles.gradientPreviewHorizontal}
+                            imageStyle={{ borderRadius: 12 }}
                           >
                             <View style={styles.templateOverlay}>
                               <Text style={styles.templateLabel}>IMG</Text>
                             </View>
                           </ImageBackground>
                         ) : isSolid ? (
-                          <View style={[styles.gradientPreview, { backgroundColor: gradObj.color, borderRadius: 20 }]}>
-                            <Text style={styles.solidLabel}>S</Text>
+                          <View style={[styles.gradientPreviewHorizontal, { backgroundColor: gradObj.color, borderRadius: 12 }]}>
+                            <Text style={styles.solidLabelHorizontal}>S</Text>
                           </View>
                         ) : (
                           <LinearGradient
                             colors={gradientColors}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
-                            style={styles.gradientPreview}
+                            style={styles.gradientPreviewHorizontal}
                           />
                         )}
                       </TouchableOpacity>
                     );
                   })}
-                </View>
+                </ScrollView>
               </View>
 
               <TouchableOpacity
@@ -842,6 +891,104 @@ const CardsScreen = () => {
                 <Ionicons name="save" size={18} color="#FFFFFF" />
                 <Text style={styles.submitText}>{t('cards.save')}</Text>
               </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ========== MODAL DE SELEÇÃO DE BANCO ========== */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={bankModalVisible}
+        onRequestClose={() => setBankModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.bgCard, maxHeight: '85%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                <Ionicons name="business" size={20} color={colors.primary} />  Selecionar Banco
+              </Text>
+              <TouchableOpacity onPress={() => setBankModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Barra de busca */}
+            <View style={[styles.bankSearchContainer, { backgroundColor: colors.bgTertiary }]}>
+              <Ionicons name="search" size={18} color={colors.textMuted} />
+              <TextInput
+                style={[styles.bankSearchInput, { color: colors.textPrimary }]}
+                placeholder={t('add.searchBank')}
+                placeholderTextColor={colors.textMuted}
+                value={bankSearch}
+                onChangeText={setBankSearch}
+                autoFocus
+              />
+              {bankSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setBankSearch('')}>
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {BRAZILIAN_BANKS
+                .filter(bank => 
+                  bank.name.toLowerCase().includes(bankSearch.toLowerCase()) ||
+                  bank.shortName.toLowerCase().includes(bankSearch.toLowerCase()) ||
+                  bank.code.includes(bankSearch)
+                )
+                .map(bank => {
+                  const isSelected = bankModalMode === 'add' 
+                    ? selectedBank?.code === bank.code 
+                    : editBank?.code === bank.code;
+                  return (
+                    <TouchableOpacity
+                      key={bank.code}
+                      style={[
+                        styles.bankOption,
+                        { backgroundColor: isSelected ? colors.primary + '15' : colors.bgTertiary },
+                        isSelected && { borderColor: colors.primary }
+                      ]}
+                      onPress={() => {
+                        if (bankModalMode === 'add') {
+                          setSelectedBank(bank);
+                        } else {
+                          setEditBank(bank);
+                        }
+                        setBankModalVisible(false);
+                        setBankSearch('');
+                      }}
+                    >
+                      <View style={styles.bankOptionLeft}>
+                        <View style={[styles.bankCodeBadge, { backgroundColor: colors.primary + '20' }]}>
+                          <Ionicons name="card-outline" size={22} color={colors.primary} />
+                        </View>
+                        <View>
+                          <Text style={[styles.bankOptionName, { color: colors.textPrimary }]}>{bank.name}</Text>
+                          <Text style={[styles.bankOptionShort, { color: colors.textMuted }]}>{bank.shortName}</Text>
+                        </View>
+                      </View>
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+
+              {BRAZILIAN_BANKS.filter(bank => 
+                bank.name.toLowerCase().includes(bankSearch.toLowerCase()) ||
+                bank.shortName.toLowerCase().includes(bankSearch.toLowerCase()) ||
+                bank.code.includes(bankSearch)
+              ).length === 0 && (
+                <View style={styles.bankEmpty}>
+                  <Ionicons name="search-outline" size={32} color={colors.textMuted} />
+                  <Text style={[styles.bankEmptyText, { color: colors.textMuted }]}>
+                    {t('add.noBankFound')}
+                  </Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -1211,6 +1358,127 @@ const styles = StyleSheet.create({
     borderRadius: 12 
   },
   deleteBtnText: { fontSize: 15, fontWeight: '700' },
+
+  // Seletor de banco
+  bankSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 12,
+  },
+  bankSelectorText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  bankSelectorPlaceholder: {
+    fontSize: 16,
+  },
+
+  // Info de fechamento automático
+  autoCloseInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  autoCloseText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Color picker horizontal
+  colorPickerHorizontal: {
+    flexDirection: 'row',
+  },
+  colorOptionHorizontal: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    marginRight: 10,
+  },
+  colorSelectedHorizontal: {
+    borderColor: '#8B5CF6',
+    borderWidth: 3,
+  },
+  templateOptionHorizontal: {
+    width: 80,
+    height: 56,
+    borderRadius: 12,
+  },
+  gradientPreviewHorizontal: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  solidLabelHorizontal: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 52,
+  },
+
+  // Modal de bancos
+  bankSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 10,
+  },
+  bankSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 4,
+  },
+  bankOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  bankOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  bankCodeBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bankOptionName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  bankOptionShort: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  bankEmpty: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  bankEmptyText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 8,
+  },
 });
 
 export default CardsScreen;

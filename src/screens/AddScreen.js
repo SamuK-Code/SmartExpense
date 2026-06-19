@@ -10,7 +10,7 @@ import { formatCurrency, isAfterClosingDate, getInvoiceMonth, formatInvoiceMonth
 import Toast from '../components/Toast';
 
 const AddScreen = () => {
-  const { categories, cards, transactions, addTransaction, getCardUsage } = useApp();
+  const { categories, cards, transactions, addTransaction, getCardUsage, cashBalance, updateCashBalance, editTransaction } = useApp();
   const { colors } = useTheme();
   const { t } = useTranslate();
   const [modalVisible, setModalVisible] = useState(false);
@@ -57,6 +57,33 @@ const AddScreen = () => {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
   }, [transactions, t]);
+
+  // Boletos pendentes (não pagos)
+  const pendingBoletos = useMemo(() => {
+    return transactions
+      .filter(t => t.paymentMethod === 'boleto' && !t.isPaid)
+      .sort((a, b) => new Date(a.boletoDue || a.date) - new Date(b.boletoDue || b.date));
+  }, [transactions]);
+
+  // Função para quitar boleto usando cashBalance
+  const handlePayBoleto = (boleto) => {
+    if (cashBalance < boleto.amount) {
+      showToast(`Saldo em caixa insuficiente. Disponível: ${formatCurrency(cashBalance)}`, 'error');
+      return;
+    }
+
+    // Deduz do cashBalance
+    updateCashBalance(-boleto.amount);
+
+    // Marca o boleto como pago via editTransaction
+    editTransaction(boleto.id, {
+      isPaid: true,
+      paidAt: new Date().toISOString(),
+      desc: boleto.desc.includes('(Quitado)') ? boleto.desc : boleto.desc + ' (Quitado)',
+    });
+
+    showToast(`Boleto "${boleto.desc}" quitado! ${formatCurrency(boleto.amount)} deduzido do caixa.`, 'success');
+  };
 
   // NOVO: Verificar se a compra no cartão vai para a próxima fatura
   const getInvoiceWarning = () => {
@@ -137,7 +164,6 @@ const AddScreen = () => {
         { key: 'card', label: t('add.card'), icon: 'card' },
         { key: 'pix', label: t('add.pix'), icon: 'qr-code' },
         { key: 'boleto', label: t('add.boleto'), icon: 'barcode' },
-        { key: 'cash', label: t('add.cash'), icon: 'cash' },
       ];
 
   const cardTypes = [
@@ -200,8 +226,43 @@ const AddScreen = () => {
           </View>
         )}
 
+        {/* Boletos Pendentes */}
+        {pendingBoletos.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+              <Ionicons name="barcode" size={14} color={colors.warning} />  Boletos Pendentes
+            </Text>
+            <View style={[styles.boletoList, { backgroundColor: colors.bgCard }]}>
+              {pendingBoletos.map(boleto => (
+                <View key={boleto.id} style={styles.boletoRow}>
+                  <View style={styles.boletoLeft}>
+                    <View style={[styles.boletoIconBg, { backgroundColor: colors.warning + '15' }]}>
+                      <Ionicons name="barcode" size={16} color={colors.warning} />
+                    </View>
+                    <View>
+                      <Text style={[styles.boletoName, { color: colors.textPrimary }]} numberOfLines={1}>{boleto.desc}</Text>
+                      <Text style={[styles.boletoDue, { color: colors.textMuted }]}>Vence: {boleto.boletoDue || 'N/A'}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.boletoRight}>
+                    <Text style={[styles.boletoValue, { color: colors.danger }]}>{formatCurrency(boleto.amount)}</Text>
+                    <TouchableOpacity
+                      style={[styles.payBoletoBtnSmall, { backgroundColor: cashBalance >= boleto.amount ? colors.success : colors.textMuted }]}
+                      onPress={() => handlePayBoleto(boleto)}
+                      disabled={cashBalance < boleto.amount}
+                    >
+                      <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+                      <Text style={styles.payBoletoBtnSmallText}>Quitar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Mensagem quando vazio */}
-        {topCards.length === 0 && topCategories.length === 0 && (
+        {topCards.length === 0 && topCategories.length === 0 && pendingBoletos.length === 0 && (
           <View style={styles.emptyState}>
             <Ionicons name="hand-left" size={48} color={colors.textMuted} />
             <Text style={[styles.hint, { color: colors.textMuted }]}>{t('add.hint')}</Text>
@@ -259,7 +320,7 @@ const AddScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.description')}</Text>
                 <TextInput
@@ -293,30 +354,33 @@ const AddScreen = () => {
                 </View>
               </View>
 
-              {/* Categorias - Scroll Horizontal */}
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.category')}</Text>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.categoryScroll}
-                >
-                  {categories.map(c => (
-                    <TouchableOpacity
-                      key={c.id}
-                      activeOpacity={0.7}
-                      style={[
-                        styles.categoryChip,
-                        { backgroundColor: categoryId === c.id ? c.color + '20' : colors.bgTertiary },
-                      ]}
-                      onPress={() => setCategoryId(c.id)}
-                    >
-                      <Ionicons name={c.icon} size={18} color={categoryId === c.id ? c.color : colors.textMuted} />
-                      <Text style={{ fontSize: 12, color: categoryId === c.id ? c.color : colors.textPrimary, marginLeft: 6 }}>{c.name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
+              {/* Categorias - Scroll Horizontal (apenas para expense e boleto) */}
+              {transactionType !== 'income' && (
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.category')}</Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.categoryScroll}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {categories.map(c => (
+                      <TouchableOpacity
+                        key={c.id}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.categoryChip,
+                          { backgroundColor: categoryId === c.id ? c.color + '20' : colors.bgTertiary },
+                        ]}
+                        onPress={() => setCategoryId(c.id)}
+                      >
+                        <Ionicons name={c.icon} size={18} color={categoryId === c.id ? c.color : colors.textMuted} />
+                        <Text style={{ fontSize: 12, color: categoryId === c.id ? c.color : colors.textPrimary, marginLeft: 6 }}>{c.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
 
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.paymentMethod')}</Text>
@@ -353,6 +417,7 @@ const AddScreen = () => {
                       horizontal 
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.cardScroll}
+                      keyboardShouldPersistTaps="handled"
                     >
                       {cards.map(c => (
                         <TouchableOpacity
@@ -412,16 +477,51 @@ const AddScreen = () => {
               )}
 
               {transactionType === 'boleto' && (
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.boletoDue')}</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={colors.textMuted}
-                    value={boletoDue}
-                    onChangeText={setBoletoDue}
-                  />
-                </View>
+                <>
+                  <View style={styles.formGroup}>
+                    <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.boletoDue')}</Text>
+                    <TextInput
+                      style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={colors.textMuted}
+                      value={boletoDue}
+                      onChangeText={setBoletoDue}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.payBoletoBtn, { backgroundColor: colors.success }]}
+                    onPress={() => {
+                      if (!desc || !amount) {
+                        showToast(t('add.fillRequired'), 'error');
+                        return;
+                      }
+                      const category = categories.find(c => c.id === categoryId);
+                      const transaction = {
+                        type: 'expense',
+                        desc: desc + ' (Boleto Quitado)',
+                        amount: parseFloat(amount),
+                        date,
+                        category: categoryId,
+                        categoryName: category ? category.name : t('categories.other'),
+                        categoryIcon: category ? category.icon : 'pricetag',
+                        categoryColor: category ? category.color : '#94A3B8',
+                        paymentMethod: 'boleto',
+                        cardId: null,
+                        cardType: null,
+                        boletoDue,
+                        isPaid: true,
+                        paidAt: new Date().toISOString(),
+                      };
+                      addTransaction(transaction);
+                      setModalVisible(false);
+                      setFabOpen(false);
+                      showToast('Boleto quitado com sucesso!', 'success');
+                    }}
+                  >
+                    <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                    <Text style={styles.payBoletoText}>Quitar Boleto</Text>
+                  </TouchableOpacity>
+                </>
               )}
 
               <TouchableOpacity
@@ -524,6 +624,33 @@ const styles = StyleSheet.create({
 
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 14, marginTop: 8 },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+
+  payBoletoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  payBoletoText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  // Estilos da lista de boletos pendentes
+  boletoList: { borderRadius: 16, padding: 12 },
+  boletoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
+  boletoLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  boletoIconBg: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  boletoName: { fontSize: 14, fontWeight: '600', maxWidth: 160 },
+  boletoDue: { fontSize: 11, marginTop: 2 },
+  boletoRight: { alignItems: 'flex-end' },
+  boletoValue: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  payBoletoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
+  payBoletoBtnSmallText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
 });
 
 export default AddScreen;

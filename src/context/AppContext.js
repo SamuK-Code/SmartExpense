@@ -30,6 +30,9 @@ export const AppProvider = ({ children }) => {
   const soundEnabledRef = useRef(soundEnabled);
   const cashBalanceRef = useRef(cashBalance);
   const cardInvoicesRef = useRef(cardInvoices);
+  const updateCashBalance = (amount) => { setCashBalance(prev => prev + amount );};
+  const editTransaction = (id, updatedData) => { setTransactions(prev => prev.map(t => 
+	t.id === id ? { ...t, ...updatedData } : t )); };
 
   useEffect(() => { transactionsRef.current = transactions; }, [transactions]);
   useEffect(() => { cardsRef.current = cards; }, [cards]);
@@ -643,6 +646,9 @@ export const AppProvider = ({ children }) => {
     setCashBalance,
     addCustomCategory,
     setCustomCategories,
+	cashBalance,
+	updateCashBalance,
+	editTransaction,
     cardGradients,
     tags,
     soundEnabled,
