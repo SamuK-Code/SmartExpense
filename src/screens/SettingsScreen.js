@@ -1,4 +1,4 @@
-// SettingsScreen.js — COM PERFIL DO USUÁRIO (nome + foto) E TRADUÇÕES COMPLETAS — CORRIGIDO
+// SettingsScreen.js — COM PERFIL, TRADUÇÕES, SELETOR DE TEMA E ÍCONES DO GOALCARD
 
 import React, { useState } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, THEMES } from '../context/ThemeContext';
 import { useLanguage, LANGUAGES } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
 import { useGroup } from '../context/GroupContext';
@@ -26,6 +26,35 @@ import Toast from '../components/Toast';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
+
+// 🎯 Ícones do GoalCard (171 ícones)
+const GOAL_ICONS = [
+  'airplane', 'alarm', 'american-football', 'aperture', 'archive', 'barbell',
+  'basket', 'basketball', 'bed', 'beer', 'bicycle', 'boat', 'book', 'briefcase',
+  'brush', 'bug', 'build', 'bus', 'cafe', 'camera', 'car', 'card', 'cart',
+  'cash', 'cellular', 'chatbubble', 'checkmark-circle', 'clipboard', 'clock',
+  'cloud', 'code', 'color-palette', 'compass', 'construct', 'cube', 'desktop',
+  'diamond', 'document', 'earth', 'egg', 'extension-puzzle', 'eye', 'female',
+  'film', 'filter', 'finger-print', 'fish', 'fitness', 'flag', 'flame',
+  'flash', 'flashlight', 'flower', 'football', 'game-controller', 'gift',
+  'glasses', 'globe', 'golf', 'grid', 'hammer', 'happy', 'headset', 'heart',
+  'home', 'ice-cream', 'image', 'key', 'laptop', 'leaf', 'library', 'link',
+  'list', 'location', 'lock-closed', 'log-in', 'logo-apple', 'logo-bitcoin',
+  'logo-css3', 'logo-docker', 'logo-figma', 'logo-firebase', 'logo-github',
+  'logo-google', 'logo-html5', 'logo-javascript', 'logo-nodejs', 'logo-npm',
+  'logo-python', 'logo-react', 'logo-stackoverflow', 'logo-tux', 'logo-vue',
+  'logo-youtube', 'magnet', 'mail', 'male', 'map', 'medal', 'medical', 'megaphone',
+  'mic', 'moon', 'musical-note', 'navigate', 'notifications', 'nuclear',
+  'nutrition', 'paper-plane', 'partly-sunny', 'paw', 'pencil', 'people',
+  'person', 'phone-portrait', 'pie-chart', 'pin', 'pizza', 'planet', 'pricetag',
+  'print', 'pulse', 'push', 'radio', 'rainy', 'receipt', 'restaurant', 'ribbon',
+  'rocket', 'rose', 'school', 'search', 'send', 'settings', 'shield-checkmark',
+  'shirt', 'snow', 'sparkles', 'speedometer', 'star', 'stopwatch', 'storefront',
+  'subway', 'sunny', 'sync', 'tennisball', 'terminal', 'thermometer', 'thumbs-up',
+  'thunderstorm', 'ticket', 'time', 'timer', 'today', 'trail-sign', 'train',
+  'transgender', 'trash', 'trending-up', 'trophy', 'tv', 'umbrella', 'videocam',
+  'volume-high', 'walk', 'wallet', 'warning', 'watch', 'water', 'wifi', 'wine',
+];
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
@@ -44,7 +73,7 @@ const SettingsScreen = () => {
     customCategories,
     addCustomCategory,
   } = useApp();
-  const { colors, darkMode, toggleDarkMode } = useTheme();
+  const { colors, darkMode, toggleDarkMode, themeKey, changeTheme } = useTheme();
 
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
 
@@ -61,11 +90,10 @@ const SettingsScreen = () => {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [editName, setEditName] = useState(userProfile.name);
 
-  const iconOptions = [
-    'pricetag', 'car', 'home', 'heart', 'school', 'game-controller', 'airplane', 'gift',
-    'restaurant', 'bag', 'fitness', 'bus', 'phone-portrait', 'wifi', 'water', 'flame'
-  ];
+  // Modal de tema
+  const [themeModalVisible, setThemeModalVisible] = useState(false);
 
+  // Cores em linha horizontal (12 cores)
   const colorOptions = [
     '#EF4444', '#F97316', '#F59E0B', '#84CC16', '#10B981', '#06B6D4',
     '#3B82F6', '#6366F1', '#8B5CF6', '#A855F7', '#EC4899', '#F43F5E'
@@ -126,7 +154,7 @@ const SettingsScreen = () => {
   const handlePhotoOptions = () => {
     Alert.alert(
       t('settings.profilePhoto'),
-      t('settings.choosePhotoOption') || 'Escolha uma opção',
+      t('settings.choosePhotoOption'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         { text: t('settings.gallery'), onPress: pickImage },
@@ -154,22 +182,21 @@ const SettingsScreen = () => {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // 📤 EXPORTAR DADOS — CORRIGIDO
+  // 📤 EXPORTAR DADOS
   // ═══════════════════════════════════════════════════════════
   const handleExport = async () => {
     try {
       const data = await exportData();
-      const fileName = `financas_pro_backup_${new Date().toISOString().slice(0,10)}.json`;
+      const fileName = `smartexpense_backup_${new Date().toISOString().slice(0,10)}.json`;
       const file = new File(Paths.document, fileName);
       file.create({ overwrite: true });
       file.write(data);
       const fileUri = file.uri;
-      
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'application/json',
-          dialogTitle: 'Finanças Pro - Backup',
+          dialogTitle: 'SmartExpense - Backup',
           UTI: 'public.json',
         });
       }
@@ -181,7 +208,7 @@ const SettingsScreen = () => {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // 📥 IMPORTAR DADOS — CORRIGIDO
+  // 📥 IMPORTAR DADOS
   // ═══════════════════════════════════════════════════════════
   const handleImport = async () => {
     try {
@@ -189,7 +216,7 @@ const SettingsScreen = () => {
         type: 'application/json',
         copyToCacheDirectory: true,
       });
-      
+
       if (result.canceled || !result.assets || result.assets.length === 0) {
         return;
       }
@@ -197,8 +224,7 @@ const SettingsScreen = () => {
       const fileUri = result.assets[0].uri;
       const file = new File(fileUri);
       const fileContent = await file.text();
-      
-      // Validar JSON antes de importar
+
       let parsed;
       try {
         parsed = JSON.parse(fileContent);
@@ -207,7 +233,6 @@ const SettingsScreen = () => {
         return;
       }
 
-      // Validar estrutura mínima
       if (!parsed || typeof parsed !== 'object') {
         showToast(t('settings.errorImport') + ' — Arquivo inválido', 'error');
         return;
@@ -304,12 +329,24 @@ const SettingsScreen = () => {
   const handleLanguageChange = (lang) => {
     changeLanguage(lang);
     setLangModalVisible(false);
-    showToast(`${t('settings.languageChanged') || 'Idioma alterado'}: ${LANGUAGES.find(l => l.code === lang)?.name}`);
+    showToast(`${t('settings.languageChanged')}: ${LANGUAGES.find(l => l.code === lang)?.name}`);
+  };
+
+  const handleThemeChange = (key) => {
+    changeTheme(key);
+    setThemeModalVisible(false);
+    const themeNames = { pt: 'name', en: 'nameEn', es: 'nameEs' };
+    const nameKey = themeNames[language] || 'name';
+    showToast(`${t('settings.themeChanged')}: ${THEMES[key][nameKey]}`);
   };
 
   const currentLang = LANGUAGES.find(l => l.code === language);
+  const currentTheme = THEMES[themeKey];
 
-  const SettingRow = ({ icon, iconColor, iconBg, label, value, onPress, isSwitch, switchValue, onSwitchChange, danger }) => (
+  const themeNames = { pt: 'name', en: 'nameEn', es: 'nameEs' };
+  const currentThemeName = currentTheme[themeNames[language] || 'name'];
+
+  const SettingRow = ({ icon, iconColor, iconBg, label, value, onPress, isSwitch, switchValue, onSwitchChange, danger, rightContent }) => (
     <TouchableOpacity 
       style={[styles.row, { backgroundColor: colors.bgCard }]}
       onPress={onPress}
@@ -323,7 +360,9 @@ const SettingsScreen = () => {
           {label}
         </Text>
       </View>
-      {isSwitch ? (
+      {rightContent ? (
+        rightContent
+      ) : isSwitch ? (
         <Switch
           value={switchValue}
           onValueChange={onSwitchChange}
@@ -349,7 +388,7 @@ const SettingsScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
-      {/* Header customizado */}
+      {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.bgCard, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
@@ -411,6 +450,15 @@ const SettingsScreen = () => {
             isSwitch
             switchValue={darkMode}
             onSwitchChange={toggleDarkMode}
+          />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          {/* 🎨 SELETOR DE TEMA */}
+          <SettingRow
+            icon="color-palette"
+            iconColor={colors.primary}
+            label={t('settings.appTheme')}
+            value={currentThemeName}
+            onPress={() => setThemeModalVisible(true)}
           />
         </Section>
 
@@ -536,7 +584,9 @@ const SettingsScreen = () => {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* MODAL DE PERFIL */}
+      {/* ═══════════════════════════════════════════
+          MODAL DE PERFIL
+      ═══════════════════════════════════════════ */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -554,8 +604,7 @@ const SettingsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
-              {/* Preview da foto */}
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               <View style={styles.avatarPreviewContainer}>
                 {userProfile.avatar ? (
                   <Image source={{ uri: userProfile.avatar }} style={styles.avatarPreview} />
@@ -569,16 +618,15 @@ const SettingsScreen = () => {
                   onPress={handlePhotoOptions}
                 >
                   <Ionicons name="camera" size={16} color="#FFFFFF" />
-                  <Text style={styles.changePhotoText}>{t('settings.changePhoto') || 'Alterar Foto'}</Text>
+                  <Text style={styles.changePhotoText}>{t('settings.changePhoto')}</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Username da conta */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.accountUser')}</Text>
                 <View style={[styles.input, { backgroundColor: colors.bgTertiary + '80' }]}>
                   <Text style={{ color: colors.textMuted, fontSize: 15, paddingVertical: 12 }}>
-                    @{currentUser?.username || t('settings.notLinked') || 'Não vinculado'}
+                    @{currentUser?.username || t('settings.notLinked')}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
@@ -586,7 +634,6 @@ const SettingsScreen = () => {
                 </Text>
               </View>
 
-              {/* Nome */}
               <View style={styles.formGroup}>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
@@ -605,12 +652,14 @@ const SettingsScreen = () => {
                 <Ionicons name="save" size={18} color="#FFFFFF" />
                 <Text style={styles.submitText}>{t('settings.saveProfile')}</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* Modal Selecionar Idioma */}
+      {/* ═══════════════════════════════════════════
+          MODAL SELECIONAR IDIOMA
+      ═══════════════════════════════════════════ */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -658,7 +707,74 @@ const SettingsScreen = () => {
         </View>
       </Modal>
 
-      {/* Modal Adicionar Categoria */}
+      {/* ═══════════════════════════════════════════
+          🎨 MODAL SELECIONAR TEMA
+      ═══════════════════════════════════════════ */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={themeModalVisible}
+        onRequestClose={() => setThemeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                <Ionicons name="color-palette" size={20} color={colors.primary} />  {t('settings.selectTheme')}
+              </Text>
+              <TouchableOpacity onPress={() => setThemeModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              {Object.values(THEMES).map((theme) => {
+                const nameKey = themeNames[language] || 'name';
+                const isSelected = themeKey === theme.key;
+                return (
+                  <TouchableOpacity
+                    key={theme.key}
+                    style={[
+                      styles.themeOption,
+                      { 
+                        backgroundColor: isSelected ? theme.primary + '15' : colors.bgTertiary,
+                        borderColor: isSelected ? theme.primary : 'transparent',
+                      }
+                    ]}
+                    onPress={() => handleThemeChange(theme.key)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.themePreview, { backgroundColor: theme.primary }]}>
+                      <View style={[styles.themePreviewInner, { 
+                        backgroundColor: theme.gradientEnd,
+                        opacity: 0.6,
+                        borderRadius: 8,
+                      }]} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 14 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>
+                        {theme[nameKey]}
+                      </Text>
+                      <View style={{ flexDirection: 'row', marginTop: 6, gap: 6 }}>
+                        <View style={[styles.colorDot, { backgroundColor: theme.primary }]} />
+                        <View style={[styles.colorDot, { backgroundColor: theme.gradientStart }]} />
+                        <View style={[styles.colorDot, { backgroundColor: theme.gradientEnd }]} />
+                      </View>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={26} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ═══════════════════════════════════════════
+          🎯 MODAL ADICIONAR CATEGORIA — ÍCONES DO GOALCARD + CORES HORIZONTAIS
+      ═══════════════════════════════════════════ */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -676,7 +792,8 @@ const SettingsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+              {/* Nome */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.categoryName')}</Text>
                 <TextInput
@@ -688,38 +805,55 @@ const SettingsScreen = () => {
                 />
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.categoryIcon')}</Text>
-                <View style={styles.iconGrid}>
-                  {iconOptions.map((icon) => (
-                    <TouchableOpacity
-                      key={icon}
-                      style={[
-                        styles.iconOption,
-                        { backgroundColor: newCatIcon === icon ? colors.primary + '20' : colors.bgTertiary },
-                        newCatIcon === icon && { borderColor: colors.primary }
-                      ]}
-                      onPress={() => setNewCatIcon(icon)}
-                    >
-                      <Ionicons name={icon} size={24} color={newCatIcon === icon ? colors.primary : colors.textMuted} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
+              {/* 🎨 Cores em linha horizontal */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.categoryColor')}</Text>
-                <View style={styles.colorGrid}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.colorRow}
+                >
                   {colorOptions.map((color) => (
                     <TouchableOpacity
                       key={color}
                       style={[
-                        styles.colorCircle,
+                        styles.colorCircleRow,
                         { backgroundColor: color },
-                        newCatColor === color && styles.colorSelected
+                        newCatColor === color && styles.colorSelectedRow
                       ]}
                       onPress={() => setNewCatColor(color)}
+                      activeOpacity={0.8}
                     >
+                      {newCatColor === color && (
+                        <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* 🎯 Ícones do GoalCard (171 ícones) */}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.categoryIcon')}</Text>
+                <View style={styles.iconGridLarge}>
+                  {GOAL_ICONS.map((icon) => (
+                    <TouchableOpacity
+                      key={icon}
+                      style={[
+                        styles.iconOptionLarge,
+                        { 
+                          backgroundColor: newCatIcon === icon ? newCatColor + '20' : colors.bgTertiary,
+                          borderColor: newCatIcon === icon ? newCatColor : 'transparent',
+                        }
+                      ]}
+                      onPress={() => setNewCatIcon(icon)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons 
+                        name={icon} 
+                        size={22} 
+                        color={newCatIcon === icon ? newCatColor : colors.textMuted} 
+                      />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -732,7 +866,7 @@ const SettingsScreen = () => {
                 <Ionicons name="save" size={18} color="#FFFFFF" />
                 <Text style={styles.submitText}>{t('settings.saveCategory')}</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -834,7 +968,7 @@ const styles = StyleSheet.create({
     marginBottom: 20 
   },
   modalTitle: { fontSize: 18, fontWeight: '700' },
-  modalBody: { maxHeight: 400 },
+  modalBody: { maxHeight: 520 },
 
   avatarPreviewContainer: { alignItems: 'center', marginBottom: 20 },
   avatarPreview: { 
@@ -859,36 +993,54 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   input: { padding: 14, borderRadius: 12, fontSize: 16 },
 
-  iconGrid: { 
+  // 🎨 Cores em linha horizontal
+  colorRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  colorCircleRow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  colorSelectedRow: {
+    borderColor: '#FFFFFF',
+    borderWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+    transform: [{ scale: 1.1 }],
+  },
+
+  // 🎯 Ícones do GoalCard (171 ícones)
+  iconGridLarge: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
-    gap: 8, 
-    justifyContent: 'center' 
+    gap: 6, 
+    justifyContent: 'center',
+    paddingVertical: 4,
   },
-  iconOption: { 
-    width: 48, 
-    height: 48, 
+  iconOptionLarge: { 
+    width: 44, 
+    height: 44, 
     borderRadius: 12, 
     justifyContent: 'center', 
     alignItems: 'center', 
     borderWidth: 2, 
-    borderColor: 'transparent' 
+    borderColor: 'transparent',
   },
-
-  colorGrid: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 10, 
-    justifyContent: 'center' 
-  },
-  colorCircle: { 
-    width: 36, 
-    height: 36, 
-    borderRadius: 18, 
-    borderWidth: 2, 
-    borderColor: 'transparent' 
-  },
-  colorSelected: { borderColor: '#FFFFFF', borderWidth: 3 },
 
   submitBtn: { 
     flexDirection: 'row', 
@@ -909,6 +1061,39 @@ const styles = StyleSheet.create({
     marginBottom: 8, 
     borderWidth: 2, 
     borderColor: 'transparent' 
+  },
+
+  // 🎨 Estilos do seletor de tema
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+  },
+  themePreview: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  themePreviewInner: {
+    width: 36,
+    height: 36,
+  },
+  colorDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
 });
 

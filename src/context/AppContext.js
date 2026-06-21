@@ -546,35 +546,143 @@ export const AppProvider = ({ children }) => {
     return JSON.stringify(data, null, 2);
   }, [customCategories]);
 
+  // ═══════════════════════════════════════════════════════════
+  // 📥 IMPORTAR DADOS — COM VALIDAÇÃO E SANITIZAÇÃO
+  // ═══════════════════════════════════════════════════════════
   const importData = useCallback(async (jsonData) => {
     try {
-      const data = JSON.parse(jsonData);
-      
+      // 1. Parse JSON
+      let data;
+      try {
+        data = JSON.parse(jsonData);
+      } catch (e) {
+        console.warn('Import: JSON inválido');
+        return false;
+      }
+
+      // 2. Validar schema básico
       if (!data || typeof data !== 'object') {
         console.warn('Import: dados inválidos');
         return false;
       }
 
-      if (data.cards) setCards(data.cards);
-      if (data.transactions) setTransactions(data.transactions);
-      if (data.goals) setGoals(data.goals);
-      if (data.completedGoals) setCompletedGoals(data.completedGoals);
-      if (data.customCategories) setCustomCategories(data.customCategories);
-      if (data.cardInvoices) setCardInvoices(data.cardInvoices);
-      
-      if (typeof data.cashBalance === 'number') {
-        setCashBalance(data.cashBalance);
-      } else {
-        const income = (data.transactions || [])
-          .filter(t => t.type === 'income')
-          .reduce((s, t) => s + t.amount, 0);
-        const expense = (data.transactions || [])
-          .filter(t => t.type === 'expense' || t.type === 'boleto')
-          .reduce((s, t) => s + t.amount, 0);
-        setCashBalance(income - expense);
+      // 3. Verificar versão do backup
+      if (!data.version || data.version !== '3.0') {
+        console.warn('Import: versão incompatível');
+        return false;
       }
 
-      if (data.soundEnabled) setSoundEnabled(data.soundEnabled);
+      // 4. Sanitizar strings (strip HTML/JS)
+      const sanitizeString = (str, maxLen = 200) => {
+        if (typeof str !== 'string') return '';
+        return str.replace(/[<>'"&]/g, '').slice(0, maxLen);
+      };
+
+      // 5. Validar e filtrar arrays
+      const sanitizeArray = (arr, validator, sanitizer) => {
+        if (!Array.isArray(arr)) return [];
+        return arr.filter(item => {
+          const valid = validator(item);
+          if (!valid) console.warn('Import: item inválido ignorado');
+          return valid;
+        }).map(sanitizer);
+      };
+
+      const isValidCard = (c) => c && typeof c === 'object' && 
+        (typeof c.id === 'string' || typeof c.id === 'number') && 
+        typeof c.name === 'string' && c.name.length <= 50;
+
+      const isValidTransaction = (t) => t && typeof t === 'object' && 
+        (typeof t.id === 'string' || typeof t.id === 'number') && 
+        typeof t.description === 'string' && t.description.length <= 200 &&
+        typeof t.amount === 'number' && t.amount >= 0 &&
+        ['income', 'expense', 'boleto'].includes(t.type);
+
+      const isValidGoal = (g) => g && typeof g === 'object' && 
+        typeof g.id === 'string' && 
+        typeof g.name === 'string' && g.name.length <= 50 &&
+        typeof g.target === 'number' && g.target >= 0;
+
+      const isValidCategory = (c) => c && typeof c === 'object' && 
+        typeof c.name === 'string' && c.name.length <= 30 &&
+        typeof c.color === 'string';
+
+      const isValidInvoice = (i) => i && typeof i === 'object' && 
+        (typeof i.id === 'string' || typeof i.id === 'number') && 
+        (typeof i.cardId === 'string' || typeof i.cardId === 'number');
+
+      const sanitizeCard = (c) => ({
+        ...c,
+        name: sanitizeString(c.name, 50),
+        bank: sanitizeString(c.bank, 50),
+      });
+
+      const sanitizeTransaction = (t) => ({
+        ...t,
+        description: sanitizeString(t.description, 200),
+        category: sanitizeString(t.category, 30),
+        paymentMethod: sanitizeString(t.paymentMethod, 20),
+      });
+
+      const sanitizeGoal = (g) => ({
+        ...g,
+        name: sanitizeString(g.name, 50),
+      });
+
+      // 6. Aplicar dados validados
+      if (data.cards) {
+        const validCards = sanitizeArray(data.cards, isValidCard, sanitizeCard);
+        setCards(validCards);
+      }
+
+      if (data.transactions) {
+        const validTrans = sanitizeArray(data.transactions, isValidTransaction, sanitizeTransaction);
+        setTransactions(validTrans);
+      }
+
+      if (data.goals) {
+        const validGoals = sanitizeArray(data.goals, isValidGoal, sanitizeGoal);
+        setGoals(validGoals);
+      }
+
+      if (data.completedGoals) {
+        const validCompleted = sanitizeArray(data.completedGoals, isValidGoal, sanitizeGoal);
+        setCompletedGoals(validCompleted);
+      }
+
+      if (data.customCategories) {
+        const validCats = sanitizeArray(data.customCategories, isValidCategory, (c) => c);
+        setCustomCategories(validCats);
+      }
+
+      if (data.cardInvoices) {
+        const validInvoices = sanitizeArray(data.cardInvoices, isValidInvoice, (i) => i);
+        setCardInvoices(validInvoices);
+      }
+
+      // 7. Validar cashBalance
+      if (typeof data.cashBalance === 'number' && data.cashBalance >= 0) {
+        setCashBalance(data.cashBalance);
+      } else if (data.transactions) {
+        const income = data.transactions
+          .filter(t => t && t.type === 'income' && typeof t.amount === 'number')
+          .reduce((s, t) => s + t.amount, 0);
+        const expense = data.transactions
+          .filter(t => t && (t.type === 'expense' || t.type === 'boleto') && typeof t.amount === 'number')
+          .reduce((s, t) => s + t.amount, 0);
+        setCashBalance(Math.max(0, income - expense));
+      }
+
+      // 8. Validar soundEnabled (apenas booleanos esperados)
+      if (data.soundEnabled && typeof data.soundEnabled === 'object') {
+        const validSounds = {
+          add: !!data.soundEnabled.add,
+          delete: !!data.soundEnabled.delete,
+          notif: !!data.soundEnabled.notif,
+          achievement: !!data.soundEnabled.achievement,
+        };
+        setSoundEnabled(validSounds);
+      }
 
       playSound('add');
       return true;

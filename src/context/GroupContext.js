@@ -1,18 +1,78 @@
-// GroupContext.js — Login, Grupos e Sincronização com Supabase
-// VERSÃO CORRIGIDA — compatível com GroupScreen.js
+// GroupContext.js — Login, Grupos e Sincronização
+// VERSÃO BYPASS: Sem Supabase Auth (sem rate limit de email)
+// ⚠️ APENAS PARA USO PRIVADO/NÃO PÚBLICO
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase, hashPassword } from '../utils/supabase';
+import * as Crypto from 'expo-crypto';
+import * as Network from 'expo-network';
+import { supabase } from '../utils/supabase';
 
 const GroupContext = createContext();
+
+// 🛡️ Rate limiting simples (cliente)
+const rateLimitStore = new Map();
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW = 60 * 1000;
+
+const checkRateLimit = (key) => {
+  const now = Date.now();
+  const attempts = rateLimitStore.get(key) || [];
+  const valid = attempts.filter(t => now - t < RATE_LIMIT_WINDOW);
+  rateLimitStore.set(key, valid);
+  return valid.length < RATE_LIMIT_MAX;
+};
+
+const addRateLimitAttempt = (key) => {
+  const attempts = rateLimitStore.get(key) || [];
+  attempts.push(Date.now());
+  rateLimitStore.set(key, attempts);
+};
+
+// 🛡️ Gerar código seguro
+const generateSecureCode = async () => {
+  const bytes = await Crypto.getRandomValuesAsync(new Uint8Array(8));
+  return Array.from(bytes)
+    .map(b => b.toString(36).padStart(2, '0'))
+    .join('')
+    .toUpperCase()
+    .slice(0, 12);
+};
+
+// 🛡️ Sanitizar input
+const sanitizeString = (str) => {
+  if (typeof str !== 'string') return '';
+  return str.trim().replace(/[<>'"&]/g, '').slice(0, 100);
+};
+
+// 🔑 Gerar hash de senha local (PBKDF2-like com expo-crypto)
+const hashPassword = async (password, salt) => {
+  const iterations = 10000;
+  let hash = password + salt;
+  for (let i = 0; i < iterations; i++) {
+    hash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      hash
+    );
+  }
+  return hash;
+};
+
+// 🔑 Gerar UUID v4 simples
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 export const GroupProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentGroup, setCurrentGroup] = useState(null);
   const [groupMembers, setGroupMembers] = useState([]);
-  const [sharedItems, setSharedItems] = useState([]); // O que EU compartilhei
-  const [sharedCards, setSharedCards] = useState([]); // O que recebi de OUTROS
+  const [sharedItems, setSharedItems] = useState([]);
+  const [sharedCards, setSharedCards] = useState([]);
   const [sharedTransactions, setSharedTransactions] = useState([]);
   const [sharedGoals, setSharedGoals] = useState([]);
   const [lastSync, setLastSync] = useState(null);
@@ -21,26 +81,30 @@ export const GroupProvider = ({ children }) => {
   const [syncEnabled, setSyncEnabled] = useState(false);
 
   const syncIntervalRef = useRef(null);
+  const lastSyncRef = useRef(0);
 
-  // Carregar sessão salva
   useEffect(() => {
     loadSession();
   }, []);
 
   const loadSession = async () => {
     try {
-      const [savedUser, savedGroup, savedShared, savedSyncEnabled] = await Promise.all([
-        AsyncStorage.getItem('group_user'),
+      // 🔄 BYPASS: Carregar sessão local (sem Supabase Auth)
+      const savedUser = await AsyncStorage.getItem('group_user_local');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+      }
+
+      const [savedGroup, savedShared, savedSyncEnabled] = await Promise.all([
         AsyncStorage.getItem('group_current'),
         AsyncStorage.getItem('group_shared_items'),
         AsyncStorage.getItem('group_sync_enabled'),
       ]);
 
-      if (savedUser) setCurrentUser(JSON.parse(savedUser));
       if (savedGroup) {
         const group = JSON.parse(savedGroup);
         setCurrentGroup(group);
-        // Carregar membros se tem grupo
         fetchGroupMembers(group.id);
       }
       if (savedShared) setSharedItems(JSON.parse(savedShared));
@@ -54,8 +118,8 @@ export const GroupProvider = ({ children }) => {
 
   const saveSession = async (user, group) => {
     try {
-      if (user) await AsyncStorage.setItem('group_user', JSON.stringify(user));
-      else await AsyncStorage.removeItem('group_user');
+      if (user) await AsyncStorage.setItem('group_user_local', JSON.stringify(user));
+      else await AsyncStorage.removeItem('group_user_local');
 
       if (group) await AsyncStorage.setItem('group_current', JSON.stringify(group));
       else await AsyncStorage.removeItem('group_current');
@@ -72,61 +136,115 @@ export const GroupProvider = ({ children }) => {
     }
   };
 
-  // ========== AUTH ==========
+  // ========== AUTH BYPASS (sem Supabase Auth) ==========
 
   const register = async (username, password) => {
-    try {
-      const passwordHash = hashPassword(password);
+    const rateKey = `register:${username.toLowerCase()}`;
+    if (!checkRateLimit(rateKey)) {
+      return { error: 'Muitas tentativas. Aguarde 1 minuto.' };
+    }
+    addRateLimitAttempt(rateKey);
 
+    const cleanUsername = sanitizeString(username);
+    if (!cleanUsername || cleanUsername.length < 3) {
+      return { error: 'Nome de usuário inválido (mín. 3 caracteres)' };
+    }
+    if (!password || password.length < 6) {
+      return { error: 'Senha deve ter pelo menos 6 caracteres' };
+    }
+
+    try {
+      // Verificar se username já existe
       const { data: existing } = await supabase
         .from('users')
         .select('id')
-        .eq('username', username)
-        .single();
+        .eq('username', cleanUsername)
+        .maybeSingle();
 
       if (existing) return { error: 'Usuário já existe' };
 
-      const { data, error } = await supabase
+      // 🔄 BYPASS: Criar usuário direto na tabela (sem Supabase Auth)
+      const userId = generateUUID();
+      const salt = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        Date.now().toString() + Math.random().toString()
+      );
+      const passwordHash = await hashPassword(password, salt);
+
+      const { error } = await supabase
         .from('users')
-        .insert([{ username, password_hash: passwordHash }])
-        .select()
-        .single();
+        .insert([{ 
+          id: userId,
+          username: cleanUsername,
+          password_hash: passwordHash,
+          salt: salt,
+          created_at: new Date().toISOString(),
+        }]);
 
       if (error) throw error;
 
-      const user = { id: data.id, username: data.username };
+      // Salvar sessão local
+      const user = { 
+        id: userId, 
+        username: cleanUsername,
+        token: passwordHash.slice(0, 32), // token simples para validar requests
+      };
+
       setCurrentUser(user);
       await saveSession(user, null);
       return { success: true };
     } catch (e) {
+      console.warn('Erro no registro:', e);
       return { error: e.message || 'Erro ao cadastrar' };
     }
   };
 
   const login = async (username, password) => {
+    const rateKey = `login:${username.toLowerCase()}`;
+    if (!checkRateLimit(rateKey)) {
+      return { error: 'Muitas tentativas. Aguarde 1 minuto.' };
+    }
+    addRateLimitAttempt(rateKey);
+
+    const cleanUsername = sanitizeString(username);
+    if (!cleanUsername || !password) {
+      return { error: 'Preencha usuário e senha' };
+    }
+
     try {
-      const passwordHash = hashPassword(password);
-
-      const { data, error } = await supabase
+      // Buscar usuário na tabela
+      const { data: userRecord, error } = await supabase
         .from('users')
-        .select('id, username')
-        .eq('username', username)
-        .eq('password_hash', passwordHash)
-        .single();
+        .select('id, username, password_hash, salt')
+        .eq('username', cleanUsername)
+        .maybeSingle();
 
-      if (error || !data) return { error: 'Usuário ou senha incorretos' };
+      if (error || !userRecord) {
+        return { error: 'Usuário ou senha incorretos' };
+      }
 
-      const user = { id: data.id, username: data.username };
+      // Verificar senha
+      const passwordHash = await hashPassword(password, userRecord.salt);
+      if (passwordHash !== userRecord.password_hash) {
+        return { error: 'Usuário ou senha incorretos' };
+      }
+
+      const user = {
+        id: userRecord.id,
+        username: userRecord.username,
+        token: passwordHash.slice(0, 32),
+      };
+
       setCurrentUser(user);
       await saveSession(user, null);
       return { success: true };
     } catch (e) {
+      console.warn('Erro no login:', e);
       return { error: e.message || 'Erro ao fazer login' };
     }
   };
 
   const logout = async () => {
-    // Limpar intervalo de sync
     if (syncIntervalRef.current) {
       clearInterval(syncIntervalRef.current);
       syncIntervalRef.current = null;
@@ -143,7 +261,7 @@ export const GroupProvider = ({ children }) => {
     setSyncEnabled(false);
 
     await AsyncStorage.multiRemove([
-      'group_user',
+      'group_user_local',
       'group_current',
       'group_shared_items',
       'group_sync_enabled',
@@ -157,7 +275,7 @@ export const GroupProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('group_members')
-        .select('user_id, role, users(username)')
+        .select('user_id, role, users:users(username)')
         .eq('group_id', groupId);
 
       if (error) throw error;
@@ -166,6 +284,7 @@ export const GroupProvider = ({ children }) => {
         id: m.user_id,
         username: m.users?.username || 'Desconhecido',
         role: m.role || 'member',
+        isAdmin: m.role === 'admin',
       }));
 
       setGroupMembers(members);
@@ -177,13 +296,18 @@ export const GroupProvider = ({ children }) => {
   const createGroup = async (name) => {
     if (!currentUser) return { error: 'Faça login primeiro' };
 
+    const cleanName = sanitizeString(name);
+    if (!cleanName || cleanName.length < 2) {
+      return { error: 'Nome do grupo inválido' };
+    }
+
     try {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const code = await generateSecureCode();
 
       const { data, error } = await supabase
         .from('groups')
         .insert([{ 
-          name, 
+          name: cleanName, 
           code, 
           created_by: currentUser.id 
         }])
@@ -192,7 +316,6 @@ export const GroupProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // Adicionar criador como admin
       await supabase
         .from('group_members')
         .insert([{ 
@@ -214,6 +337,7 @@ export const GroupProvider = ({ children }) => {
 
       return { success: true, inviteCode: code };
     } catch (e) {
+      console.warn('Erro ao criar grupo:', e);
       return { error: e.message || 'Erro ao criar grupo' };
     }
   };
@@ -221,22 +345,32 @@ export const GroupProvider = ({ children }) => {
   const joinGroup = async (code) => {
     if (!currentUser) return { error: 'Faça login primeiro' };
 
+    const rateKey = `join:${currentUser.id}`;
+    if (!checkRateLimit(rateKey)) {
+      return { error: 'Muitas tentativas. Aguarde 1 minuto.' };
+    }
+    addRateLimitAttempt(rateKey);
+
+    const cleanCode = sanitizeString(code).toUpperCase();
+    if (!cleanCode || cleanCode.length < 6) {
+      return { error: 'Código inválido' };
+    }
+
     try {
       const { data: group, error: groupError } = await supabase
         .from('groups')
         .select('id, name, code, created_by')
-        .eq('code', code.toUpperCase())
-        .single();
+        .eq('code', cleanCode)
+        .maybeSingle();
 
       if (groupError || !group) return { error: 'Grupo não encontrado' };
 
-      // Verificar se já é membro
       const { data: existingMember } = await supabase
         .from('group_members')
         .select('id')
         .eq('group_id', group.id)
         .eq('user_id', currentUser.id)
-        .single();
+        .maybeSingle();
 
       if (!existingMember) {
         await supabase
@@ -261,6 +395,7 @@ export const GroupProvider = ({ children }) => {
 
       return { success: true };
     } catch (e) {
+      console.warn('Erro ao entrar no grupo:', e);
       return { error: e.message || 'Erro ao entrar no grupo' };
     }
   };
@@ -269,21 +404,22 @@ export const GroupProvider = ({ children }) => {
     if (!currentGroup || !currentUser) return { error: 'Não está em um grupo' };
 
     try {
-      // Remover todos os shared items deste usuário neste grupo
-      await supabase
+      const { error: sharedError } = await supabase
         .from('shared_items')
         .delete()
         .eq('group_id', currentGroup.id)
         .eq('user_id', currentUser.id);
 
-      // Remover membro do grupo
-      await supabase
+      if (sharedError) console.warn('Erro ao remover shared items:', sharedError);
+
+      const { error: memberError } = await supabase
         .from('group_members')
         .delete()
         .eq('group_id', currentGroup.id)
         .eq('user_id', currentUser.id);
 
-      // Limpar intervalo
+      if (memberError) throw memberError;
+
       if (syncIntervalRef.current) {
         clearInterval(syncIntervalRef.current);
         syncIntervalRef.current = null;
@@ -306,6 +442,7 @@ export const GroupProvider = ({ children }) => {
 
       return { success: true };
     } catch (e) {
+      console.warn('Erro ao sair do grupo:', e);
       return { error: e.message || 'Erro ao sair do grupo' };
     }
   };
@@ -313,13 +450,12 @@ export const GroupProvider = ({ children }) => {
   const generateInviteCode = async () => {
     if (!currentGroup || !currentUser) return { error: 'Sem permissão' };
 
-    // Apenas admin pode gerar novo código
     if (currentGroup.adminId !== currentUser.id) {
       return { error: 'Apenas o administrador pode gerar novo código' };
     }
 
     try {
-      const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const newCode = await generateSecureCode();
 
       const { error } = await supabase
         .from('groups')
@@ -334,6 +470,7 @@ export const GroupProvider = ({ children }) => {
 
       return { success: true, inviteCode: newCode };
     } catch (e) {
+      console.warn('Erro ao gerar código:', e);
       return { error: e.message || 'Erro ao gerar código' };
     }
   };
@@ -341,68 +478,43 @@ export const GroupProvider = ({ children }) => {
   // ========== COMPARTILHAMENTO SELETIVO ==========
 
   const shareItem = async (itemType, itemId, permissions = { view: true, edit: false }) => {
-    if (!currentGroup || !currentUser) return { error: 'Faça login e entre em um grupo' };
+    if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
+
+    const cleanType = sanitizeString(itemType);
+    const cleanId = sanitizeString(itemId);
+    if (!cleanType || !cleanId) return { error: 'Dados inválidos' };
 
     try {
-      // Verificar se já está compartilhado
-      const alreadyShared = sharedItems.find(
-        item => item.itemType === itemType && item.itemId === itemId
-      );
-
-      if (alreadyShared) {
-        // Atualizar permissões
-        const { error } = await supabase
-          .from('shared_items')
-          .update({ permissions })
-          .eq('id', alreadyShared.remoteId);
-
-        if (error) throw error;
-
-        const updated = sharedItems.map(item =>
-          item.itemType === itemType && item.itemId === itemId
-            ? { ...item, permissions }
-            : item
-        );
-        setSharedItems(updated);
-        await saveSharedItems(updated);
-
-        return { success: true };
-      }
-
-      // Inserir novo
       const { data, error } = await supabase
         .from('shared_items')
         .insert([{
           group_id: currentGroup.id,
           user_id: currentUser.id,
-          item_type: itemType,
-          item_id: itemId,
+          item_type: cleanType,
+          item_id: cleanId,
           permissions,
+          created_at: new Date().toISOString(),
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      const newShared = [
-        ...sharedItems,
-        {
-          remoteId: data.id,
-          itemType,
-          itemId,
-          permissions,
-          sharedAt: data.created_at,
-        },
-      ];
+      const newItem = {
+        id: data.id,
+        itemType: cleanType,
+        itemId: cleanId,
+        permissions,
+        createdAt: data.created_at,
+      };
 
-      setSharedItems(newShared);
-      await saveSharedItems(newShared);
-
-      // Trigger sync imediato
-      await syncWithGroup();
+      const updated = [...sharedItems, newItem];
+      setSharedItems(updated);
+      await saveSharedItems(updated);
 
       return { success: true };
     } catch (e) {
+      console.warn('Erro ao compartilhar:', e);
       return { error: e.message || 'Erro ao compartilhar' };
     }
   };
@@ -410,181 +522,163 @@ export const GroupProvider = ({ children }) => {
   const unshareItem = async (itemType, itemId) => {
     if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
 
+    const cleanType = sanitizeString(itemType);
+    const cleanId = sanitizeString(itemId);
+
     try {
-      const shared = sharedItems.find(
-        item => item.itemType === itemType && item.itemId === itemId
-      );
-
-      if (!shared) return { error: 'Item não está compartilhado' };
-
       await supabase
         .from('shared_items')
         .delete()
-        .eq('id', shared.remoteId);
+        .eq('group_id', currentGroup.id)
+        .eq('user_id', currentUser.id)
+        .eq('item_type', cleanType)
+        .eq('item_id', cleanId);
 
-      const filtered = sharedItems.filter(
-        item => !(item.itemType === itemType && item.itemId === itemId)
+      const updated = sharedItems.filter(
+        i => !(i.itemType === cleanType && i.itemId === cleanId)
       );
-
-      setSharedItems(filtered);
-      await saveSharedItems(filtered);
+      setSharedItems(updated);
+      await saveSharedItems(updated);
 
       return { success: true };
     } catch (e) {
-      return { error: e.message || 'Erro ao remover compartilhamento' };
+      console.warn('Erro ao remover compartilhamento:', e);
+      return { error: e.message || 'Erro ao remover' };
     }
   };
 
   // ========== SINCRONIZAÇÃO ==========
 
-  const syncWithGroup = useCallback(async () => {
-    if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
+  const syncWithGroup = async () => {
+    if (!currentGroup || !currentUser || isSyncing) return;
+
+    const now = Date.now();
+    if (now - lastSyncRef.current < 5000) return;
+    lastSyncRef.current = now;
+
+    try {
+      const networkState = await Network.getNetworkStateAsync();
+      if (!networkState.isConnected) return;
+    } catch (e) {
+      // Ignorar erro de network check
+    }
 
     setIsSyncing(true);
 
     try {
-      // 1. Enviar meus shared items para o Supabase (já feito no shareItem)
-      // 2. Buscar items compartilhados por OUTROS membros
-
-      const { data, error } = await supabase
+      const { data: myShared, error: myError } = await supabase
         .from('shared_items')
-        .select(`
-          id,
-          item_type,
-          item_id,
-          permissions,
-          user_id,
-          created_at,
-          users!shared_items_user_id_fkey(username)
-        `)
+        .select('id, item_type, item_id, permissions, created_at')
+        .eq('group_id', currentGroup.id)
+        .eq('user_id', currentUser.id);
+
+      if (myError) throw myError;
+
+      const myItems = (myShared || []).map(i => ({
+        id: i.id,
+        itemType: i.item_type,
+        itemId: i.item_id,
+        permissions: i.permissions,
+        createdAt: i.created_at,
+      }));
+
+      setSharedItems(myItems);
+      await saveSharedItems(myItems);
+
+      const { data: othersShared, error: othersError } = await supabase
+        .from('shared_items')
+        .select('id, user_id, item_type, item_id, permissions, created_at')
         .eq('group_id', currentGroup.id)
         .neq('user_id', currentUser.id);
 
-      if (error) throw error;
+      if (othersError) throw othersError;
 
-      // Buscar os dados completos dos items compartilhados
-      const cardIds = [];
-      const transactionIds = [];
-      const goalIds = [];
+      const othersItems = othersShared || [];
 
-      data?.forEach(item => {
-        switch (item.item_type) {
-          case 'card': cardIds.push(item.item_id); break;
-          case 'transaction': transactionIds.push(item.item_id); break;
-          case 'goal': goalIds.push(item.item_id); break;
-        }
-      });
+      const cardIds = othersItems.filter(i => i.item_type === 'card').map(i => i.item_id);
+      const transactionIds = othersItems.filter(i => i.item_type === 'transaction').map(i => i.item_id);
+      const goalIds = othersItems.filter(i => i.item_type === 'goal').map(i => i.item_id);
 
-      // Buscar dados dos cards compartilhados
-      const [cardsData, transData, goalsData] = await Promise.all([
-        cardIds.length > 0 
-          ? supabase.from('user_cards').select('*').in('id', cardIds)
+      const [cardsRes, transactionsRes, goalsRes] = await Promise.all([
+        cardIds.length > 0
+          ? supabase.from('shared_cards').select('id, name, limit, color, bank, close_day, due_day').in('id', cardIds)
           : { data: [] },
         transactionIds.length > 0
-          ? supabase.from('user_transactions').select('*').in('id', transactionIds)
+          ? supabase.from('shared_transactions').select('id, description, amount, type, date, category, payment_method, card_id').in('id', transactionIds)
           : { data: [] },
         goalIds.length > 0
-          ? supabase.from('user_goals').select('*').in('id', goalIds)
+          ? supabase.from('shared_goals').select('id, name, target, current, color, icon, deadline').in('id', goalIds)
           : { data: [] },
       ]);
 
-      // Mapear para incluir metadados de compartilhamento
-      const mapShared = (items, type) => {
-        return items.map(item => {
-          const shareMeta = data.find(d => d.item_type === type && d.item_id === item.id);
-          return {
-            ...item,
-            isShared: true,
-            sharedBy: shareMeta?.user_id,
-            ownerUsername: shareMeta?.users?.username || 'Desconhecido',
-            permissions: shareMeta?.permissions || { view: true, edit: false },
-            sharedAt: shareMeta?.created_at,
-          };
-        });
-      };
+      setSharedCards(cardsRes.data || []);
+      setSharedTransactions(transactionsRes.data || []);
+      setSharedGoals(goalsRes.data || []);
 
-      setSharedCards(mapShared(cardsData.data || [], 'card'));
-      setSharedTransactions(mapShared(transData.data || [], 'transaction'));
-      setSharedGoals(mapShared(goalsData.data || [], 'goal'));
-
-      const now = new Date().toISOString();
-      setLastSync(now);
-
+      setLastSync(new Date());
       return { success: true };
     } catch (e) {
-      console.warn('Erro na sincronização:', e);
-      return { error: e.message || 'Erro na sincronização' };
+      console.warn('Erro no sync:', e);
+      return { error: e.message || 'Erro ao sincronizar' };
     } finally {
       setIsSyncing(false);
     }
-  }, [currentGroup, currentUser]);
+  };
 
-  // Auto-sync quando entra no grupo
-  useEffect(() => {
-    if (!currentGroup || !syncEnabled) {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-      }
-      return;
-    }
-
-    // Sync imediato
-    syncWithGroup();
-
-    // Intervalo de 30s
+  const startAutoSync = useCallback(() => {
+    if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
     syncIntervalRef.current = setInterval(() => {
       syncWithGroup();
     }, 30000);
+  }, []);
 
-    return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-        syncIntervalRef.current = null;
-      }
-    };
-  }, [currentGroup, syncEnabled, syncWithGroup]);
+  const stopAutoSync = useCallback(() => {
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+      syncIntervalRef.current = null;
+    }
+  }, []);
 
-  // Persistir syncEnabled
   useEffect(() => {
-    AsyncStorage.setItem('group_sync_enabled', JSON.stringify(syncEnabled));
-  }, [syncEnabled]);
+    return () => {
+      if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+    };
+  }, []);
 
-  const value = {
-    // Auth
-    currentUser,
-    isLoading,
-    register,
-    login,
-    logout,
-
-    // Group
-    currentGroup,
-    groupMembers,
-    createGroup,
-    joinGroup,
-    leaveGroup,
-    generateInviteCode,
-
-    // Sharing
-    sharedItems,
-    shareItem,
-    unshareItem,
-
-    // Sync
-    syncWithGroup,
-    syncEnabled,
-    setSyncEnabled,
-    lastSync,
-    isSyncing,
-
-    // Shared data received
-    sharedCards,
-    sharedTransactions,
-    sharedGoals,
-  };
-
-  return <GroupContext.Provider value={value}>{children}</GroupContext.Provider>;
+  return (
+    <GroupContext.Provider value={{
+      currentUser,
+      currentGroup,
+      groupMembers,
+      sharedItems,
+      sharedCards,
+      sharedTransactions,
+      sharedGoals,
+      lastSync,
+      isLoading,
+      isSyncing,
+      syncEnabled,
+      setSyncEnabled,
+      register,
+      login,
+      logout,
+      createGroup,
+      joinGroup,
+      leaveGroup,
+      generateInviteCode,
+      shareItem,
+      unshareItem,
+      syncWithGroup,
+      startAutoSync,
+      stopAutoSync,
+    }}>
+      {children}
+    </GroupContext.Provider>
+  );
 };
 
-export const useGroup = () => useContext(GroupContext);
+export const useGroup = () => {
+  const ctx = useContext(GroupContext);
+  if (!ctx) throw new Error('useGroup must be inside GroupProvider');
+  return ctx;
+};

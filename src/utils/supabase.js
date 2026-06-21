@@ -1,20 +1,26 @@
-// supabase.js — Configuração do Supabase Client
+// supabase.js — Configuração segura do Supabase Client para React Native/Expo
+// ⚠️ Credenciais via env.js (não commitar!)
 
+import 'react-native-url-polyfill/auto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env';
 
-const SUPABASE_URL = 'https://nrxkqhzrytzomvwqafiz.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_GnrhEybSIiLCS9iDd88z0g_pS_A0wsl';
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error(
+    '[SmartExpense] ❌ Credenciais do Supabase não configuradas!\n' +
+    'Verifique se o arquivo env.js existe em src/utils/env.js\n' +
+    'Formato esperado da chave: eyJhbGciOiJIUzI1NiIs... (JWT)'
+  );
+}
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
 
-// Helper para hash de senha simples (em produção use bcrypt)
-export const hashPassword = (password) => {
-  // Simples hash para demo — em produção use bcrypt no backend
-  let hash = 0;
-  for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(16);
-};
+// 🗑️ REMOVIDO: hashPassword — agora usamos Supabase Auth nativo

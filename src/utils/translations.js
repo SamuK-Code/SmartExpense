@@ -1,8 +1,8 @@
-// translations.js — Sistema de Internacionalização (PT/EN/ES)
+// translations.js — Sistema de Internacionalização (PT/EN/ES) — SmartExpense v3.0
 
 export const translations = {
   pt: {
-    appName: 'Finanças Pro',
+    appName: 'SmartExpense',
     version: 'v3.0',
 
     appnavigator: {
@@ -143,8 +143,8 @@ export const translations = {
       depositWarning: 'Este valor será descontado do seu saldo em caixa.',
       withdrawWarning: 'Este valor será adicionado ao seu saldo em caixa.' },
 
-    creditCard: { appName: 'Finanças Pro', availableLimit: 'LIMITE DISPONÍVEL', currentBill: 'Fatura Atual' },
-    splash: { appName: 'Finanças Pro' },
+    creditCard: { appName: 'SmartExpense', availableLimit: 'LIMITE DISPONÍVEL', currentBill: 'Fatura Atual' },
+    splash: { appName: 'SmartExpense' },
 
     groups: { title: 'Grupos & Compartilhamento', subtitle: 'Compartilhe cartões, transações e metas com sua família ou equipe',
       createGroup: 'Criar um grupo', createGroupDesc: 'Crie um grupo e convide outras pessoas para compartilhar dados financeiros.',
@@ -196,7 +196,9 @@ export const translations = {
       linkPrompt: 'Faça login em Grupos para vincular', displayName: 'Seu nome de exibição',
       saveProfile: 'Salvar Perfil', tapToEdit: 'Toque para editar',
       changePhoto: 'Alterar Foto', notLinked: 'Não vinculado', languageChanged: 'Idioma alterado',
-      choosePhotoOption: 'Escolha uma opção' },
+      choosePhotoOption: 'Escolha uma opção',
+      // 🎨 Novas traduções de tema
+      appTheme: 'Tema do App', selectTheme: 'Selecionar Tema', themeChanged: 'Tema alterado' },
 
     categories: { food: 'Alimentação', transport: 'Transporte', shopping: 'Compras', health: 'Saúde',
       entertainment: 'Lazer', bills: 'Contas', education: 'Educação', other: 'Outros' },
@@ -221,7 +223,7 @@ export const translations = {
   },
 
   en: {
-    appName: 'Finances Pro',
+    appName: 'SmartExpense',
     version: 'v3.0',
 
     appnavigator: {
@@ -362,8 +364,8 @@ export const translations = {
       depositWarning: 'This amount will be deducted from your cash balance.',
       withdrawWarning: 'This amount will be added to your cash balance.' },
 
-    creditCard: { appName: 'Finances Pro', availableLimit: 'AVAILABLE LIMIT', currentBill: 'Current Bill' },
-    splash: { appName: 'Finances Pro' },
+    creditCard: { appName: 'SmartExpense', availableLimit: 'AVAILABLE LIMIT', currentBill: 'Current Bill' },
+    splash: { appName: 'SmartExpense' },
 
     groups: { title: 'Groups & Sharing', subtitle: 'Share cards, transactions and goals with your family or team',
       createGroup: 'Create a group', createGroupDesc: 'Create a group and invite others to share financial data.',
@@ -415,7 +417,9 @@ export const translations = {
       linkPrompt: 'Login in Groups to link', displayName: 'Your display name',
       saveProfile: 'Save Profile', tapToEdit: 'Tap to edit',
       changePhoto: 'Change Photo', notLinked: 'Not linked', languageChanged: 'Language changed',
-      choosePhotoOption: 'Choose an option' },
+      choosePhotoOption: 'Choose an option',
+      // 🎨 Theme translations
+      appTheme: 'App Theme', selectTheme: 'Select Theme', themeChanged: 'Theme changed' },
 
     categories: { food: 'Food', transport: 'Transport', shopping: 'Shopping', health: 'Health',
       entertainment: 'Entertainment', bills: 'Bills', education: 'Education', other: 'Others' },
@@ -440,7 +444,7 @@ export const translations = {
   },
 
   es: {
-    appName: 'Finanzas Pro',
+    appName: 'SmartExpense',
     version: 'v3.0',
 
     appnavigator: {
@@ -465,7 +469,7 @@ export const translations = {
       continue: 'Continuar', done: 'Hecho', pending: 'Pendiente', completed: 'Completado',
       active: 'Activo', inactive: 'Inactivo', shared: 'Compartido', private: 'Privado',
       public: 'Público', view: 'Ver', editPermission: 'Editar', share: 'Compartir',
-      unshare: 'Dejar de compartir', sync: 'Sincronizar', syncing: 'Sincronizando...',
+      unshare: 'Dejar de compartilhar', sync: 'Sincronizar', syncing: 'Sincronizando...',
       lastSync: 'Última sincronización', members: 'Miembros', admin: 'Administrador',
       member: 'Miembro', you: 'tú', invite: 'Invitar', inviteCode: 'Código de invitación',
       shareCode: 'Comparte este código para invitar a alguien', login: 'Iniciar sesión',
@@ -494,6 +498,108 @@ export const translations = {
       sharePermissions: 'Elige los permisos de acceso para los miembros del grupo:',
       viewOnly: 'Solo ver', viewOnlyDesc: 'Los miembros pueden ver pero no editar',
       viewAndEdit: 'Ver y editar', viewAndEditDesc: 'Los miembros pueden ver y hacer cambios',
+      sharedCards: 'Tarjetas compartidas', noSharedCards: 'No hay tarjetas compartidas contigo',
+      sharedTransactions: 'Transacciones compartidas', noSharedTransactions: 'No hay transacciones compartidas',
+      sharedGoals: 'Metas compartidas', noSharedGoals: 'No hay metas compartidas',
+      canEdit: 'Puedes editar', noCardsRegistered: 'Ninguna tarjeta registrada',
+      noTransactions: 'Ninguna transacción', noGoals: 'Ninguna meta',
+      noDescription: 'Sin descripción', noCategory: 'Sin categoría',
+      credit: 'Crédito', debit: 'Débito', cash: 'Efectivo', pix: 'PIX',
+      boleto: 'Boleto', card: 'Tarjeta', transaction: 'Transacción', goal: 'Meta',
+      expense: 'Gasto', income: 'Ingreso', never: 'Nunca',
+      invoice: 'Factura', payInvoice: 'Pagar Factura', invoicePending: 'Factura Pendiente',
+      invoicePaid: 'Factura Pagada', nextInvoice: 'Próxima Factura', closingDate: 'Fecha de Cierre',
+    },
+
+    greeting: { morning: '¡Buenos días!', afternoon: '¡Buenas tardes!', evening: '¡Buenas noches!' },
+    greetingSub: 'Aquí está tu resumen financiero',
+
+    tab: { home: 'Inicio', add: 'Agregar', history: 'Historial', cards: 'Tarjetas', goals: 'Metas', groups: 'Grupos' },
+
+    home: { balance: 'Saldo en Caja', myCards: 'Mis Tarjetas', seeAll: 'Ver todas', recentTransactions: 'Movimientos Recientes', noTransactions: 'Sin movimientos', noCards: 'Sin tarjetas' },
+
+    add: { title: 'Agregar', newExpense: 'Nuevo Gasto', newIncome: 'Nuevo Ingreso', newBoleto: 'Nuevo Boleto',
+      topCards: 'Tarjetas Más Usadas', topCategories: 'Categorías Top', hint: 'Toca el botón + para agregar',
+      subHint: 'Gastos, ingresos o boletos', description: 'Descripción', amount: 'Monto ($)', date: 'Fecha',
+      category: 'Categoría', paymentMethod: 'Método de Pago', card: 'Tarjeta', cardType: 'Tipo de Tarjeta',
+      credit: 'Crédito', debit: 'Débito', pix: 'PIX', cash: 'Efectivo', boleto: 'Boleto',
+      boletoDue: 'Vencimiento del Boleto', save: 'Guardar', register: 'Registrar',
+      fillRequired: 'Complete todos los campos obligatorios', success: 'registrado!',
+      registerExpense: 'Registrar Gasto', registerIncome: 'Registrar Ingreso', registerBoleto: 'Registrar Boleto',
+      pendingBoletos: 'Boletos Pendientes', due: 'Vence', pay: 'Pagar',
+      insufficientCash: 'Saldo en caja insuficiente. Disponible:', boletoPaid: 'Boleto pagado',
+      deductedFromCash: 'deducido de caja', selectBank: 'Seleccione un banco...',
+      searchBank: 'Buscar banco...', noBankFound: 'Ningún banco encontrado',
+      autoClose: 'Cierre automático', day: 'día' },
+
+    history: { title: 'Historial', expensesByCategory: 'Gastos por Categoría', pie: 'Pastel', bar: 'Barras',
+      noData: 'Sin datos para el período', tapSlice: 'Toca una porción para filtrar', all: 'Todas',
+      expenses: 'Gastos', incomes: 'Ingresos', boletos: 'Boletos', period: 'Período', total: 'Total',
+      noTransactions: 'Ninguna transacción encontrada', noCategoryTransactions: 'Ninguna transacción en esta categoría',
+      confirmDeleteTitle: 'Confirmar eliminación', confirmDeleteMessage: '¿Desea eliminar esta transacción?',
+      transactionDeleted: 'Transacción eliminada' },
+
+    cards: { title: 'Mis Tarjetas', noCards: 'Ninguna tarjeta registrada', addCard: 'Nueva Tarjeta', editCard: 'Editar Tarjeta',
+      cardName: 'Nombre de la Tarjeta', cardNumber: 'Número (últimos 4 dígitos)', limit: 'Límite ($)',
+      closeDate: 'Día de Cierre', dueDate: 'Día de Vencimiento', cardColor: 'Color de la Tarjeta', save: 'Guardar Tarjeta', saveChanges: 'Guardar Cambios',
+      selectBank: 'Seleccione un banco...', searchBank: 'Buscar banco...', noBankFound: 'Ningún banco encontrado',
+      autoClose: 'Cierre automático',
+      delete: 'Eliminar', deleteConfirm: '¿Desea eliminar esta tarjeta?', details: 'Detalles',
+      limitUsed: 'Límite Utilizado', used: 'Utilizado', available: 'Disponible',
+      limitAlert: '¡Límite casi agotado! Solo quedan', closing: 'Cierre', totalLimit: 'Límite Total',
+      expenseHistory: 'Historial de Gastos', noTransactions: 'Ninguna transacción en esta tarjeta', totalSpent: 'Total Gastado',
+      added: '¡Tarjeta agregada!', deleted: 'Tarjeta eliminada', updated: '¡Tarjeta actualizada!',
+      confirmDeleteTitle: 'Confirmar eliminación', confirmDeleteMessage: '¿Desea eliminar esta tarjeta?', newCard: 'Nueva Tarjeta',
+      pendingInvoices: 'Facturas Pendientes', paidInvoices: 'Facturas Pagadas', payInvoice: 'Pagar Factura',
+      invoiceAmount: 'Monto de la Factura', invoiceMonth: 'Mes de la Factura', nextClosing: 'Próximo Cierre',
+      daysUntilClosing: 'días hasta el cierre', purchaseNextInvoice: 'Esta compra irá a la próxima factura',
+      nextClosingDays: 'Próximo cierre en', closingNotConfigured: 'Fecha de cierre no configurada',
+      invoiceCount: 'factura(s) pendiente(s)' },
+
+    goals: { title: 'Metas Financieras', active: 'Activas', completed: 'Completadas', saved: 'Ahorrado',
+      inProgress: 'En Progreso', completedTab: 'Completadas', noActive: 'Ninguna meta en progreso',
+      noCompleted: 'Ninguna meta completada', newGoal: 'Nueva Meta', goalName: 'Nombre de la Meta',
+      targetAmount: 'Monto Objetivo ($)', initialAmount: 'Monto Inicial ($)', deadline: 'Fecha Límite',
+      icon: 'Ícono', color: 'Color', createGoal: 'Crear Meta', contribute: 'Contribuir',
+      contributeAmount: 'Monto de Contribución ($)', confirm: 'Confirmar', daysLeft: 'días restantes',
+      deadlineOver: 'Plazo vencido', complete: 'completo', remaining: 'restantes',
+      goalCreated: '¡Meta creada!', contributionRegistered: '¡Contribución registrada!',
+      fillRequired: 'Complete todos los campos obligatorios', myGoals: 'Mis Metas',
+      inProgressShort: 'En progreso', completedShort: 'Completadas', view: 'Ver',
+      noActiveGoals: 'Ninguna meta activa', createFirst: 'Toca + para crear tu primera meta',
+      newGoalTitle: 'Nueva Meta', goalNameLabel: 'Nombre de la Meta', value: 'Monto ($)',
+      chooseIcon: 'Elegir Ícono', createGoalBtn: 'Crear Meta', invest: 'Invertir', withdraw: 'Retirar',
+      completeGoal: 'Completar', goalCreatedSuccess: '¡Meta creada con éxito!', goalDeleted: 'Meta eliminada',
+      daysSince: 'días desde el inicio', daySince: 'día desde el inicio', remainingPercent: 'restante',
+      fromGoal: 'de la meta' },
+
+    completedGoals: { title: 'Metas Completadas', unknownDate: 'Fecha desconocida', unknownDuration: 'Duración desconocida',
+      emptyTitle: 'Ninguna meta completada', emptySub: '¡Sigue invirtiendo en tus metas para verlas aquí!',
+      goalCompleted: 'meta completada', goalsCompleted: 'metas completadas', completedIn: 'Completada en',
+      start: 'Inicio', completion: 'Completación' },
+
+    investModal: { investTitle: 'Invertir en la Meta', withdrawTitle: 'Retirar de la Meta',
+      availableBalance: 'Saldo disponible', availableInGoal: 'Disponible en la meta', value: 'Monto ($)',
+      invalidValue: 'Ingrese un monto válido', insufficientBalance: 'Saldo insuficiente en caja',
+      insufficientGoal: 'Monto mayor que el disponible en la meta', deposit: 'Depositar', withdraw: 'Retirar',
+      depositWarning: 'Este monto será descontado de tu saldo en caja.',
+      withdrawWarning: 'Este monto será agregado a tu saldo en caja.' },
+
+    creditCard: { appName: 'SmartExpense', availableLimit: 'LÍMITE DISPONIBLE', currentBill: 'Factura Actual' },
+    splash: { appName: 'SmartExpense' },
+
+    groups: { title: 'Grupos y Compartilhación', subtitle: 'Comparte tarjetas, transacciones y metas con tu familia o equipo',
+      createGroup: 'Crear un grupo', createGroupDesc: 'Crea un grupo e invita a otras personas a compartir datos financieros.',
+      groupName: 'Nombre del grupo', createGroupBtn: 'Crear grupo', or: '— o —',
+      joinGroup: 'Unirse a un grupo', joinGroupDesc: 'Ingresa el código de invitación que recibiste.',
+      inviteCode: 'Código de invitación', joinGroupBtn: 'Unirse al grupo', groupCreated: '¡Grupo creado!',
+      groupCreatedMessage: 'Código de invitación: {code}\n\nComparte este código con quien quieras invitar.',
+      joinedGroup: '¡Te uniste al grupo!', invalidCode: 'Código inválido o expirado',
+      leaveGroupConfirm: '¿Estás seguro? Tus datos compartilhados serán eliminados del grupo.',
+      newCodeTitle: 'Nuevo código generado', newCodeMessage: 'Código: {code}\n\nEl código antigo ya no funciona.',
+      shared: 'Compartido', editPermission: 'edición', myData: 'Mis datos', received: 'Recibidos',
+      members: 'Miembros', cards: 'Tarjetas', transactions: 'Transacciones recientes', goals: 'Metas',
+      noCards: 'Ninguna tarjeta registrada', noTransactions: 'Ninguna transacción', noGoals: 'Ninguna meta',
       sharedCards: 'Tarjetas compartidas', noSharedCards: 'No hay tarjetas compartidas contigo',
       sharedTransactions: 'Transacciones compartidas', noSharedTransactions: 'No hay transacciones compartidas',
       sharedGoals: 'Metas compartidas', noSharedGoals: 'No hay metas compartidas',
@@ -532,7 +638,9 @@ export const translations = {
       linkPrompt: 'Inicia sesión en Grupos para vincular', displayName: 'Tu nombre de visualización',
       saveProfile: 'Guardar Perfil', tapToEdit: 'Toca para editar',
       changePhoto: 'Cambiar Foto', notLinked: 'No vinculado', languageChanged: 'Idioma cambiado',
-      choosePhotoOption: 'Elige una opción' },
+      choosePhotoOption: 'Elige una opción',
+      // 🎨 Traducciones de tema
+      appTheme: 'Tema de la App', selectTheme: 'Seleccionar Tema', themeChanged: 'Tema cambiado' },
 
     categories: { food: 'Alimentación', transport: 'Transporte', shopping: 'Compras', health: 'Salud',
       entertainment: 'Ocio', bills: 'Cuentas', education: 'Educación', other: 'Otros' },
