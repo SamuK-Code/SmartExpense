@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SmartExpense",
-    "slug": "financas-pro",
+    "slug": "smartexpense",
     "version": "3.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
