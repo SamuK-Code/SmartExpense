@@ -1,20 +1,21 @@
 // supabase.js — Configuração segura do Supabase Client para React Native/Expo
-// ⚠️ Credenciais via env.js (não commitar!)
+// ⚠️ Credenciais via EAS Secrets (process.env)
 
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env';
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error(
     '[SmartExpense] ❌ Credenciais do Supabase não configuradas!\n' +
-    'Verifique se o arquivo env.js existe em src/utils/env.js\n' +
-    'Formato esperado da chave: eyJhbGciOiJIUzI1NiIs... (JWT)'
+    'Verifique se as EAS Secrets SUPABASE_URL e SUPABASE_ANON_KEY estão configuradas.'
   );
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '', {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
@@ -22,5 +23,3 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     detectSessionInUrl: false,
   },
 });
-
-// 🗑️ REMOVIDO: hashPassword — agora usamos Supabase Auth nativo

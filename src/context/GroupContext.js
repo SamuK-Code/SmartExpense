@@ -1,4 +1,4 @@
-// GroupContext.js — Login, Grupos e Sincronização
+// GroupContext.js — Login, Grupos e Sincronização SEGURO
 // VERSÃO BYPASS: Sem Supabase Auth (sem rate limit de email)
 // ⚠️ APENAS PARA USO PRIVADO/NÃO PÚBLICO
 
@@ -29,9 +29,10 @@ const addRateLimitAttempt = (key) => {
   rateLimitStore.set(key, attempts);
 };
 
-// 🛡️ Gerar código seguro
+// 🛡️ Gerar código seguro — CORRIGIDO: usa getRandomBytesAsync
 const generateSecureCode = async () => {
-  const bytes = await Crypto.getRandomValuesAsync(new Uint8Array(8));
+  // ✅ CORREÇÃO: getRandomBytesAsync(byteCount) retorna Uint8Array
+  const bytes = await Crypto.getRandomBytesAsync(8);
   return Array.from(bytes)
     .map(b => b.toString(36).padStart(2, '0'))
     .join('')
@@ -89,7 +90,6 @@ export const GroupProvider = ({ children }) => {
 
   const loadSession = async () => {
     try {
-      // 🔄 BYPASS: Carregar sessão local (sem Supabase Auth)
       const savedUser = await AsyncStorage.getItem('group_user_local');
       if (savedUser) {
         const user = JSON.parse(savedUser);
@@ -154,7 +154,6 @@ export const GroupProvider = ({ children }) => {
     }
 
     try {
-      // Verificar se username já existe
       const { data: existing } = await supabase
         .from('users')
         .select('id')
@@ -163,7 +162,6 @@ export const GroupProvider = ({ children }) => {
 
       if (existing) return { error: 'Usuário já existe' };
 
-      // 🔄 BYPASS: Criar usuário direto na tabela (sem Supabase Auth)
       const userId = generateUUID();
       const salt = await Crypto.digestStringAsync(
         Crypto.CryptoDigestAlgorithm.SHA256,
@@ -183,11 +181,10 @@ export const GroupProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // Salvar sessão local
       const user = { 
         id: userId, 
         username: cleanUsername,
-        token: passwordHash.slice(0, 32), // token simples para validar requests
+        token: passwordHash.slice(0, 32),
       };
 
       setCurrentUser(user);
@@ -212,7 +209,6 @@ export const GroupProvider = ({ children }) => {
     }
 
     try {
-      // Buscar usuário na tabela
       const { data: userRecord, error } = await supabase
         .from('users')
         .select('id, username, password_hash, salt')
@@ -223,7 +219,6 @@ export const GroupProvider = ({ children }) => {
         return { error: 'Usuário ou senha incorretos' };
       }
 
-      // Verificar senha
       const passwordHash = await hashPassword(password, userRecord.salt);
       if (passwordHash !== userRecord.password_hash) {
         return { error: 'Usuário ou senha incorretos' };

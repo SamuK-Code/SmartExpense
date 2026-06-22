@@ -115,7 +115,7 @@ export default function GroupScreen() {
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) {
-      Alert.alert(t('common.error'), t('groups.enterGroupName'));
+      Alert.alert(t('common.error'), t('common.enterGroupName'));
       return;
     }
     const result = await createGroup(groupName.trim());
@@ -126,7 +126,7 @@ export default function GroupScreen() {
       );
       setGroupName('');
     } else {
-      Alert.alert(t('common.error'), result.error || t('groups.createGroupFailed'));
+      Alert.alert(t('common.error'), result.error || t('common.createGroupFailed'));
     }
   };
 
@@ -189,16 +189,16 @@ export default function GroupScreen() {
     setShareModalVisible(false);
 
     if (result.success) {
-      Alert.alert(t('common.success'), t('groups.sharedSuccess') || 'Item compartilhado com o grupo.');
+      Alert.alert(t('common.success'), t('groups.sharedSuccess'));
     } else {
-      Alert.alert(t('common.error'), result.error || t('groups.shareFailed') || 'Falha ao compartilhar');
+      Alert.alert(t('common.error'), result.error || t('groups.shareFailed'));
     }
   };
 
   const handleUnshare = async (type, itemId) => {
     Alert.alert(
-      t('groups.unshareTitle') || 'Remover compartilhamento',
-      t('groups.unshareMessage') || 'Os outros membros não verão mais este item.',
+      t('groups.unshareTitle'),
+      t('groups.unshareMessage'),
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
@@ -207,7 +207,7 @@ export default function GroupScreen() {
           onPress: async () => {
             const result = await unshareItem(type, itemId);
             if (!result.success) {
-              Alert.alert(t('common.error'), result.error || 'Falha ao remover');
+              Alert.alert(t('common.error'), result.error || t('common.error'));
             }
           },
         },
@@ -218,9 +218,9 @@ export default function GroupScreen() {
   const handleManualSync = async () => {
     const result = await syncWithGroup();
     if (result.success) {
-      Alert.alert(t('common.success'), t('groups.syncSuccess') || 'Dados atualizados com sucesso.');
+      Alert.alert(t('common.success'), t('groups.syncSuccess'));
     } else {
-      Alert.alert(t('common.error'), result.error || 'Falha na sincronização');
+      Alert.alert(t('common.error'), result.error || t('common.error'));
     }
   };
 
@@ -239,7 +239,7 @@ export default function GroupScreen() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return t('common.never') || 'Nunca';
+    if (!dateString) return t('common.never');
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',

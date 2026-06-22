@@ -122,13 +122,18 @@ const AddScreen = () => {
     setFabOpen(false);
   };
 
+  // ✅ CORREÇÃO: Validação condicional para income (não exige categoryId)
   const handleSubmit = () => {
-    if (!desc || !amount || !categoryId) {
+    if (!desc || !amount || (transactionType !== 'income' && !categoryId)) {
       showToast(t('add.fillRequired'), 'error');
       return;
     }
 
-    const category = categories.find(c => c.id === categoryId);
+    // ✅ CORREÇÃO: Categoria padrão para income
+    const category = transactionType === 'income'
+      ? { id: 'income', name: 'Receita', icon: 'cash', color: '#10B981' }
+      : categories.find(c => c.id === categoryId);
+
     const selectedCard = cards.find(c => c.id.toString() === cardId?.toString());
 
     const transaction = {
@@ -136,7 +141,7 @@ const AddScreen = () => {
       desc,
       amount: parseFloat(amount),
       date,
-      category: categoryId,
+      category: categoryId || 'income',
       categoryName: category ? category.name : t('categories.other'),
       categoryIcon: category ? category.icon : 'pricetag',
       categoryColor: category ? category.color : '#94A3B8',
