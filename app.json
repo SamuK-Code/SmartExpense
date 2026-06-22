@@ -11,7 +11,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.seunome.smartexpense",
+      "bundleIdentifier": "com.samuk.smartexpense",
       "deploymentTarget": "16.4"
     },
     "android": {
@@ -19,7 +19,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#8B5CF6"
       },
-      "package": "com.seunome.smartexpense",
+      "package": "com.samuk.smartexpense",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
