@@ -17,7 +17,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGroup } from '../context/GroupContext';
@@ -56,6 +55,9 @@ export default function GroupScreen() {
     sharedItems,
     shareItem,
     unshareItem,
+    saveSharedCardData,
+    saveSharedTransactionData,
+    saveSharedGoalData,
     syncWithGroup,
     lastSync,
     isSyncing,
@@ -80,9 +82,12 @@ export default function GroupScreen() {
 
   // ─── HELPERS ───────────────────────────────────────────────────
 
-  const copyToClipboard = async (text) => {
-    await Clipboard.setStringAsync(text);
-    // Toast nativo do expo-clipboard não precisa de ToastAndroid
+  const showCodeAlert = (text) => {
+    Alert.alert(
+      t('groups.inviteCode') || 'Código do Grupo',
+      text,
+      [{ text: 'OK' }]
+    );
   };
 
   // ─── AUTH HANDLERS ─────────────────────────────────────────────
@@ -197,8 +202,25 @@ export default function GroupScreen() {
   const handleShare = async (permissions = { view: true, edit: false }) => {
     if (!shareType || !selectedItemId) return;
 
-    // CORREÇÃO: Garante que itemId é sempre string
-    const result = await shareItem(shareType, String(selectedItemId), permissions);
+    const strId = String(selectedItemId);
+
+    // 1. Compartilhar metadata
+    const result = await shareItem(shareType, strId, permissions);
+
+    // 2. ✅ Salvar dados reais para outros usuários acessarem
+    if (result.success) {
+      if (shareType === 'card') {
+        const card = cards.find(c => String(c.id) === strId);
+        if (card) await saveSharedCardData(card);
+      } else if (shareType === 'transaction') {
+        const tx = transactions.find(t => String(t.id) === strId);
+        if (tx) await saveSharedTransactionData(tx);
+      } else if (shareType === 'goal') {
+        const goal = goals.find(g => String(g.id) === strId);
+        if (goal) await saveSharedGoalData(goal);
+      }
+    }
+
     setShareModalVisible(false);
 
     if (result.success) {
@@ -497,7 +519,7 @@ export default function GroupScreen() {
               {/* CORREÇÃO: Código copiável com TouchableOpacity */}
               <TouchableOpacity
                 style={styles.codeContainer}
-                onPress={() => copyToClipboard(currentGroup.inviteCode)}
+                onPress={() => showCodeAlert(currentGroup.inviteCode)}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.groupCode, { color: colors.textSecondary }]}>
@@ -612,7 +634,7 @@ export default function GroupScreen() {
                             {card.name}
                           </Text>
                           <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
-                            {card.type === 'credit' ? t('common.credit') : t('common.debit')} • **** {card.lastFour}
+                            {card.bank || t('common.credit')} • Limite: R$ {card.card_limit?.toFixed(2) || '0,00'}
                           </Text>
                           {shared && meta && (
                             <Text style={[styles.sharedBadge, { color: colors.success }]}>
@@ -713,7 +735,7 @@ export default function GroupScreen() {
                             {goal.name}
                           </Text>
                           <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
-                            R$ {goal.current?.toFixed(2)} / R$ {goal.target?.toFixed(2)}
+                            R$ {goal.current_amount?.toFixed(2) || '0,00'} / R$ {goal.target_amount?.toFixed(2) || '0,00'}
                           </Text>
                           {shared && meta && (
                             <Text style={[styles.sharedBadge, { color: colors.success }]}>
@@ -764,7 +786,7 @@ export default function GroupScreen() {
                           {card.name}
                         </Text>
                         <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
-                          {card.type === 'credit' ? t('common.credit') : t('common.debit')} • **** {card.lastFour}
+                          {card.bank || t('common.credit')} • Limite: R$ {card.card_limit?.toFixed(2) || '0,00'}
                         </Text>
                         {card.canEdit && (
                           <Text style={[styles.canEditBadge, { color: colors.primary }]}>
@@ -797,7 +819,7 @@ export default function GroupScreen() {
                           {tx.description || tx.desc || t('groups.noDescription')}
                         </Text>
                         <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
-                          R$ {tx.amount?.toFixed(2)} • {tx.categoryName || t('groups.noCategory')}
+                          R$ {tx.amount?.toFixed(2)} • {tx.category || t('groups.noCategory')}
                         </Text>
                       </View>
                     </View>
@@ -825,7 +847,7 @@ export default function GroupScreen() {
                           {goal.name}
                         </Text>
                         <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
-                          R$ {goal.current?.toFixed(2)} / R$ {goal.target?.toFixed(2)}
+                          R$ {goal.current_amount?.toFixed(2) || '0,00'} / R$ {goal.target_amount?.toFixed(2) || '0,00'}
                         </Text>
                       </View>
                     </View>

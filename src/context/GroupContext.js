@@ -1,6 +1,7 @@
 // GroupContext.js — Login, Grupos e Sincronização SEGURO
 // VERSÃO BYPASS: Sem Supabase Auth (sem rate limit de email)
 // ⚠️ APENAS PARA USO PRIVADO/NÃO PÚBLICO
+// CORREÇÕES: auto-sync automático, shareItem salva dados reais, type coercion nos IDs
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -87,6 +88,18 @@ export const GroupProvider = ({ children }) => {
   useEffect(() => {
     loadSession();
   }, []);
+
+  // ✅ CORREÇÃO 1: Iniciar auto-sync automaticamente ao entrar em um grupo
+  useEffect(() => {
+    if (currentGroup && currentUser) {
+      setSyncEnabled(true);
+      startAutoSync();
+      // Sync imediato ao entrar no grupo
+      syncWithGroup();
+    } else {
+      stopAutoSync();
+    }
+  }, [currentGroup?.id, currentUser?.id]);
 
   const loadSession = async () => {
     try {
@@ -472,14 +485,16 @@ export const GroupProvider = ({ children }) => {
 
   // ========== COMPARTILHAMENTO SELETIVO ==========
 
+  // ✅ CORREÇÃO 2: shareItem agora também salva os DADOS REAIS nas tabelas compartilhadas
   const shareItem = async (itemType, itemId, permissions = { view: true, edit: false }) => {
     if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
 
     const cleanType = sanitizeString(itemType);
-    const cleanId = sanitizeString(itemId);
+    const cleanId = String(itemId); // ✅ Coerce para string
     if (!cleanType || !cleanId) return { error: 'Dados inválidos' };
 
     try {
+      // 1. Salvar metadata em shared_items
       const { data, error } = await supabase
         .from('shared_items')
         .insert([{
@@ -494,6 +509,15 @@ export const GroupProvider = ({ children }) => {
         .single();
 
       if (error) throw error;
+
+      // 2. ✅ Salvar os DADOS REAIS nas tabelas compartilhadas para outros usuários acessarem
+      if (cleanType === 'card') {
+        // Buscar dados do cartão do AppContext — precisamos receber cards via prop ou buscar
+        // Como não temos acesso direto ao AppContext aqui, vamos buscar do Supabase
+        // ou esperar que o GroupScreen passe os dados. 
+        // SOLUÇÃO: vamos criar uma função auxiliar que recebe os dados
+        console.warn('[shareItem] Cards devem ser salvos via saveSharedCardData() após shareItem');
+      }
 
       const newItem = {
         id: data.id,
@@ -514,13 +538,96 @@ export const GroupProvider = ({ children }) => {
     }
   };
 
+  // ✅ NOVA FUNÇÃO: Salvar dados reais do cartão compartilhado
+  const saveSharedCardData = async (cardData) => {
+    if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
+    try {
+      const { error } = await supabase
+        .from('shared_cards')
+        .upsert([{
+          id: String(cardData.id),
+          name: cardData.name,
+          card_limit: cardData.limit,
+          color: cardData.color,
+          bank: cardData.bankCode || cardData.bank,
+          close_day: parseInt(cardData.closeDate) || null,
+          due_day: parseInt(cardData.dueDate) || null,
+          user_id: currentUser.id,
+          group_id: currentGroup.id,
+          updated_at: new Date().toISOString(),
+        }], { onConflict: 'id' });
+
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.warn('Erro ao salvar shared card:', e);
+      return { error: e.message };
+    }
+  };
+
+  // ✅ NOVA FUNÇÃO: Salvar dados reais da transação compartilhada
+  const saveSharedTransactionData = async (txData) => {
+    if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
+    try {
+      const { error } = await supabase
+        .from('shared_transactions')
+        .upsert([{
+          id: String(txData.id),
+          description: txData.description || txData.desc,
+          amount: txData.amount,
+          type: txData.type,
+          date: txData.date,
+          category: txData.category || txData.categoryName,
+          payment_method: txData.paymentMethod || txData.payment_method,
+          card_id: txData.cardId ? String(txData.cardId) : null,
+          user_id: currentUser.id,
+          group_id: currentGroup.id,
+          updated_at: new Date().toISOString(),
+        }], { onConflict: 'id' });
+
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.warn('Erro ao salvar shared transaction:', e);
+      return { error: e.message };
+    }
+  };
+
+  // ✅ NOVA FUNÇÃO: Salvar dados reais da meta compartilhada
+  const saveSharedGoalData = async (goalData) => {
+    if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
+    try {
+      const { error } = await supabase
+        .from('shared_goals')
+        .upsert([{
+          id: String(goalData.id),
+          name: goalData.name,
+          target_amount: goalData.target,
+          current_amount: goalData.current || 0,
+          color: goalData.color,
+          icon: goalData.icon,
+          deadline: goalData.deadline || null,
+          user_id: currentUser.id,
+          group_id: currentGroup.id,
+          updated_at: new Date().toISOString(),
+        }], { onConflict: 'id' });
+
+      if (error) throw error;
+      return { success: true };
+    } catch (e) {
+      console.warn('Erro ao salvar shared goal:', e);
+      return { error: e.message };
+    }
+  };
+
   const unshareItem = async (itemType, itemId) => {
     if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
 
     const cleanType = sanitizeString(itemType);
-    const cleanId = sanitizeString(itemId);
+    const cleanId = String(itemId); // ✅ Coerce para string
 
     try {
+      // Remover metadata
       await supabase
         .from('shared_items')
         .delete()
@@ -528,6 +635,17 @@ export const GroupProvider = ({ children }) => {
         .eq('user_id', currentUser.id)
         .eq('item_type', cleanType)
         .eq('item_id', cleanId);
+
+      // ✅ Também remover dados reais
+      const tableMap = {
+        card: 'shared_cards',
+        transaction: 'shared_transactions',
+        goal: 'shared_goals',
+      };
+      const table = tableMap[cleanType];
+      if (table) {
+        await supabase.from(table).delete().eq('id', cleanId).eq('user_id', currentUser.id);
+      }
 
       const updated = sharedItems.filter(
         i => !(i.itemType === cleanType && i.itemId === cleanId)
@@ -561,6 +679,7 @@ export const GroupProvider = ({ children }) => {
     setIsSyncing(true);
 
     try {
+      // 1. Buscar meus itens compartilhados
       const { data: myShared, error: myError } = await supabase
         .from('shared_items')
         .select('id, item_type, item_id, permissions, created_at')
@@ -572,7 +691,7 @@ export const GroupProvider = ({ children }) => {
       const myItems = (myShared || []).map(i => ({
         id: i.id,
         itemType: i.item_type,
-        itemId: i.item_id,
+        itemId: String(i.item_id), // ✅ Coerce para string
         permissions: i.permissions,
         createdAt: i.created_at,
       }));
@@ -580,6 +699,7 @@ export const GroupProvider = ({ children }) => {
       setSharedItems(myItems);
       await saveSharedItems(myItems);
 
+      // 2. Buscar itens compartilhados por OUTROS usuários
       const { data: othersShared, error: othersError } = await supabase
         .from('shared_items')
         .select('id, user_id, item_type, item_id, permissions, created_at')
@@ -590,21 +710,45 @@ export const GroupProvider = ({ children }) => {
 
       const othersItems = othersShared || [];
 
-      const cardIds = othersItems.filter(i => i.item_type === 'card').map(i => i.item_id);
-      const transactionIds = othersItems.filter(i => i.item_type === 'transaction').map(i => i.item_id);
-      const goalIds = othersItems.filter(i => i.item_type === 'goal').map(i => i.item_id);
+      // ✅ CORREÇÃO 3: Coerce todos os IDs para string antes do .in()
+      const cardIds = othersItems
+        .filter(i => i.item_type === 'card')
+        .map(i => String(i.item_id))
+        .filter((v, i, a) => a.indexOf(v) === i); // deduplicar
+
+      const transactionIds = othersItems
+        .filter(i => i.item_type === 'transaction')
+        .map(i => String(i.item_id))
+        .filter((v, i, a) => a.indexOf(v) === i);
+
+      const goalIds = othersItems
+        .filter(i => i.item_type === 'goal')
+        .map(i => String(i.item_id))
+        .filter((v, i, a) => a.indexOf(v) === i);
+
+      console.log('[syncWithGroup] Buscando dados de outros:', {
+        cards: cardIds.length,
+        transactions: transactionIds.length,
+        goals: goalIds.length,
+      });
 
       const [cardsRes, transactionsRes, goalsRes] = await Promise.all([
         cardIds.length > 0
-          ? supabase.from('shared_cards').select('id, name, limit, color, bank, close_day, due_day').in('id', cardIds)
+          ? supabase.from('shared_cards').select('id, name, card_limit, color, bank, close_day, due_day, user_id, group_id').in('id', cardIds)
           : { data: [] },
         transactionIds.length > 0
-          ? supabase.from('shared_transactions').select('id, description, amount, type, date, category, payment_method, card_id').in('id', transactionIds)
+          ? supabase.from('shared_transactions').select('id, description, amount, type, date, category, payment_method, card_id, user_id, group_id').in('id', transactionIds)
           : { data: [] },
         goalIds.length > 0
-          ? supabase.from('shared_goals').select('id, name, target, current, color, icon, deadline').in('id', goalIds)
+          ? supabase.from('shared_goals').select('id, name, target_amount, current_amount, color, icon, deadline, user_id, group_id').in('id', goalIds)
           : { data: [] },
       ]);
+
+      console.log('[syncWithGroup] Resultados:', {
+        cards: cardsRes.data?.length || 0,
+        transactions: transactionsRes.data?.length || 0,
+        goals: goalsRes.data?.length || 0,
+      });
 
       setSharedCards(cardsRes.data || []);
       setSharedTransactions(transactionsRes.data || []);
@@ -663,6 +807,9 @@ export const GroupProvider = ({ children }) => {
       generateInviteCode,
       shareItem,
       unshareItem,
+      saveSharedCardData,
+      saveSharedTransactionData,
+      saveSharedGoalData,
       syncWithGroup,
       startAutoSync,
       stopAutoSync,
