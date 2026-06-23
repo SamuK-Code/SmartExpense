@@ -58,6 +58,7 @@ export default function GroupScreen() {
     saveSharedCardData,
     saveSharedTransactionData,
     saveSharedGoalData,
+    shareAllTransactions,
     syncWithGroup,
     lastSync,
     isSyncing,
@@ -228,6 +229,36 @@ export default function GroupScreen() {
     } else {
       Alert.alert(t('common.error'), result.error || t('groups.shareFailed'));
     }
+  };
+
+  const handleShareAllTransactions = async () => {
+    const unsharedTransactions = transactions.filter(
+      tx => !isItemShared('transaction', tx.id)
+    );
+
+    if (unsharedTransactions.length === 0) {
+      Alert.alert(t('common.info'), t('groups.allTransactionsShared') || 'Todas as transações já estão compartilhadas');
+      return;
+    }
+
+    Alert.alert(
+      t('groups.shareAll') || 'Compartilhar Todas',
+      `${t('groups.shareAllConfirm') || 'Compartilhar'} ${unsharedTransactions.length} ${t('groups.transactions') || 'transações'}?`,
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('groups.share') || 'Compartilhar',
+          onPress: async () => {
+            const result = await shareAllTransactions(unsharedTransactions, { view: true, edit: false });
+            if (result.success) {
+              Alert.alert(t('common.success'), `${result.count} ${t('groups.transactionsShared') || 'transações compartilhadas'}`);
+            } else {
+              Alert.alert(t('common.error'), result.error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleUnshare = async (type, itemId) => {
@@ -663,9 +694,22 @@ export default function GroupScreen() {
 
               {/* Transactions Section */}
               <View style={styles.dataSection}>
-                <Text style={[styles.dataSectionTitle, { color: colors.textPrimary }]}>
-                  <Ionicons name="list-outline" size={16} /> {t('groups.transactions')}
-                </Text>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.dataSectionTitle, { color: colors.textPrimary }]}>
+                    <Ionicons name="list-outline" size={16} /> {t('groups.transactions')}
+                  </Text>
+                  {transactions.length > 0 && (
+                    <TouchableOpacity
+                      style={[styles.shareAllBtn, { backgroundColor: colors.primary + '20' }]}
+                      onPress={handleShareAllTransactions}
+                    >
+                      <Ionicons name="share-social" size={14} color={colors.primary} />
+                      <Text style={[styles.shareAllText, { color: colors.primary }]}>
+                        {t('groups.shareAll') || 'Todas'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
                 {transactions.length === 0 ? (
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                     {t('groups.noTransactions')}
@@ -786,7 +830,10 @@ export default function GroupScreen() {
                           {card.name}
                         </Text>
                         <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
-                          {card.bank || t('common.credit')} • Limite: R$ {card.card_limit?.toFixed(2) || '0,00'}
+                          {card.type === 'credit' ? t('common.credit') : t('common.debit')} • **** {card.last_four || '0000'}
+                        </Text>
+                        <Text style={[styles.itemSubDetail, { color: colors.textMuted }]}>
+                          {t('cards.limit')}: R$ {card.card_limit?.toFixed(2) || '0,00'} • {card.bank || '-'}
                         </Text>
                         {card.canEdit && (
                           <Text style={[styles.canEditBadge, { color: colors.primary }]}>
@@ -818,9 +865,22 @@ export default function GroupScreen() {
                         <Text style={[styles.itemName, { color: colors.textPrimary }]}>
                           {tx.description || tx.desc || t('groups.noDescription')}
                         </Text>
-                        <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
-                          R$ {tx.amount?.toFixed(2)} • {tx.category || t('groups.noCategory')}
-                        </Text>
+                        <View style={styles.txCategoryRow}>
+                          <View style={[styles.txCategoryDot, { backgroundColor: tx.category_color || colors.textMuted }]} />
+                          <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
+                            R$ {tx.amount?.toFixed(2)} • {tx.category || t('groups.noCategory')}
+                          </Text>
+                        </View>
+                        {tx.card_name && (
+                          <Text style={[styles.itemSubDetail, { color: colors.textMuted }]}>
+                            <Ionicons name="card-outline" size={10} /> {tx.card_name}
+                          </Text>
+                        )}
+                        {tx.is_paid && (
+                          <Text style={[styles.paidBadge, { color: colors.success }]}>
+                            <Ionicons name="checkmark-circle" size={10} /> {t('common.paid') || 'Pago'}
+                          </Text>
+                        )}
                       </View>
                     </View>
                   ))
@@ -849,6 +909,12 @@ export default function GroupScreen() {
                         <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
                           R$ {goal.current_amount?.toFixed(2) || '0,00'} / R$ {goal.target_amount?.toFixed(2) || '0,00'}
                         </Text>
+                        <View style={styles.goalProgressBar}>
+                          <View style={[styles.goalProgressFill, {
+                            width: `${Math.min(((goal.current_amount || 0) / (goal.target_amount || 1)) * 100, 100)}%`,
+                            backgroundColor: goal.color || colors.primary
+                          }]} />
+                        </View>
                       </View>
                     </View>
                   ))
@@ -1035,4 +1101,15 @@ const styles = StyleSheet.create({
 
   cancelButton: { padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
   cancelButtonText: { fontSize: 15, fontWeight: '600' },
+
+  // ✅ NOVOS ESTILOS
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  shareAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  shareAllText: { fontSize: 12, fontWeight: '600' },
+  itemSubDetail: { fontSize: 11, marginTop: 2 },
+  txCategoryRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  txCategoryDot: { width: 8, height: 8, borderRadius: 4 },
+  paidBadge: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  goalProgressBar: { height: 4, backgroundColor: '#E2E8F0', borderRadius: 2, marginTop: 6, overflow: 'hidden' },
+  goalProgressFill: { height: '100%', borderRadius: 2 },
 });

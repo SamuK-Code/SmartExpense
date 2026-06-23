@@ -683,7 +683,7 @@ const CardsScreen = () => {
 
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.cardColor')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorPickerHorizontal}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScrollContent}>
                   {cardGradients.map((gradObj) => {
                     const isSelected = editGradient === gradObj.class;
                     const isTemplate = gradObj.type === 'template';
@@ -696,33 +696,37 @@ const CardsScreen = () => {
                         key={gradObj.class}
                         onPress={() => setEditGradient(gradObj.class)}
                         style={[
-                          styles.colorOptionHorizontal,
-                          isSelected && styles.colorSelectedHorizontal,
-                          isTemplate && styles.templateOptionHorizontal
+                          styles.colorCircle,
+                          isSelected && styles.colorCircleSelected,
                         ]}
                         activeOpacity={0.8}
                       >
                         {isTemplate && templateImage ? (
                           <ImageBackground
                             source={templateImage}
-                            style={styles.gradientPreviewHorizontal}
-                            imageStyle={{ borderRadius: 12 }}
+                            style={styles.colorCirclePreview}
+                            imageStyle={{ borderRadius: 24 }}
                           >
-                            <View style={styles.templateOverlay}>
-                              <Text style={styles.templateLabel}>IMG</Text>
+                            <View style={styles.templateOverlayCircle}>
+                              <Text style={styles.templateLabelCircle}>IMG</Text>
                             </View>
                           </ImageBackground>
                         ) : isSolid ? (
-                          <View style={[styles.gradientPreviewHorizontal, { backgroundColor: gradObj.color, borderRadius: 12 }]}>
-                            <Text style={styles.solidLabelHorizontal}>S</Text>
+                          <View style={[styles.colorCirclePreview, { backgroundColor: gradObj.color, borderRadius: 24 }]}>
+                            <Text style={styles.solidLabelCircle}>S</Text>
                           </View>
                         ) : (
                           <LinearGradient
                             colors={gradientColors}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
-                            style={styles.gradientPreviewHorizontal}
+                            style={styles.colorCirclePreview}
                           />
+                        )}
+                        {isSelected && (
+                          <View style={styles.checkOverlay}>
+                            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                          </View>
                         )}
                       </TouchableOpacity>
                     );
@@ -855,7 +859,7 @@ const CardsScreen = () => {
 
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.cardColor')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colorPickerHorizontal}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScrollContent}>
                   {cardGradients.map((gradObj) => {
                     const isSelected = selectedGradient === gradObj.class;
                     const isTemplate = gradObj.type === 'template';
@@ -868,33 +872,37 @@ const CardsScreen = () => {
                         key={gradObj.class}
                         onPress={() => setSelectedGradient(gradObj.class)}
                         style={[
-                          styles.colorOptionHorizontal,
-                          isSelected && styles.colorSelectedHorizontal,
-                          isTemplate && styles.templateOptionHorizontal
+                          styles.colorCircle,
+                          isSelected && styles.colorCircleSelected,
                         ]}
                         activeOpacity={0.8}
                       >
                         {isTemplate && templateImage ? (
                           <ImageBackground
                             source={templateImage}
-                            style={styles.gradientPreviewHorizontal}
-                            imageStyle={{ borderRadius: 12 }}
+                            style={styles.colorCirclePreview}
+                            imageStyle={{ borderRadius: 24 }}
                           >
-                            <View style={styles.templateOverlay}>
-                              <Text style={styles.templateLabel}>IMG</Text>
+                            <View style={styles.templateOverlayCircle}>
+                              <Text style={styles.templateLabelCircle}>IMG</Text>
                             </View>
                           </ImageBackground>
                         ) : isSolid ? (
-                          <View style={[styles.gradientPreviewHorizontal, { backgroundColor: gradObj.color, borderRadius: 12 }]}>
-                            <Text style={styles.solidLabelHorizontal}>S</Text>
+                          <View style={[styles.colorCirclePreview, { backgroundColor: gradObj.color, borderRadius: 24 }]}>
+                            <Text style={styles.solidLabelCircle}>S</Text>
                           </View>
                         ) : (
                           <LinearGradient
                             colors={gradientColors}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
-                            style={styles.gradientPreviewHorizontal}
+                            style={styles.colorCirclePreview}
                           />
+                        )}
+                        {isSelected && (
+                          <View style={styles.checkOverlay}>
+                            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                          </View>
                         )}
                       </TouchableOpacity>
                     );
@@ -1407,39 +1415,64 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Color picker horizontal
-  colorPickerHorizontal: {
+  // Color picker em círculos
+  colorScrollContent: {
     flexDirection: 'row',
+    gap: 10,
+    paddingRight: 20,
+    paddingVertical: 4,
   },
-  colorOptionHorizontal: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+  colorCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
-    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  colorSelectedHorizontal: {
+  colorCircleSelected: {
     borderColor: '#8B5CF6',
     borderWidth: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  templateOptionHorizontal: {
-    width: 80,
-    height: 56,
-    borderRadius: 12,
-  },
-  gradientPreviewHorizontal: {
+  colorCirclePreview: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: 24,
   },
-  solidLabelHorizontal: {
+  solidLabelCircle: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 52,
+    lineHeight: 46,
+  },
+  templateOverlayCircle: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 24,
+  },
+  templateLabelCircle: {
+    color: '#FFF',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  checkOverlay: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 24,
   },
 
   // Modal de bancos

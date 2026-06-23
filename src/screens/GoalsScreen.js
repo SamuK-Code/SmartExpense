@@ -47,8 +47,7 @@ const GoalsScreen = () => {
 
   const [newGoalIcon, setNewGoalIcon] = useState('flag');
   const [newGoalColor, setNewGoalColor] = useState('#6366F1');
-  const [iconPickerVisible, setIconPickerVisible] = useState(false);
-
+  
   // Modal de investir/retirar
   const [investModalVisible, setInvestModalVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState(null);
@@ -218,37 +217,59 @@ const GoalsScreen = () => {
                 />
               </View>
 
-              {/* Ícone - CORREÇÃO: Lista horizontal */}
+              {/* Ícone - Lista horizontal direta */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('goals.icon')}</Text>
-                <TouchableOpacity 
-                  style={[styles.iconPreview, { backgroundColor: (newGoalColor || colors.primary) + '15' }]}
-                  onPress={() => setIconPickerVisible(true)}
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.iconGridHorizontal}
                 >
-                  <Ionicons name={newGoalIcon} size={28} color={newGoalColor || colors.primary} />
-                  <Text style={{ color: colors.textSecondary, marginLeft: 10 }}>{t('goals.chooseIcon')}</Text>
-                </TouchableOpacity>
+                  {GOAL_ICONS.map(icon => (
+                    <TouchableOpacity
+                      key={icon}
+                      style={[
+                        styles.iconOptionHorizontal,
+                        { 
+                          backgroundColor: newGoalIcon === icon ? (newGoalColor || colors.primary) + '20' : colors.bgTertiary,
+                          borderColor: newGoalIcon === icon ? (newGoalColor || colors.primary) : 'transparent'
+                        },
+                      ]}
+                      onPress={() => setNewGoalIcon(icon)}
+                    >
+                      <Ionicons 
+                        name={icon} 
+                        size={20} 
+                        color={newGoalIcon === icon ? (newGoalColor || colors.primary) : colors.textMuted} 
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
 
-              {/* Cor - CORREÇÃO: Lista horizontal */}
+              {/* Cor - Lista horizontal em círculos */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('goals.color')}</Text>
                 <ScrollView 
                   horizontal 
                   showsHorizontalScrollIndicator={false} 
-                  style={styles.colorScroll}
                   contentContainerStyle={styles.colorScrollContent}
                 >
                   {colorOptions.map(color => (
                     <TouchableOpacity
                       key={color}
                       style={[
-                        styles.colorCircleHorizontal,
+                        styles.colorCircle,
                         { backgroundColor: color },
-                        newGoalColor === color && styles.colorSelectedHorizontal
+                        newGoalColor === color && styles.colorCircleSelected
                       ]}
                       onPress={() => setNewGoalColor(color)}
-                    />
+                      activeOpacity={0.8}
+                    >
+                      {newGoalColor === color && (
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      )}
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
@@ -263,57 +284,6 @@ const GoalsScreen = () => {
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Modal Selecionar Ícone - CORREÇÃO: Lista horizontal */}
-      <Modal
-        animationType="slide"
-        transparent
-        visible={iconPickerVisible}
-        onRequestClose={() => setIconPickerVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.iconPickerContent, { backgroundColor: colors.bgCard }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                <Ionicons name="apps" size={20} color={colors.primary} />  {t('goals.chooseIcon')}
-              </Text>
-              <TouchableOpacity onPress={() => setIconPickerVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            {/* CORREÇÃO: Ícones em grid horizontal com scroll */}
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.iconGridHorizontal}
-            >
-              {GOAL_ICONS.map(icon => (
-                <TouchableOpacity
-                  key={icon}
-                  style={[
-                    styles.iconOptionHorizontal,
-                    { 
-                      backgroundColor: newGoalIcon === icon ? (newGoalColor || colors.primary) + '20' : colors.bgTertiary,
-                      borderColor: newGoalIcon === icon ? (newGoalColor || colors.primary) : 'transparent'
-                    },
-                  ]}
-                  onPress={() => {
-                    setNewGoalIcon(icon);
-                    setIconPickerVisible(false);
-                  }}
-                >
-                  <Ionicons 
-                    name={icon} 
-                    size={24} 
-                    color={newGoalIcon === icon ? (newGoalColor || colors.primary) : colors.textMuted} 
-                  />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
       </Modal>
 
       {/* Modal Investir/Retirar */}
@@ -433,36 +403,29 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   input: { padding: 14, borderRadius: 12, fontSize: 16 },
 
-  iconPreview: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    padding: 14, 
-    borderRadius: 12 
-  },
-
-  // CORREÇÃO: Cores em lista horizontal
-  colorScroll: {
-    flexDirection: 'row',
-  },
+  // Cores em círculos horizontais
   colorScrollContent: {
+    flexDirection: 'row',
     gap: 10,
     paddingRight: 20,
+    paddingVertical: 4,
   },
-  colorCircleHorizontal: { 
+  colorCircle: { 
     width: 40, 
     height: 40, 
     borderRadius: 20, 
     borderWidth: 2, 
     borderColor: 'transparent',
-    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  colorSelectedHorizontal: { 
-    borderColor: '#FFFFFF', 
-    borderWidth: 3, 
+  colorCircleSelected: { 
+    borderColor: '#FFFFFF',
     shadowColor: '#000', 
     shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.2, 
-    shadowRadius: 4 
+    shadowOpacity: 0.25, 
+    shadowRadius: 4,
+    elevation: 4,
   },
 
   submitBtn: { 
@@ -480,28 +443,20 @@ const styles = StyleSheet.create({
     fontWeight: '700' 
   },
 
-  // Icon Picker - CORREÇÃO: Horizontal
-  iconPickerContent: { 
-    flex: 1, 
-    marginTop: 60, 
-    borderTopLeftRadius: 24, 
-    borderTopRightRadius: 24, 
-    padding: 24 
-  },
   iconGridHorizontal: { 
     flexDirection: 'row',
-    gap: 8, 
-    paddingBottom: 40,
-    paddingHorizontal: 8,
+    gap: 6, 
+    paddingBottom: 12,
+    paddingHorizontal: 4,
   },
   iconOptionHorizontal: { 
-    width: 56, 
-    height: 56, 
-    borderRadius: 14, 
+    width: 44, 
+    height: 44, 
+    borderRadius: 12, 
     justifyContent: 'center', 
     alignItems: 'center', 
     borderWidth: 2, 
-    marginRight: 8,
+    marginRight: 6,
   },
 });
 

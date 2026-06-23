@@ -532,21 +532,7 @@ export const GroupProvider = ({ children }) => {
   // ✅ NOVA FUNÇÃO: Salvar dados reais do cartão compartilhado
   const saveSharedCardData = async (cardData) => {
     if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
-    console.log('[saveSharedCardData] Salvando cartão:', cardData.name, 'ID:', cardData.id);
     try {
-      const payload = {
-        id: String(cardData.id),
-        name: cardData.name,
-        card_limit: cardData.limit,
-        color: cardData.color,
-        bank: cardData.bankCode || cardData.bank,
-        close_day: parseInt(cardData.closeDate) || null,
-        due_day: parseInt(cardData.dueDate) || null,
-        user_id: currentUser.id,
-        group_id: currentGroup.id,
-        updated_at: new Date().toISOString(),
-      };
-      console.log('[saveSharedCardData] Payload:', payload);
       const { error } = await supabase
         .from('shared_cards')
         .upsert([{
@@ -557,24 +543,23 @@ export const GroupProvider = ({ children }) => {
           bank: cardData.bankCode || cardData.bank,
           close_day: parseInt(cardData.closeDate) || null,
           due_day: parseInt(cardData.dueDate) || null,
+          type: cardData.type || 'credit',
+          last_four: cardData.lastFour || cardData.number?.slice(-4) || '0000',
+          gradient_class: cardData.gradientClass || cardData.gradient_class || '',
           user_id: currentUser.id,
           group_id: currentGroup.id,
           updated_at: new Date().toISOString(),
         }], { onConflict: 'id' });
 
-      if (error) {
-        console.error('[saveSharedCardData] Erro Supabase:', error);
-        throw error;
-      }
-      console.log('[saveSharedCardData] Sucesso!');
+      if (error) throw error;
       return { success: true };
     } catch (e) {
-      console.error('[saveSharedCardData] Erro:', e.message || e);
+      console.warn('Erro ao salvar shared card:', e);
       return { error: e.message };
     }
   };
 
-  // ✅ NOVA FUNÇÃO: Salvar dados reais da transação compartilhada
+    // ✅ NOVA FUNÇÃO: Salvar dados reais da transação compartilhada
   const saveSharedTransactionData = async (txData) => {
     if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
     try {
@@ -586,9 +571,15 @@ export const GroupProvider = ({ children }) => {
           amount: txData.amount,
           type: txData.type,
           date: txData.date,
-          category: txData.category || txData.categoryName,
+          category: txData.category || txData.categoryName || txData.category?.name,
+          category_color: txData.categoryColor || txData.category?.color,
+          category_icon: txData.categoryIcon || txData.category?.icon,
           payment_method: txData.paymentMethod || txData.payment_method,
           card_id: txData.cardId ? String(txData.cardId) : null,
+          card_name: txData.cardName || null,
+          is_paid: txData.isPaid || false,
+          is_invoice_payment: txData.isInvoicePayment || false,
+          is_next_invoice: txData.isNextInvoice || false,
           user_id: currentUser.id,
           group_id: currentGroup.id,
           updated_at: new Date().toISOString(),
@@ -616,6 +607,8 @@ export const GroupProvider = ({ children }) => {
           color: goalData.color,
           icon: goalData.icon,
           deadline: goalData.deadline || null,
+          created_at: goalData.createdAt || new Date().toISOString(),
+          completed_at: goalData.completedAt || null,
           user_id: currentUser.id,
           group_id: currentGroup.id,
           updated_at: new Date().toISOString(),
@@ -629,7 +622,76 @@ export const GroupProvider = ({ children }) => {
     }
   };
 
-  const unshareItem = async (itemType, itemId) => {
+    // ✅ NOVA FUNÇÃO: Compartilhar todas as transações de uma vez
+  const shareAllTransactions = async (transactionsList, permissions = { view: true, edit: false }) => {
+    if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
+    if (!transactionsList || transactionsList.length === 0) return { error: 'Nenhuma transação' };
+
+    try {
+      // 1. Inserir metadata em shared_items para cada transação
+      const itemsToShare = transactionsList.map(tx => ({
+        group_id: currentGroup.id,
+        user_id: currentUser.id,
+        item_type: 'transaction',
+        item_id: String(tx.id),
+        permissions,
+        created_at: new Date().toISOString(),
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('shared_items')
+        .insert(itemsToShare);
+
+      if (itemsError) throw itemsError;
+
+      // 2. Salvar dados reais de todas as transações
+      const txDataToSave = transactionsList.map(tx => ({
+        id: String(tx.id),
+        description: tx.description || tx.desc,
+        amount: tx.amount,
+        type: tx.type,
+        date: tx.date,
+        category: tx.category || tx.categoryName || tx.category?.name,
+        category_color: tx.categoryColor || tx.category?.color,
+        category_icon: tx.categoryIcon || tx.category?.icon,
+        payment_method: tx.paymentMethod || tx.payment_method,
+        card_id: tx.cardId ? String(tx.cardId) : null,
+        card_name: tx.cardName || null,
+        is_paid: tx.isPaid || false,
+        is_invoice_payment: tx.isInvoicePayment || false,
+        is_next_invoice: tx.isNextInvoice || false,
+        user_id: currentUser.id,
+        group_id: currentGroup.id,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { error: txError } = await supabase
+        .from('shared_transactions')
+        .upsert(txDataToSave, { onConflict: 'id' });
+
+      if (txError) throw txError;
+
+      // 3. Atualizar estado local
+      const newItems = transactionsList.map(tx => ({
+        id: `${tx.id}_${Date.now()}`,
+        itemType: 'transaction',
+        itemId: String(tx.id),
+        permissions,
+        createdAt: new Date().toISOString(),
+      }));
+
+      const updated = [...sharedItems, ...newItems];
+      setSharedItems(updated);
+      await saveSharedItems(updated);
+
+      return { success: true, count: transactionsList.length };
+    } catch (e) {
+      console.warn('Erro ao compartilhar todas:', e);
+      return { error: e.message || 'Erro ao compartilhar transações' };
+    }
+  };
+
+const unshareItem = async (itemType, itemId) => {
     if (!currentGroup || !currentUser) return { error: 'Sem grupo' };
 
     const cleanType = sanitizeString(itemType);
@@ -822,6 +884,7 @@ export const GroupProvider = ({ children }) => {
       saveSharedCardData,
       saveSharedTransactionData,
       saveSharedGoalData,
+      shareAllTransactions,
       syncWithGroup,
       startAutoSync,
       stopAutoSync,

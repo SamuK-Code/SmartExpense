@@ -85,9 +85,9 @@ const AddScreen = () => {
     showToast(`Boleto "${boleto.desc}" quitado! ${formatCurrency(boleto.amount)} deduzido do caixa.`, 'success');
   };
 
-  // NOVO: Verificar se a compra no cartão vai para a próxima fatura
+  // Verificar se a compra no cartão de CRÉDITO vai para a próxima fatura
   const getInvoiceWarning = () => {
-    if (transactionType !== 'expense' || paymentMethod !== 'card' || !cardId) return null;
+    if (transactionType !== 'expense' || paymentMethod !== 'card' || cardType !== 'credit' || !cardId) return null;
 
     const selectedCard = cards.find(c => c.id.toString() === cardId.toString());
     if (!selectedCard || !selectedCard.closeDate) return null;
@@ -135,6 +135,18 @@ const AddScreen = () => {
       : categories.find(c => c.id === categoryId);
 
     const selectedCard = cards.find(c => c.id.toString() === cardId?.toString());
+    const isCreditCard = paymentMethod === 'card' && cardType === 'credit';
+    const isDebitCard = paymentMethod === 'card' && cardType === 'debit';
+
+    // Se for débito, deduz do cashBalance imediatamente
+    if (isDebitCard) {
+      const expenseAmount = parseFloat(amount);
+      if (cashBalance < expenseAmount) {
+        showToast(`Saldo em caixa insuficiente. Disponível: ${formatCurrency(cashBalance)}`, 'error');
+        return;
+      }
+      updateCashBalance(-expenseAmount);
+    }
 
     const transaction = {
       type: transactionType,
@@ -149,9 +161,9 @@ const AddScreen = () => {
       cardId: paymentMethod === 'card' ? parseInt(cardId, 10) : null,
       cardType: paymentMethod === 'card' ? cardType : null,
       boletoDue: transactionType === 'boleto' ? boletoDue : null,
-      // NOVO: Flag para identificar se vai para próxima fatura
-      isNextInvoice: selectedCard ? isAfterClosingDate(date, selectedCard.closeDate) : false,
-      invoiceMonth: selectedCard ? getInvoiceMonth(date, selectedCard.closeDate) : null,
+      // Só marca como próxima fatura se for cartão de CRÉDITO
+      isNextInvoice: isCreditCard && selectedCard ? isAfterClosingDate(date, selectedCard.closeDate) : false,
+      invoiceMonth: isCreditCard && selectedCard ? getInvoiceMonth(date, selectedCard.closeDate) : null,
     };
 
     addTransaction(transaction);
