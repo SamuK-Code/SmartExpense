@@ -1,4 +1,5 @@
-// GroupScreen.js — COM TRADUÇÕES COMPLETAS
+// GroupScreen.js — COM TRADUÇÕES COMPLETAS E CORREÇÕES APLICADAS
+// CORREÇÕES: inviteCode copiável, maxLength 12, shareItem type coercion, KeyboardAvoidingView
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -13,7 +14,10 @@ import {
   Switch,
   FlatList,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGroup } from '../context/GroupContext';
@@ -73,6 +77,13 @@ export default function GroupScreen() {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [shareType, setShareType] = useState(null);
   const [selectedItemId, setSelectedItemId] = useState(null);
+
+  // ─── HELPERS ───────────────────────────────────────────────────
+
+  const copyToClipboard = async (text) => {
+    await Clipboard.setStringAsync(text);
+    // Toast nativo do expo-clipboard não precisa de ToastAndroid
+  };
 
   // ─── AUTH HANDLERS ─────────────────────────────────────────────
 
@@ -176,16 +187,18 @@ export default function GroupScreen() {
 
   // ─── SHARING HANDLERS ──────────────────────────────────────────
 
+  // CORREÇÃO: Coerce itemId para string para evitar mismatch cardId number vs string
   const openShareModal = (type, itemId) => {
     setShareType(type);
-    setSelectedItemId(itemId);
+    setSelectedItemId(String(itemId));
     setShareModalVisible(true);
   };
 
   const handleShare = async (permissions = { view: true, edit: false }) => {
     if (!shareType || !selectedItemId) return;
 
-    const result = await shareItem(shareType, selectedItemId, permissions);
+    // CORREÇÃO: Garante que itemId é sempre string
+    const result = await shareItem(shareType, String(selectedItemId), permissions);
     setShareModalVisible(false);
 
     if (result.success) {
@@ -205,7 +218,8 @@ export default function GroupScreen() {
           text: t('common.remove'),
           style: 'destructive',
           onPress: async () => {
-            const result = await unshareItem(type, itemId);
+            // CORREÇÃO: Coerce para string
+            const result = await unshareItem(type, String(itemId));
             if (!result.success) {
               Alert.alert(t('common.error'), result.error || t('common.error'));
             }
@@ -227,14 +241,17 @@ export default function GroupScreen() {
   // ─── HELPERS ───────────────────────────────────────────────────
 
   const isItemShared = (type, id) => {
+    // CORREÇÃO: Compara ambos como string
+    const strId = String(id);
     return sharedItems.some(
-      (item) => item.itemType === type && item.itemId === id
+      (item) => item.itemType === type && String(item.itemId) === strId
     );
   };
 
   const getSharedItemMeta = (type, id) => {
+    const strId = String(id);
     return sharedItems.find(
-      (item) => item.itemType === type && item.itemId === id
+      (item) => item.itemType === type && String(item.itemId) === strId
     );
   };
 
@@ -253,114 +270,120 @@ export default function GroupScreen() {
 
   if (!currentUser) {
     return (
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.bgPrimary }]}
-        contentContainerStyle={styles.authContainer}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        <View style={styles.authHeader}>
-          <Ionicons
-            name="people-circle-outline"
-            size={64}
-            color={colors.primary}
-          />
-          <Text style={[styles.authTitle, { color: colors.textPrimary }]}>
-            {t('groups.title')}
-          </Text>
-          <Text style={[styles.authSubtitle, { color: colors.textSecondary }]}>
-            {t('groups.subtitle')}
-          </Text>
-        </View>
-
-        <View style={styles.authToggle}>
-          <TouchableOpacity
-            style={[
-              styles.authToggleBtn,
-              authMode === 'login' && { backgroundColor: colors.primary },
-            ]}
-            onPress={() => setAuthMode('login')}
-          >
-            <Text
-              style={[
-                styles.authToggleText,
-                { color: authMode === 'login' ? '#fff' : colors.textPrimary },
-              ]}
-            >
-              {t('common.login')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.authToggleBtn,
-              authMode === 'register' && { backgroundColor: colors.primary },
-            ]}
-            onPress={() => setAuthMode('register')}
-          >
-            <Text
-              style={[
-                styles.authToggleText,
-                { color: authMode === 'register' ? '#fff' : colors.textPrimary },
-              ]}
-            >
-              {t('common.register')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.form}>
-          <View style={[styles.inputContainer, { backgroundColor: colors.bgCard }]}>
-            <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.input, { color: colors.textPrimary }]}
-              placeholder={t('common.username')}
-              placeholderTextColor={colors.textSecondary}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
+        <ScrollView
+          style={[styles.container, { backgroundColor: colors.bgPrimary }]}
+          contentContainerStyle={styles.authContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.authHeader}>
+            <Ionicons
+              name="people-circle-outline"
+              size={64}
+              color={colors.primary}
             />
+            <Text style={[styles.authTitle, { color: colors.textPrimary }]}>
+              {t('groups.title')}
+            </Text>
+            <Text style={[styles.authSubtitle, { color: colors.textSecondary }]}>
+              {t('groups.subtitle')}
+            </Text>
           </View>
 
-          <View style={[styles.inputContainer, { backgroundColor: colors.bgCard }]}>
-            <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.input, { color: colors.textPrimary }]}
-              placeholder={t('common.password')}
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+          <View style={styles.authToggle}>
+            <TouchableOpacity
+              style={[
+                styles.authToggleBtn,
+                authMode === 'login' && { backgroundColor: colors.primary },
+              ]}
+              onPress={() => setAuthMode('login')}
+            >
+              <Text
+                style={[
+                  styles.authToggleText,
+                  { color: authMode === 'login' ? '#fff' : colors.textPrimary },
+                ]}
+              >
+                {t('common.login')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.authToggleBtn,
+                authMode === 'register' && { backgroundColor: colors.primary },
+              ]}
+              onPress={() => setAuthMode('register')}
+            >
+              <Text
+                style={[
+                  styles.authToggleText,
+                  { color: authMode === 'register' ? '#fff' : colors.textPrimary },
+                ]}
+              >
+                {t('common.register')}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {authMode === 'register' && (
+          <View style={styles.form}>
+            <View style={[styles.inputContainer, { backgroundColor: colors.bgCard }]}>
+              <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: colors.textPrimary }]}
+                placeholder={t('common.username')}
+                placeholderTextColor={colors.textSecondary}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
             <View style={[styles.inputContainer, { backgroundColor: colors.bgCard }]}>
               <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
               <TextInput
                 style={[styles.input, { color: colors.textPrimary }]}
-                placeholder={t('common.confirmPassword')}
+                placeholder={t('common.password')}
                 placeholderTextColor={colors.textSecondary}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
               />
             </View>
-          )}
 
-          <TouchableOpacity
-            style={[styles.authButton, { backgroundColor: colors.primary }]}
-            onPress={authMode === 'login' ? handleLogin : handleRegister}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.authButtonText}>
-                {authMode === 'login' ? t('common.login') : t('common.register')}
-              </Text>
+            {authMode === 'register' && (
+              <View style={[styles.inputContainer, { backgroundColor: colors.bgCard }]}>
+                <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={[styles.input, { color: colors.textPrimary }]}
+                  placeholder={t('common.confirmPassword')}
+                  placeholderTextColor={colors.textSecondary}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                />
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.authButton, { backgroundColor: colors.primary }]}
+              onPress={authMode === 'login' ? handleLogin : handleRegister}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.authButtonText}>
+                  {authMode === 'login' ? t('common.login') : t('common.register')}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -368,88 +391,94 @@ export default function GroupScreen() {
 
   if (!currentGroup) {
     return (
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.bgPrimary }]}
-        contentContainerStyle={[styles.noGroupContainer, { paddingTop: insets.top + 20 }]}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        <View style={styles.userHeader}>
-          <Text style={[styles.welcomeText, { color: colors.textPrimary }]}>
-            {t('common.welcome')}, {currentUser.username}!
-          </Text>
-          <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-            <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-            <Text style={[styles.logoutText, { color: colors.danger }]}>
-              {t('common.logout')}
+        <ScrollView
+          style={[styles.container, { backgroundColor: colors.bgPrimary }]}
+          contentContainerStyle={[styles.noGroupContainer, { paddingTop: insets.top + 20 }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.userHeader}>
+            <Text style={[styles.welcomeText, { color: colors.textPrimary }]}>
+              {t('common.welcome')}, {currentUser.username}!
             </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.section, { backgroundColor: colors.bgCard }]}>
-          <Ionicons name="add-circle-outline" size={40} color={colors.primary} />
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-            {t('groups.createGroup')}
-          </Text>
-          <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-            {t('groups.createGroupDesc')}
-          </Text>
-          <View style={[styles.inputContainer, { backgroundColor: colors.bgPrimary }]}>
-            <TextInput
-              style={[styles.input, { color: colors.textPrimary }]}
-              placeholder={t('groups.groupName')}
-              placeholderTextColor={colors.textSecondary}
-              value={groupName}
-              onChangeText={setGroupName}
-            />
+            <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
+              <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+              <Text style={[styles.logoutText, { color: colors.danger }]}>
+                {t('common.logout')}
+              </Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={handleCreateGroup}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.actionButtonText}>{t('groups.createGroupBtn')}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
 
-        <Text style={[styles.orText, { color: colors.textSecondary }]}>
-          {t('groups.or')}
-        </Text>
-
-        <View style={[styles.section, { backgroundColor: colors.bgCard }]}>
-          <Ionicons name="enter-outline" size={40} color={colors.success} />
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-            {t('groups.joinGroup')}
-          </Text>
-          <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-            {t('groups.joinGroupDesc')}
-          </Text>
-          <View style={[styles.inputContainer, { backgroundColor: colors.bgPrimary }]}>
-            <TextInput
-              style={[styles.input, { color: colors.textPrimary }]}
-              placeholder={t('groups.inviteCode')}
-              placeholderTextColor={colors.textSecondary}
-              value={inviteCode}
-              onChangeText={(text) => setInviteCode(text.toUpperCase())}
-              autoCapitalize="characters"
-              maxLength={8}
-            />
+          <View style={[styles.section, { backgroundColor: colors.bgCard }]}>
+            <Ionicons name="add-circle-outline" size={40} color={colors.primary} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {t('groups.createGroup')}
+            </Text>
+            <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+              {t('groups.createGroupDesc')}
+            </Text>
+            <View style={[styles.inputContainer, { backgroundColor: colors.bgPrimary }]}>
+              <TextInput
+                style={[styles.input, { color: colors.textPrimary }]}
+                placeholder={t('groups.groupName')}
+                placeholderTextColor={colors.textSecondary}
+                value={groupName}
+                onChangeText={setGroupName}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={handleCreateGroup}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.actionButtonText}>{t('groups.createGroupBtn')}</Text>
+              )}
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.success }]}
-            onPress={handleJoinGroup}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.actionButtonText}>{t('groups.joinGroupBtn')}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+
+          <Text style={[styles.orText, { color: colors.textSecondary }]}>
+            {t('groups.or')}
+          </Text>
+
+          <View style={[styles.section, { backgroundColor: colors.bgCard }]}>
+            <Ionicons name="enter-outline" size={40} color={colors.success} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              {t('groups.joinGroup')}
+            </Text>
+            <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
+              {t('groups.joinGroupDesc')}
+            </Text>
+            <View style={[styles.inputContainer, { backgroundColor: colors.bgPrimary }]}>
+              <TextInput
+                style={[styles.input, { color: colors.textPrimary }]}
+                placeholder={t('groups.inviteCode')}
+                placeholderTextColor={colors.textSecondary}
+                value={inviteCode}
+                onChangeText={(text) => setInviteCode(text.toUpperCase())}
+                autoCapitalize="characters"
+                maxLength={12}
+              />
+            </View>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.success }]}
+              onPress={handleJoinGroup}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.actionButtonText}>{t('groups.joinGroupBtn')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -461,13 +490,21 @@ export default function GroupScreen() {
         {/* Header */}
         <View style={[styles.groupHeader, { backgroundColor: colors.bgCard }]}>
           <View style={styles.groupHeaderTop}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={[styles.groupName, { color: colors.textPrimary }]}>
                 {currentGroup.name}
               </Text>
-              <Text style={[styles.groupCode, { color: colors.textSecondary }]}>
-                {t('groups.inviteCode')}: {currentGroup.inviteCode}
-              </Text>
+              {/* CORREÇÃO: Código copiável com TouchableOpacity */}
+              <TouchableOpacity
+                style={styles.codeContainer}
+                onPress={() => copyToClipboard(currentGroup.inviteCode)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.groupCode, { color: colors.textSecondary }]}>
+                  {t('groups.inviteCode')}: {currentGroup.inviteCode}
+                </Text>
+                <Ionicons name="copy-outline" size={14} color={colors.primary} style={{ marginLeft: 6 }} />
+              </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={handleLeaveGroup}>
               <Ionicons name="exit-outline" size={24} color={colors.danger} />
@@ -562,6 +599,7 @@ export default function GroupScreen() {
                   </Text>
                 ) : (
                   cards.map((card) => {
+                    // CORREÇÃO: Coerce card.id para string
                     const shared = isItemShared('card', card.id);
                     const meta = getSharedItemMeta('card', card.id);
                     return (
@@ -612,6 +650,7 @@ export default function GroupScreen() {
                   </Text>
                 ) : (
                   transactions.slice(0, 20).map((tx) => {
+                    // CORREÇÃO: Coerce tx.id para string e usa tx.description || tx.desc
                     const shared = isItemShared('transaction', tx.id);
                     const meta = getSharedItemMeta('transaction', tx.id);
                     const category = categories.find((c) => c.id === tx.categoryId);
@@ -622,7 +661,7 @@ export default function GroupScreen() {
                       >
                         <View style={styles.itemInfo}>
                           <Text style={[styles.itemName, { color: colors.textPrimary }]}>
-                            {tx.description || t('groups.noDescription')}
+                            {tx.description || tx.desc || t('groups.noDescription')}
                           </Text>
                           <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
                             R$ {tx.amount?.toFixed(2)} • {category?.name || t('groups.noCategory')}
@@ -755,7 +794,7 @@ export default function GroupScreen() {
                     >
                       <View style={styles.itemInfo}>
                         <Text style={[styles.itemName, { color: colors.textPrimary }]}>
-                          {tx.description || t('groups.noDescription')}
+                          {tx.description || tx.desc || t('groups.noDescription')}
                         </Text>
                         <Text style={[styles.itemDetail, { color: colors.textSecondary }]}>
                           R$ {tx.amount?.toFixed(2)} • {tx.categoryName || t('groups.noCategory')}
@@ -830,7 +869,9 @@ export default function GroupScreen() {
                 onPress={() => {
                   Alert.alert(
                     t('groups.inviteNew'),
-                    `${t('groups.shareCodeHint')}\n\n${t('groups.inviteCode')}: ${currentGroup.inviteCode}`
+                    `${t('groups.shareCodeHint')}
+
+${t('groups.inviteCode')}: ${currentGroup.inviteCode}`
                   );
                 }}
               >
@@ -934,7 +975,9 @@ const styles = StyleSheet.create({
   groupHeader: { padding: 20, borderRadius: 16, margin: 16, marginBottom: 0 },
   groupHeaderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   groupName: { fontSize: 20, fontWeight: '700' },
-  groupCode: { fontSize: 13, marginTop: 4 },
+  // CORREÇÃO: Container copiável para o código
+  codeContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 4, alignSelf: 'flex-start' },
+  groupCode: { fontSize: 13 },
   groupActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
   smallButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   smallButtonText: { fontSize: 12, fontWeight: '600' },

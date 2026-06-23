@@ -1,7 +1,21 @@
-// CardsScreen.js — COM SISTEMA DE FATURAS E QUITAÇÃO
+// CardsScreen.js — COM SISTEMA DE FATURAS E QUITAÇÃO + KEYBOARDAVOIDINGVIEW
+// CORREÇÃO: Adicionado KeyboardAvoidingView nos modais de add/edit
 
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Dimensions, ImageBackground } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Modal, 
+  TextInput, 
+  Alert, 
+  Dimensions, 
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useApp } from '../context/AppContext';
@@ -45,8 +59,6 @@ const BRAZILIAN_BANKS = [
   { code: '376', name: 'Banco JP Morgan', shortName: 'JP Morgan' },
   { code: '064', name: 'Goldman Sachs', shortName: 'Goldman Sachs' },
 ];
-
-
 
 const CardsScreen = () => {
   const { 
@@ -577,14 +589,17 @@ const CardsScreen = () => {
         </View>
       </Modal>
 
-      {/* ========== MODAL DE EDITAR CARTÃO ========== */}
+      {/* ========== MODAL DE EDITAR CARTÃO (COM KEYBOARDAVOIDINGVIEW) ========== */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={editModalVisible}
         onRequestClose={() => setEditModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
@@ -595,7 +610,7 @@ const CardsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               {/* Seleção de Banco */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.cardName')}</Text>
@@ -724,10 +739,10 @@ const CardsScreen = () => {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
-      {/* ========== MODAL DE ADICIONAR CARTÃO ========== */}
+      {/* ========== MODAL DE ADICIONAR CARTÃO (COM KEYBOARDAVOIDINGVIEW) ========== */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -737,7 +752,10 @@ const CardsScreen = () => {
           resetForm();
         }}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
           <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
@@ -751,7 +769,7 @@ const CardsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               {/* Seleção de Banco */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('cards.cardName')}</Text>
@@ -893,7 +911,7 @@ const CardsScreen = () => {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ========== MODAL DE SELEÇÃO DE BANCO ========== */}
@@ -932,7 +950,7 @@ const CardsScreen = () => {
               )}
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {BRAZILIAN_BANKS
                 .filter(bank => 
                   bank.name.toLowerCase().includes(bankSearch.toLowerCase()) ||

@@ -1,4 +1,5 @@
-// GoalsScreen.js — COM TRADUÇÕES COMPLETAS
+// GoalsScreen.js — COM TRADUÇÕES COMPLETAS E LISTAS HORIZONTAIS
+// CORREÇÃO: Ícones e cores agora usam ScrollView horizontal para melhor UX
 
 import React, { useState } from 'react';
 import {
@@ -172,7 +173,7 @@ const GoalsScreen = () => {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Modal Adicionar Meta */}
+      {/* Modal Adicionar Meta (COM KEYBOARDAVOIDINGVIEW) */}
       <Modal
         animationType="slide"
         transparent
@@ -193,7 +194,7 @@ const GoalsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('goals.goalNameLabel')}</Text>
                 <TextInput
@@ -217,7 +218,7 @@ const GoalsScreen = () => {
                 />
               </View>
 
-              {/* Ícone */}
+              {/* Ícone - CORREÇÃO: Lista horizontal */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('goals.icon')}</Text>
                 <TouchableOpacity 
@@ -229,22 +230,27 @@ const GoalsScreen = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Cor */}
+              {/* Cor - CORREÇÃO: Lista horizontal */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('goals.color')}</Text>
-                <View style={styles.colorGrid}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  style={styles.colorScroll}
+                  contentContainerStyle={styles.colorScrollContent}
+                >
                   {colorOptions.map(color => (
                     <TouchableOpacity
                       key={color}
                       style={[
-                        styles.colorCircle,
+                        styles.colorCircleHorizontal,
                         { backgroundColor: color },
-                        newGoalColor === color && styles.colorSelected
+                        newGoalColor === color && styles.colorSelectedHorizontal
                       ]}
                       onPress={() => setNewGoalColor(color)}
                     />
                   ))}
-                </View>
+                </ScrollView>
               </View>
 
               <TouchableOpacity
@@ -259,7 +265,7 @@ const GoalsScreen = () => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Modal Selecionar Ícone */}
+      {/* Modal Selecionar Ícone - CORREÇÃO: Lista horizontal */}
       <Modal
         animationType="slide"
         transparent
@@ -276,21 +282,33 @@ const GoalsScreen = () => {
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.iconGrid}>
+
+            {/* CORREÇÃO: Ícones em grid horizontal com scroll */}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.iconGridHorizontal}
+            >
               {GOAL_ICONS.map(icon => (
                 <TouchableOpacity
                   key={icon}
                   style={[
-                    styles.iconOption,
-                    { backgroundColor: newGoalIcon === icon ? (newGoalColor || colors.primary) + '20' : colors.bgTertiary },
-                    newGoalIcon === icon && { borderColor: newGoalColor || colors.primary }
+                    styles.iconOptionHorizontal,
+                    { 
+                      backgroundColor: newGoalIcon === icon ? (newGoalColor || colors.primary) + '20' : colors.bgTertiary,
+                      borderColor: newGoalIcon === icon ? (newGoalColor || colors.primary) : 'transparent'
+                    },
                   ]}
                   onPress={() => {
                     setNewGoalIcon(icon);
                     setIconPickerVisible(false);
                   }}
                 >
-                  <Ionicons name={icon} size={24} color={newGoalIcon === icon ? (newGoalColor || colors.primary) : colors.textMuted} />
+                  <Ionicons 
+                    name={icon} 
+                    size={24} 
+                    color={newGoalIcon === icon ? (newGoalColor || colors.primary) : colors.textMuted} 
+                  />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -422,19 +440,23 @@ const styles = StyleSheet.create({
     borderRadius: 12 
   },
 
-  colorGrid: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 10 
+  // CORREÇÃO: Cores em lista horizontal
+  colorScroll: {
+    flexDirection: 'row',
   },
-  colorCircle: { 
-    width: 36, 
-    height: 36, 
-    borderRadius: 18, 
+  colorScrollContent: {
+    gap: 10,
+    paddingRight: 20,
+  },
+  colorCircleHorizontal: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
     borderWidth: 2, 
-    borderColor: 'transparent' 
+    borderColor: 'transparent',
+    marginRight: 10,
   },
-  colorSelected: { 
+  colorSelectedHorizontal: { 
     borderColor: '#FFFFFF', 
     borderWidth: 3, 
     shadowColor: '#000', 
@@ -458,7 +480,7 @@ const styles = StyleSheet.create({
     fontWeight: '700' 
   },
 
-  // Icon Picker
+  // Icon Picker - CORREÇÃO: Horizontal
   iconPickerContent: { 
     flex: 1, 
     marginTop: 60, 
@@ -466,21 +488,20 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24, 
     padding: 24 
   },
-  iconGrid: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
+  iconGridHorizontal: { 
+    flexDirection: 'row',
     gap: 8, 
-    justifyContent: 'center', 
-    paddingBottom: 40 
+    paddingBottom: 40,
+    paddingHorizontal: 8,
   },
-  iconOption: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: 12, 
+  iconOptionHorizontal: { 
+    width: 56, 
+    height: 56, 
+    borderRadius: 14, 
     justifyContent: 'center', 
     alignItems: 'center', 
     borderWidth: 2, 
-    borderColor: 'transparent' 
+    marginRight: 8,
   },
 });
 

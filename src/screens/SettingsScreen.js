@@ -1,4 +1,4 @@
-// SettingsScreen.js — COM PERFIL, TRADUÇÕES, SELETOR DE TEMA E ÍCONES DO GOALCARD
+// SettingsScreen.js — COM PERFIL, TRADUÇÕES, SELETOR DE TEMA E ÍCONES HORIZONTAIS
 
 import React, { useState } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -773,7 +773,7 @@ const SettingsScreen = () => {
       </Modal>
 
       {/* ═══════════════════════════════════════════
-          🎯 MODAL ADICIONAR CATEGORIA — ÍCONES DO GOALCARD + CORES HORIZONTAIS
+          🎯 MODAL ADICIONAR CATEGORIA — ÍCONES HORIZONTAIS
       ═══════════════════════════════════════════ */}
       <Modal
         animationType="slide"
@@ -832,15 +832,19 @@ const SettingsScreen = () => {
                 </ScrollView>
               </View>
 
-              {/* 🎯 Ícones do GoalCard (171 ícones) */}
+              {/* 🎯 Ícones em lista horizontal */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.categoryIcon')}</Text>
-                <View style={styles.iconGridLarge}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.iconRowSettings}
+                >
                   {GOAL_ICONS.map((icon) => (
                     <TouchableOpacity
                       key={icon}
                       style={[
-                        styles.iconOptionLarge,
+                        styles.iconOptionSettings,
                         { 
                           backgroundColor: newCatIcon === icon ? newCatColor + '20' : colors.bgTertiary,
                           borderColor: newCatIcon === icon ? newCatColor : 'transparent',
@@ -856,7 +860,7 @@ const SettingsScreen = () => {
                       />
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               </View>
 
               <TouchableOpacity
@@ -1024,7 +1028,23 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.1 }],
   },
 
-  // 🎯 Ícones do GoalCard (171 ícones)
+  // 🎯 Ícones em lista horizontal
+  iconRowSettings: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  iconOptionSettings: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+
+  // Manter estilos antigos para compatibilidade
   iconGridLarge: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
