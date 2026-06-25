@@ -1,4 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+// AppContext.js — COM SISTEMA DE CÍRCULOS FINANCEIROS
+// VERSÃO REFORMULADA: Dados locais + compartilhados merged automaticamente
+// Adiciona: sharedCards, sharedTransactions, sharedGoals do CircleContext
+// Badge de compartilhamento visível em todos os dados
+
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
@@ -6,6 +11,9 @@ import * as Haptics from 'expo-haptics';
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
+  // ═══════════════════════════════════════════════════════════
+  // ESTADO LOCAL (mesmo de antes)
+  // ═══════════════════════════════════════════════════════════
   const [cards, setCards] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [goals, setGoals] = useState([]);
@@ -20,9 +28,18 @@ export const AppProvider = ({ children }) => {
     achievement: true,
   });
   const [isLoading, setIsLoading] = useState(true);
-
   const [cardInvoices, setCardInvoices] = useState([]);
 
+  // ═══════════════════════════════════════════════════════════
+  // ESTADO DE CÍRCULOS (dados compartilhados recebidos)
+  // ═══════════════════════════════════════════════════════════
+  const [sharedCards, setSharedCards] = useState([]);
+  const [sharedTransactions, setSharedTransactions] = useState([]);
+  const [sharedGoals, setSharedGoals] = useState([]);
+
+  // ═══════════════════════════════════════════════════════════
+  // REFS (anti-stale)
+  // ═══════════════════════════════════════════════════════════
   const transactionsRef = useRef(transactions);
   const cardsRef = useRef(cards);
   const goalsRef = useRef(goals);
@@ -30,9 +47,9 @@ export const AppProvider = ({ children }) => {
   const soundEnabledRef = useRef(soundEnabled);
   const cashBalanceRef = useRef(cashBalance);
   const cardInvoicesRef = useRef(cardInvoices);
-  const updateCashBalance = (amount) => { setCashBalance(prev => prev + amount );};
-  const editTransaction = (id, updatedData) => { setTransactions(prev => prev.map(t => 
-	t.id === id ? { ...t, ...updatedData } : t )); };
+  const sharedCardsRef = useRef(sharedCards);
+  const sharedTransactionsRef = useRef(sharedTransactions);
+  const sharedGoalsRef = useRef(sharedGoals);
 
   useEffect(() => { transactionsRef.current = transactions; }, [transactions]);
   useEffect(() => { cardsRef.current = cards; }, [cards]);
@@ -41,12 +58,21 @@ export const AppProvider = ({ children }) => {
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
   useEffect(() => { cashBalanceRef.current = cashBalance; }, [cashBalance]);
   useEffect(() => { cardInvoicesRef.current = cardInvoices; }, [cardInvoices]);
+  useEffect(() => { sharedCardsRef.current = sharedCards; }, [sharedCards]);
+  useEffect(() => { sharedTransactionsRef.current = sharedTransactions; }, [sharedTransactions]);
+  useEffect(() => { sharedGoalsRef.current = sharedGoals; }, [sharedGoals]);
 
+  // ═══════════════════════════════════════════════════════════
+  // ÁUDIO
+  // ═══════════════════════════════════════════════════════════
   const addPlayer = useAudioPlayer(require('../../assets/sounds/add.mp3'));
   const deletePlayer = useAudioPlayer(require('../../assets/sounds/delete.mp3'));
   const notifPlayer = useAudioPlayer(require('../../assets/sounds/notif.mp3'));
   const achievementPlayer = useAudioPlayer(require('../../assets/sounds/achievement.mp3'));
 
+  // ═══════════════════════════════════════════════════════════
+  // CATEGORIAS PADRÃO
+  // ═══════════════════════════════════════════════════════════
   const categories = [
     { id: 'food', name: 'Alimentação', icon: 'restaurant', color: '#EF4444' },
     { id: 'transport', name: 'Transporte', icon: 'car', color: '#3B82F6' },
@@ -58,6 +84,9 @@ export const AppProvider = ({ children }) => {
     { id: 'other', name: 'Outros', icon: 'ellipsis-horizontal', color: '#94A3B8' },
   ];
 
+  // ═══════════════════════════════════════════════════════════
+  // GRADIENTES DE CARTÃO
+  // ═══════════════════════════════════════════════════════════
   const cardGradients = [
     { name: 'Roxo Real', class: 'card-gradient-purple', color: '#8B5CF6', type: 'gradient' },
     { name: 'Azul Oceano', class: 'card-gradient-blue', color: '#3B82F6', type: 'gradient' },
@@ -87,6 +116,72 @@ export const AppProvider = ({ children }) => {
   ];
 
   const tags = ['Urgente', 'Parcelado', 'Fixo', 'Extra'];
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS DE CÍRCULOS (para integração com CircleContext)
+  // ═══════════════════════════════════════════════════════════
+
+  const updateSharedCards = useCallback((newSharedCards) => {
+    setSharedCards(newSharedCards);
+  }, []);
+
+  const updateSharedTransactions = useCallback((newSharedTransactions) => {
+    setSharedTransactions(newSharedTransactions);
+  }, []);
+
+  const updateSharedGoals = useCallback((newSharedGoals) => {
+    setSharedGoals(newSharedGoals);
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════
+  // DADOS MERGED (locais + compartilhados)
+  // ═══════════════════════════════════════════════════════════
+
+  const mergedCards = useMemo(() => {
+    // Adicionar flag _isLocal aos cards locais
+    const localWithFlag = cards.map(c => ({ ...c, _isLocal: true }));
+    // Shared cards já têm _sharedBy, _sharedByName, etc.
+    return [...localWithFlag, ...sharedCards];
+  }, [cards, sharedCards]);
+
+  const mergedTransactions = useMemo(() => {
+    const localWithFlag = transactions.map(t => ({ ...t, _isLocal: true }));
+    return [...localWithFlag, ...sharedTransactions];
+  }, [transactions, sharedTransactions]);
+
+  const mergedGoals = useMemo(() => {
+    const localWithFlag = goals.map(g => ({ ...g, _isLocal: true }));
+    return [...localWithFlag, ...sharedGoals];
+  }, [goals, sharedGoals]);
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS DE IDENTIFICAÇÃO
+  // ═══════════════════════════════════════════════════════════
+
+  const isSharedItem = (item) => {
+    return !!item._sharedBy && !item._isLocal;
+  };
+
+  const getItemShareInfo = (item) => {
+    if (!isSharedItem(item)) return null;
+    return {
+      sharedBy: item._sharedBy,
+      sharedByName: item._sharedByName,
+      permissions: item._permissions,
+      sharedAt: item._sharedAt,
+    };
+  };
+
+  const canEditLocalOrShared = (item, currentUserId) => {
+    if (item._isLocal) return true; // Seu item local sempre editável
+    if (!item._sharedBy) return true; // Item sem origem de círculo
+    if (item._sharedBy === currentUserId) return true; // Seu item compartilhado
+    return item._permissions?.edit === true; // Permissão de edição concedida
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // CARREGAR / SALVAR DADOS LOCAIS
+  // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
     loadData();
@@ -134,6 +229,10 @@ export const AppProvider = ({ children }) => {
     if (!isLoading) saveData();
   }, [cards, transactions, goals, completedGoals, customCategories, soundEnabled, cashBalance, cardInvoices, isLoading, saveData]);
 
+  // ═══════════════════════════════════════════════════════════
+  // ÁUDIO & NOTIFICAÇÕES
+  // ═══════════════════════════════════════════════════════════
+
   const playSound = useCallback((type) => {
     if (!soundEnabledRef.current[type]) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -166,6 +265,10 @@ export const AppProvider = ({ children }) => {
     setNotifications([]);
     playSound('delete');
   }, [playSound]);
+
+  // ═══════════════════════════════════════════════════════════
+  // FATURAS DE CARTÃO
+  // ═══════════════════════════════════════════════════════════
 
   const createInvoice = useCallback((cardId, month, year, totalAmount, transactions) => {
     const card = cardsRef.current.find(c => c.id === cardId);
@@ -204,8 +307,8 @@ export const AppProvider = ({ children }) => {
 
     setCashBalance(prev => prev - invoice.totalAmount);
 
-    setCardInvoices(prev => prev.map(inv => 
-      inv.id === invoiceId 
+    setCardInvoices(prev => prev.map(inv =>
+      inv.id === invoiceId
         ? { ...inv, status: 'paid', paidAt: new Date().toISOString() }
         : inv
     ));
@@ -248,9 +351,9 @@ export const AppProvider = ({ children }) => {
       const closingDay = parseInt(card.closeDate);
 
       if (currentDay === closingDay) {
-        const existingInvoice = cardInvoicesRef.current.find(inv => 
-          inv.cardId === card.id && 
-          inv.month === currentMonth && 
+        const existingInvoice = cardInvoicesRef.current.find(inv =>
+          inv.cardId === card.id &&
+          inv.month === currentMonth &&
           inv.year === currentYear
         );
 
@@ -259,8 +362,8 @@ export const AppProvider = ({ children }) => {
           const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
           const lastMonthStr = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}`;
 
-          const invoiceTransactions = transactionsRef.current.filter(t => 
-            t.cardId === card.id && 
+          const invoiceTransactions = transactionsRef.current.filter(t =>
+            t.cardId === card.id &&
             t.type === 'expense' &&
             t.date.startsWith(lastMonthStr) &&
             !t.isInvoicePayment
@@ -297,6 +400,10 @@ export const AppProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [isLoading, checkCardClosings]);
 
+  // ═══════════════════════════════════════════════════════════
+  // CRUD: CARTÕES
+  // ═══════════════════════════════════════════════════════════
+
   const addCard = useCallback((card) => {
     setCards(prev => [...prev, { ...card, id: Date.now(), createdAt: new Date().toISOString() }]);
     playSound('add');
@@ -312,6 +419,10 @@ export const AppProvider = ({ children }) => {
     setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c));
     playSound('add');
   }, [playSound]);
+
+  // ═══════════════════════════════════════════════════════════
+  // CRUD: TRANSAÇÕES
+  // ═══════════════════════════════════════════════════════════
 
   const addTransaction = useCallback((transaction) => {
     const newTransaction = {
@@ -342,6 +453,18 @@ export const AppProvider = ({ children }) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
     playSound('delete');
   }, [playSound]);
+
+  const editTransaction = useCallback((id, updatedData) => {
+    setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updatedData } : t));
+  }, []);
+
+  const updateCashBalance = useCallback((amount) => {
+    setCashBalance(prev => prev + amount);
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════
+  // CRUD: METAS
+  // ═══════════════════════════════════════════════════════════
 
   const addGoal = useCallback((goal) => {
     const newGoal = {
@@ -433,6 +556,10 @@ export const AppProvider = ({ children }) => {
     }));
     playSound('add');
   }, [addNotification, playSound]);
+
+  // ═══════════════════════════════════════════════════════════
+  // ALERTAS AUTOMÁTICOS
+  // ═══════════════════════════════════════════════════════════
 
   const checkBudgetAlert = useCallback(() => {
     const currentTransactions = transactionsRef.current;
@@ -527,7 +654,7 @@ export const AppProvider = ({ children }) => {
   }, [transactions, cards, goals, isLoading, checkBudgetAlert, checkGoalsProgress, checkCardDueDates, checkCardLimitAlert]);
 
   // ═══════════════════════════════════════════════════════════
-  // 📤📥 IMPORTAR / EXPORTAR — CORRIGIDO
+  // EXPORTAR / IMPORTAR
   // ═══════════════════════════════════════════════════════════
 
   const exportData = useCallback(async () => {
@@ -546,12 +673,8 @@ export const AppProvider = ({ children }) => {
     return JSON.stringify(data, null, 2);
   }, [customCategories]);
 
-  // ═══════════════════════════════════════════════════════════
-  // 📥 IMPORTAR DADOS — COM VALIDAÇÃO E SANITIZAÇÃO
-  // ═══════════════════════════════════════════════════════════
   const importData = useCallback(async (jsonData) => {
     try {
-      // 1. Parse JSON
       let data;
       try {
         data = JSON.parse(jsonData);
@@ -560,25 +683,21 @@ export const AppProvider = ({ children }) => {
         return false;
       }
 
-      // 2. Validar schema básico
       if (!data || typeof data !== 'object') {
         console.warn('Import: dados inválidos');
         return false;
       }
 
-      // 3. Verificar versão do backup
       if (!data.version || data.version !== '3.0') {
         console.warn('Import: versão incompatível');
         return false;
       }
 
-      // 4. Sanitizar strings (strip HTML/JS)
       const sanitizeString = (str, maxLen = 200) => {
         if (typeof str !== 'string') return '';
         return str.replace(/[<>'"&]/g, '').slice(0, maxLen);
       };
 
-      // 5. Validar e filtrar arrays
       const sanitizeArray = (arr, validator, sanitizer) => {
         if (!Array.isArray(arr)) return [];
         return arr.filter(item => {
@@ -588,27 +707,27 @@ export const AppProvider = ({ children }) => {
         }).map(sanitizer);
       };
 
-      const isValidCard = (c) => c && typeof c === 'object' && 
-        (typeof c.id === 'string' || typeof c.id === 'number') && 
+      const isValidCard = (c) => c && typeof c === 'object' &&
+        (typeof c.id === 'string' || typeof c.id === 'number') &&
         typeof c.name === 'string' && c.name.length <= 50;
 
-      const isValidTransaction = (t) => t && typeof t === 'object' && 
-        (typeof t.id === 'string' || typeof t.id === 'number') && 
+      const isValidTransaction = (t) => t && typeof t === 'object' &&
+        (typeof t.id === 'string' || typeof t.id === 'number') &&
         typeof t.description === 'string' && t.description.length <= 200 &&
         typeof t.amount === 'number' && t.amount >= 0 &&
         ['income', 'expense', 'boleto'].includes(t.type);
 
-      const isValidGoal = (g) => g && typeof g === 'object' && 
-        typeof g.id === 'string' && 
+      const isValidGoal = (g) => g && typeof g === 'object' &&
+        typeof g.id === 'string' &&
         typeof g.name === 'string' && g.name.length <= 50 &&
         typeof g.target === 'number' && g.target >= 0;
 
-      const isValidCategory = (c) => c && typeof c === 'object' && 
+      const isValidCategory = (c) => c && typeof c === 'object' &&
         typeof c.name === 'string' && c.name.length <= 30 &&
         typeof c.color === 'string';
 
-      const isValidInvoice = (i) => i && typeof i === 'object' && 
-        (typeof i.id === 'string' || typeof i.id === 'number') && 
+      const isValidInvoice = (i) => i && typeof i === 'object' &&
+        (typeof i.id === 'string' || typeof i.id === 'number') &&
         (typeof i.cardId === 'string' || typeof i.cardId === 'number');
 
       const sanitizeCard = (c) => ({
@@ -629,7 +748,6 @@ export const AppProvider = ({ children }) => {
         name: sanitizeString(g.name, 50),
       });
 
-      // 6. Aplicar dados validados
       if (data.cards) {
         const validCards = sanitizeArray(data.cards, isValidCard, sanitizeCard);
         setCards(validCards);
@@ -660,7 +778,6 @@ export const AppProvider = ({ children }) => {
         setCardInvoices(validInvoices);
       }
 
-      // 7. Validar cashBalance
       if (typeof data.cashBalance === 'number' && data.cashBalance >= 0) {
         setCashBalance(data.cashBalance);
       } else if (data.transactions) {
@@ -673,7 +790,6 @@ export const AppProvider = ({ children }) => {
         setCashBalance(Math.max(0, income - expense));
       }
 
-      // 8. Validar soundEnabled (apenas booleanos esperados)
       if (data.soundEnabled && typeof data.soundEnabled === 'object') {
         const validSounds = {
           add: !!data.soundEnabled.add,
@@ -705,8 +821,15 @@ export const AppProvider = ({ children }) => {
     setCustomCategories([]);
     setCashBalance(0);
     setCardInvoices([]);
+    setSharedCards([]);
+    setSharedTransactions([]);
+    setSharedGoals([]);
     playSound('delete');
   }, [playSound]);
+
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS DE BALANCE E USO
+  // ═══════════════════════════════════════════════════════════
 
   const getBalance = useCallback(() => {
     const currentTransactions = transactionsRef.current;
@@ -742,7 +865,12 @@ export const AppProvider = ({ children }) => {
     return newCat;
   }, [playSound]);
 
+  // ═══════════════════════════════════════════════════════════
+  // VALUE (tudo exposto)
+  // ═══════════════════════════════════════════════════════════
+
   const value = {
+    // ─── Dados Locais ───
     cards,
     transactions,
     goals,
@@ -754,15 +882,15 @@ export const AppProvider = ({ children }) => {
     setCashBalance,
     addCustomCategory,
     setCustomCategories,
-	cashBalance,
-	updateCashBalance,
-	editTransaction,
+    updateCashBalance,
+    editTransaction,
     cardGradients,
     tags,
     soundEnabled,
     setSoundEnabled,
     isLoading,
 
+    // ─── Faturas ───
     cardInvoices,
     createInvoice,
     payInvoice,
@@ -770,19 +898,19 @@ export const AppProvider = ({ children }) => {
     getCardInvoices,
     checkCardClosings,
 
+    // ─── CRUD Locais ───
     addCard,
     deleteCard,
     editCard,
-
     addTransaction,
     deleteTransaction,
-
     addGoal,
     investInGoal,
     completeGoal,
     deleteGoal,
     contributeGoal,
 
+    // ─── Notificações ───
     addNotification,
     checkGoalsProgress,
     checkCardDueDates,
@@ -790,12 +918,31 @@ export const AppProvider = ({ children }) => {
     markNotificationAsRead,
     clearAllNotifications,
 
+    // ─── Export/Import ───
     exportData,
     importData,
     clearAllData,
     getBalance,
     getCardUsage,
     playSound,
+
+    // ─── Dados Compartilhados (do CircleContext) ───
+    sharedCards,
+    sharedTransactions,
+    sharedGoals,
+    updateSharedCards,
+    updateSharedTransactions,
+    updateSharedGoals,
+
+    // ─── Dados Merged (locais + compartilhados) ───
+    mergedCards,
+    mergedTransactions,
+    mergedGoals,
+
+    // ─── Helpers de Identificação ───
+    isSharedItem,
+    getItemShareInfo,
+    canEditLocalOrShared,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

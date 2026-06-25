@@ -1,4 +1,5 @@
-// AppNavigator.js — COM ABA GRUPOS
+// AppNavigator.js — Navegação com Círculos Financeiros (Arquivo 9/10)
+// Substitui GroupScreen por CircleHubScreen, adiciona stack para CircleHub
 
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -16,10 +17,14 @@ import CardsScreen from '../screens/CardsScreen';
 import GoalsScreen from '../screens/GoalsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
-import GroupScreen from '../screens/GroupScreen';
+import CircleHubScreen from '../screens/CircleHubScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+// ═══════════════════════════════════════════════════
+// TAB NAVIGATOR (Bottom Tabs)
+// ═══════════════════════════════════════════════════
 
 function TabNavigator() {
   const { colors } = useTheme();
@@ -34,7 +39,7 @@ function TabNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarInactiveTintColor: colors.textMuted || colors.muted,
         tabBarButton: (props) => <TouchableOpacity {...props} activeOpacity={0.7} />,
         tabBarLabelStyle: {
           fontSize: 11,
@@ -42,13 +47,13 @@ function TabNavigator() {
           marginTop: 2,
         },
         tabBarStyle: {
-          backgroundColor: colors.bgCard,
+          backgroundColor: colors.card || colors.bgCard,
           borderTopColor: colors.border,
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: paddingBottomAmount,
           height: tabBarHeight,
-          shadowColor: colors.shadow,
+          shadowColor: colors.shadow || '#000',
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.1,
           shadowRadius: 20,
@@ -72,8 +77,8 @@ function TabNavigator() {
             case 'Goals':
               iconName = focused ? 'flag' : 'flag-outline';
               break;
-            case 'Groups':
-              iconName = focused ? 'people' : 'people-outline';
+            case 'Circles':
+              iconName = focused ? 'people-circle' : 'people-circle-outline';
               break;
             default:
               iconName = 'checkbox-outline';
@@ -82,34 +87,50 @@ function TabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: t('appnavigator.home') }} />
-      <Tab.Screen name="Expenses" component={AddScreen} options={{ tabBarLabel: t('appnavigator.expenses') }} />
-      <Tab.Screen name="History" component={HistoryScreen} options={{ tabBarLabel: t('appnavigator.history') }} />
-      <Tab.Screen name="Cards" component={CardsScreen} options={{ tabBarLabel: t('appnavigator.cards') }} />
-      <Tab.Screen name="Goals" component={GoalsScreen} options={{ tabBarLabel: t('appnavigator.goals') }} />
-      <Tab.Screen name="Groups" component={GroupScreen} options={{ tabBarLabel: t('appnavigator.groups') }} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ tabBarLabel: t('tab.home') }}
+      />
+      <Tab.Screen
+        name="Expenses"
+        component={AddScreen}
+        options={{ tabBarLabel: t('tab.add') }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{ tabBarLabel: t('tab.history') }}
+      />
+      <Tab.Screen
+        name="Cards"
+        component={CardsScreen}
+        options={{ tabBarLabel: t('tab.cards') }}
+      />
+      <Tab.Screen
+        name="Goals"
+        component={GoalsScreen}
+        options={{ tabBarLabel: t('tab.goals') }}
+      />
+      <Tab.Screen
+        name="Circles"
+        component={CircleHubScreen}
+        options={{ tabBarLabel: t('tab.groups') }}
+      />
     </Tab.Navigator>
   );
 }
 
+// ═══════════════════════════════════════════════════
+// STACK NAVIGATOR (Root)
+// ═══════════════════════════════════════════════════
+
 export default function AppNavigator() {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="Main" component={TabNavigator} />
-      <Stack.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Notifications"
-        component={NotificationsScreen}
-        options={{ headerShown: false }}
-      />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
     </Stack.Navigator>
   );
 }

@@ -6,13 +6,15 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslate } from '../hooks/useTranslate';
+import { useCircle } from '../context/CircleContext';
 import { formatCurrency, isAfterClosingDate, getInvoiceMonth, formatInvoiceMonth } from '../utils/helpers';
 import Toast from '../components/Toast';
 
 const AddScreen = () => {
-  const { categories, cards, transactions, addTransaction, getCardUsage, cashBalance, updateCashBalance, editTransaction } = useApp();
+  const { categories, cards, transactions, addTransaction, getCardUsage, cashBalance, updateCashBalance, editTransaction, mergedCards, mergedTransactions } = useApp();
   const { colors } = useTheme();
   const { t } = useTranslate();
+  const { currentCircle } = useCircle();
   const [modalVisible, setModalVisible] = useState(false);
   const [transactionType, setTransactionType] = useState('expense');
   const [desc, setDesc] = useState('');
@@ -26,25 +28,38 @@ const AddScreen = () => {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [fabOpen, setFabOpen] = useState(false);
 
+
+  // ── POOL DE DADOS ──
+  const displayCards = useMemo(() => {
+    return currentCircle
+      ? (mergedCards || []).filter(c => !c._circleId || c._circleId === currentCircle.id)
+      : cards;
+  }, [currentCircle, cards, mergedCards]);
+
+  const displayTransactions = useMemo(() => {
+    return currentCircle
+      ? (mergedTransactions || []).filter(t => !t._circleId || t._circleId === currentCircle.id)
+      : transactions;
+  }, [currentCircle, transactions, mergedTransactions]);
   const typeConfig = {
-    expense: { title: t('add.newExpense'), color: '#EF4444', icon: 'remove-circle' },
-    income: { title: t('add.newIncome'), color: '#10B981', icon: 'add-circle' },
-    boleto: { title: t('add.newBoleto'), color: '#F59E0B', icon: 'barcode' },
+    expense: { title: t('add.newExpense'), color: colors.danger, icon: 'remove-circle' },
+    income: { title: t('add.newIncome'), color: colors.success, icon: 'add-circle' },
+    boleto: { title: t('add.newBoleto'), color: colors.warning, icon: 'barcode' },
   };
 
   // Calcular cartões mais utilizados (top 3 por valor gasto)
   const topCards = useMemo(() => {
-    return cards
+    return displayCards
       .map(card => ({ ...card, used: getCardUsage(card.id) }))
       .filter(card => card.used > 0)
       .sort((a, b) => b.used - a.used)
       .slice(0, 3);
-  }, [cards, transactions, getCardUsage]);
+  }, [displayCards, displayTransactions, getCardUsage]);
 
   // Calcular categorias mais utilizadas (top 5 por valor gasto)
   const topCategories = useMemo(() => {
     const catTotals = {};
-    transactions
+    displayTransactions
       .filter(t => t.type === 'expense')
       .forEach(t => {
         const key = t.categoryName || t('categories.other');
@@ -56,14 +71,14 @@ const AddScreen = () => {
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
-  }, [transactions, t]);
+  }, [displayTransactions, t]);
 
   // Boletos pendentes (não pagos)
   const pendingBoletos = useMemo(() => {
-    return transactions
+    return displayTransactions
       .filter(t => t.paymentMethod === 'boleto' && !t.isPaid)
       .sort((a, b) => new Date(a.boletoDue || a.date) - new Date(b.boletoDue || b.date));
-  }, [transactions]);
+  }, [displayTransactions]);
 
   // Função para quitar boleto usando cashBalance
   const handlePayBoleto = (boleto) => {
@@ -89,7 +104,7 @@ const AddScreen = () => {
   const getInvoiceWarning = () => {
     if (transactionType !== 'expense' || paymentMethod !== 'card' || cardType !== 'credit' || !cardId) return null;
 
-    const selectedCard = cards.find(c => c.id.toString() === cardId.toString());
+    const selectedCard = displayCards.find(c => c.id.toString() === cardId.toString());
     if (!selectedCard || !selectedCard.closeDate) return null;
 
     const isNextInvoice = isAfterClosingDate(date, selectedCard.closeDate);
@@ -131,7 +146,7 @@ const AddScreen = () => {
 
     // ✅ CORREÇÃO: Categoria padrão para income
     const category = transactionType === 'income'
-      ? { id: 'income', name: 'Receita', icon: 'cash', color: '#10B981' }
+      ? { id: 'income', name: 'Receita', icon: 'cash', color: colors.success }
       : categories.find(c => c.id === categoryId);
 
     const selectedCard = cards.find(c => c.id.toString() === cardId?.toString());
@@ -192,9 +207,19 @@ const AddScreen = () => {
     <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.bgCard, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-          <Ionicons name="add-circle" size={20} color={colors.primary} />  {t('add.title')}
-        </Text>
+        <View style={styles.headerTop}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+            <Ionicons name="add-circle" size={20} color={colors.primary} />  {t('add.title')}
+          </Text>
+          {currentCircle && (
+            <View style={[styles.circleChip, { backgroundColor: colors.primary + '15' }]}>
+              <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />
+              <Text style={[styles.circleChipText, { color: colors.primary }]} numberOfLines={1}>
+                {currentCircle.name}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16 }}>
@@ -294,13 +319,13 @@ const AddScreen = () => {
       {fabOpen && (
         <View style={styles.fabMenu}>
           <TouchableOpacity 
-            style={[styles.fabItem, { backgroundColor: '#EF4444' }]} 
+            style={[styles.fabItem, { backgroundColor: colors.danger }]} 
             onPress={() => openModal('expense')}
           >
             <Ionicons name="remove" size={20} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.fabItem, { backgroundColor: '#10B981' }]} 
+            style={[styles.fabItem, { backgroundColor: colors.success }]} 
             onPress={() => openModal('income')}
           >
             <Ionicons name="add" size={20} color="#FFFFFF" />
@@ -324,7 +349,7 @@ const AddScreen = () => {
       >
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: colors.bgCard }]}
         >
           <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
             <View style={styles.modalHeader}>
@@ -436,7 +461,7 @@ const AddScreen = () => {
                       contentContainerStyle={styles.cardScroll}
                       keyboardShouldPersistTaps="handled"
                     >
-                      {cards.map(c => (
+                      {displayCards.map(c => (
                         <TouchableOpacity
                           key={c.id}
                           activeOpacity={0.7}
@@ -565,6 +590,10 @@ const AddScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  circleChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, maxWidth: 160 },
+  onlineDot: { width: 8, height: 8, borderRadius: 4 },
+  circleChipText: { fontSize: 12, fontWeight: '700' },
   header: { 
     paddingTop: 50, 
     paddingHorizontal: 16, 

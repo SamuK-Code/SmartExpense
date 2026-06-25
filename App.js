@@ -1,62 +1,47 @@
-// App.js — SmartExpense v3.0 — COM THEME SPLASH E GROUP PROVIDER
-
-import React, { useState } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
-import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { AppProvider } from './src/context/AppContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { UserProvider } from './src/context/UserContext';
-import { GroupProvider } from './src/context/GroupContext';
+import { AppProvider } from './src/context/AppContext';
+import { CircleProvider } from './src/context/CircleContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import SplashScreen from './src/components/SplashScreen';
 
 function AppContent() {
-  const { colors, darkMode } = useTheme();
-  const [showSplash, setShowSplash] = useState(true);
+  const { darkMode } = useTheme();
+
+  const navigationTheme = darkMode
+    ? { ...DarkTheme, colors: { ...DarkTheme.colors, background: '#0F172A', card: '#1E293B', text: '#F1F5F9', border: '#334155' } }
+    : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: '#F8FAFC', card: '#FFFFFF', text: '#0F172A', border: '#E2E8F0' } };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      {showSplash && (
-        <SplashScreen 
-          onFinish={() => setShowSplash(false)} 
-          themeColors={colors}
-        />
-      )}
-
-      {!showSplash && (
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-      )}
-
-      {!showSplash && (
-        <StatusBar 
-          style={darkMode ? 'light' : 'dark'} 
-          backgroundColor={colors.bgPrimary}
-        />
-      )}
-    </View>
+    <NavigationContainer theme={navigationTheme}>
+      <StatusBar style={darkMode ? 'light' : 'dark'} />
+      <SafeAreaProvider>
+        <AppNavigator />
+      </SafeAreaProvider>
+    </NavigationContainer>
   );
 }
 
 export default function App() {
   return (
-    <SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <LanguageProvider>
           <UserProvider>
-            <GroupProvider>
-              <AppProvider>
+            <AppProvider>
+              <CircleProvider>
                 <AppContent />
-              </AppProvider>
-            </GroupProvider>
+              </CircleProvider>
+            </AppProvider>
           </UserProvider>
         </LanguageProvider>
       </ThemeProvider>
-    </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

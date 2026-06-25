@@ -15,7 +15,7 @@ export const translations = {
     },
 
     common: {
-      cancel: 'Cancelar', delete: 'Excluir', reset: 'Resetar', clear: 'Apagar Tudo',
+      noPermission: 'Você não tem permissão para editar este item', manage: 'Gerenciar', cancel: 'Cancelar', delete: 'Excluir', reset: 'Resetar', clear: 'Apagar Tudo',
       confirm: 'Confirmar', edit: 'Editar', back: 'Voltar', save: 'Salvar',
       success: 'Sucesso', warning: 'Aviso', error: 'Erro', info: 'Informação',
       close: 'Fechar', create: 'Criar', search: 'Buscar', loading: 'Carregando...',
@@ -239,7 +239,7 @@ export const translations = {
     },
 
     common: {
-      cancel: 'Cancel', delete: 'Delete', reset: 'Reset', clear: 'Clear All',
+      noPermission: 'You do not have permission to edit this item', manage: 'Manage', cancel: 'Cancel', delete: 'Delete', reset: 'Reset', clear: 'Clear All',
       confirm: 'Confirm', edit: 'Edit', back: 'Back', save: 'Save',
       success: 'Success', warning: 'Warning', error: 'Error', info: 'Info',
       close: 'Close', create: 'Create', search: 'Search', loading: 'Loading...',
@@ -463,7 +463,7 @@ export const translations = {
     },
 
     common: {
-      cancel: 'Cancelar', delete: 'Eliminar', reset: 'Restablecer', clear: 'Borrar Todo',
+      noPermission: 'No tienes permiso para editar este elemento', manage: 'Gestionar', cancel: 'Cancelar', delete: 'Eliminar', reset: 'Restablecer', clear: 'Borrar Todo',
       confirm: 'Confirmar', edit: 'Editar', back: 'Volver', save: 'Guardar',
       success: 'Éxito', warning: 'Advertencia', error: 'Error', info: 'Información',
       close: 'Cerrar', create: 'Crear', search: 'Buscar', loading: 'Cargando...',

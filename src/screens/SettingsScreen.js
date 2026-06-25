@@ -20,7 +20,7 @@ import { useApp } from '../context/AppContext';
 import { useTheme, THEMES } from '../context/ThemeContext';
 import { useLanguage, LANGUAGES } from '../context/LanguageContext';
 import { useUser } from '../context/UserContext';
-import { useGroup } from '../context/GroupContext';
+import { useCircle } from '../context/CircleContext';
 import { useTranslate } from '../hooks/useTranslate';
 import Toast from '../components/Toast';
 import * as Sharing from 'expo-sharing';
@@ -61,7 +61,7 @@ const SettingsScreen = () => {
   const { t } = useTranslate();
   const { language, changeLanguage } = useLanguage();
   const { userProfile, updateName, updateAvatar, clearAvatar } = useUser();
-  const { currentUser, leaveGroup } = useGroup();
+  const { currentUser, leaveGroup } = useCircle();
   const { 
     soundEnabled, 
     setSoundEnabled, 
