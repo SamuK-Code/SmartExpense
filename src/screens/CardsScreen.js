@@ -5,7 +5,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Modal, TextInput, Alert, Dimensions, ImageBackground,
-  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@react-native-vector-icons/ionicons';
@@ -20,6 +19,7 @@ import {
 } from '../utils/helpers';
 import CreditCard from '../components/CreditCard';
 import Toast from '../components/Toast';
+import ModalContent from '../components/ModalKeyboardSafe';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -230,9 +230,9 @@ const CardsScreen = () => {
         </TouchableOpacity>
       )}
 
-      {/* ═══════ MODAL DE DETALHES — REFORMULADO ═══════ */}
+      {/* ═══════ MODAL DE DETALHES — CORREÇÃO: ModalContent em vez de View direto ═══════ */}
       <Modal visible={detailModalVisible} animationType="slide" transparent onRequestClose={() => setDetailModalVisible(false)}>
-        <View style={styles.modalOverlay}>
+        <ModalContent scroll={true}>
           <View style={[styles.detailModalContent, { backgroundColor: colors.bgCard }]}>
             {/* Header com botões de ação no topo */}
             <View style={styles.detailHeader}>
@@ -254,225 +254,218 @@ const CardsScreen = () => {
               </View>
             </View>
 
-            {/* ✅ CORREÇÃO: ScrollView para conteúdo que ultrapassa a tela */}
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-              {selectedCard && (
-                <>
-                  <View style={styles.detailCardWrapper}>
-                    <CreditCard card={selectedCard} usage={getCardUsage(selectedCard.id)} />
-                    <View style={styles.detailBadges}>{getSharedBadge(selectedCard)}{getOriginBadge(selectedCard)}</View>
+            {selectedCard && (
+              <>
+                <View style={styles.detailCardWrapper}>
+                  <CreditCard card={selectedCard} usage={getCardUsage(selectedCard.id)} />
+                  <View style={styles.detailBadges}>{getSharedBadge(selectedCard)}{getOriginBadge(selectedCard)}</View>
+                </View>
+
+                {selectedCard.closeDate && (
+                  <View style={[styles.closingInfo, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
+                    <View style={styles.closingRow}>
+                      <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+                      <Text style={[styles.closingText, { color: colors.textPrimary }]}>{t('cards.closing')}: {t('add.day')} {selectedCard.closeDate}</Text>
+                    </View>
+                    <Text style={[styles.closingText, { color: colors.textMuted, marginLeft: 28 }]}>{getDaysUntilClosing(selectedCard.closeDate) !== null ? `${t('cards.nextClosingDays')} ${getDaysUntilClosing(selectedCard.closeDate)} ${t('cards.daysUntilClosing')}` : t('cards.closingNotConfigured')}</Text>
                   </View>
+                )}
 
-                  {selectedCard.closeDate && (
-                    <View style={[styles.closingInfo, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
-                      <View style={styles.closingRow}>
-                        <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-                        <Text style={[styles.closingText, { color: colors.textPrimary }]}>{t('cards.closing')}: {t('add.day')} {selectedCard.closeDate}</Text>
-                      </View>
-                      <Text style={[styles.closingText, { color: colors.textMuted, marginLeft: 28 }]}>{getDaysUntilClosing(selectedCard.closeDate) !== null ? `${t('cards.nextClosingDays')} ${getDaysUntilClosing(selectedCard.closeDate)} ${t('cards.daysUntilClosing')}` : t('cards.closingNotConfigured')}</Text>
+                {(() => { const { used, available, percentage, availablePercentage } = getCardProgress(selectedCard); const progressColor = getProgressColor(availablePercentage); return (
+                  <View style={[styles.progressSection, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
+                    <View style={styles.progressHeader}>
+                      <Text style={[styles.progressLabel, { color: colors.textPrimary }]}>{t('cards.limitUsed')}</Text>
+                      <Text style={[styles.progressPercent, { color: progressColor }]}>{percentage.toFixed(1)}%</Text>
                     </View>
-                  )}
-
-                  {(() => { const { used, available, percentage, availablePercentage } = getCardProgress(selectedCard); const progressColor = getProgressColor(availablePercentage); return (
-                    <View style={[styles.progressSection, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
-                      <View style={styles.progressHeader}>
-                        <Text style={[styles.progressLabel, { color: colors.textPrimary }]}>{t('cards.limitUsed')}</Text>
-                        <Text style={[styles.progressPercent, { color: progressColor }]}>{percentage.toFixed(1)}%</Text>
-                      </View>
-                      <View style={[styles.progressBar, { backgroundColor: darkMode ? colors.bgTertiary : colors.border }]}><View style={[styles.progressFill, { width: `${Math.min(percentage, 100)}%`, backgroundColor: progressColor }]} /></View>
-                      <View style={styles.progressValues}>
-                        <View><Text style={[styles.progressValueLabel, { color: colors.textMuted }]}>{t('cards.used')}</Text><Text style={[styles.progressValue, { color: colors.textPrimary }]}>{formatCurrency(used)}</Text></View>
-                        <View style={{ alignItems: 'flex-end' }}><Text style={[styles.progressValueLabel, { color: colors.textMuted }]}>{t('cards.available')}</Text><Text style={[styles.progressValue, { color: progressColor }]}>{formatCurrency(available)}</Text></View>
-                      </View>
-                      {availablePercentage <= 10 && (<View style={[styles.alertBox, { backgroundColor: colors.danger + '15' } ]}><Ionicons name="alert-circle" size={16} color={colors.danger} /><Text style={[ styles.alertText, { color: colors.danger }]}>{t('cards.limitAlert')} {availablePercentage.toFixed(1)}%</Text></View>)}
+                    <View style={[styles.progressBar, { backgroundColor: darkMode ? colors.bgTertiary : colors.border }]}><View style={[styles.progressFill, { width: `${Math.min(percentage, 100)}%`, backgroundColor: progressColor }]} /></View>
+                    <View style={styles.progressValues}>
+                      <View><Text style={[styles.progressValueLabel, { color: colors.textMuted }]}>{t('cards.used')}</Text><Text style={[styles.progressValue, { color: colors.textPrimary }]}>{formatCurrency(used)}</Text></View>
+                      <View style={{ alignItems: 'flex-end' }}><Text style={[styles.progressValueLabel, { color: colors.textMuted }]}>{t('cards.available')}</Text><Text style={[styles.progressValue, { color: progressColor }]}>{formatCurrency(available)}</Text></View>
                     </View>
-                  ); })()}
+                    {availablePercentage <= 10 && (<View style={[styles.alertBox, { backgroundColor: colors.danger + '15' } ]}><Ionicons name="alert-circle" size={16} color={colors.danger} /><Text style={[ styles.alertText, { color: colors.danger }]}>{t('cards.limitAlert')} {availablePercentage.toFixed(1)}%</Text></View>)}
+                  </View>
+                ); })()}
 
-                  {(pendingInvoices || []).length > 0 && (
-                    <View style={styles.invoicesSection}>
-                      <Text style={[styles.invoicesTitle, { color: colors.textPrimary }]}>{t('cards.pendingInvoices')}</Text>
-                      {(pendingInvoices || []).map(invoice => (
-                        <View key={invoice.id} style={[styles.invoiceCard, { backgroundColor: darkMode ? colors.bgCard : colors.danger + '10' }]}>
-                          <View style={styles.invoiceHeader}>
-                            <View><Text style={[styles.invoiceMonth, { color: colors.textPrimary }]}>{String(invoice.month).padStart(2, '0')}/{invoice.year}</Text><Text style={[styles.invoiceAmount, { color: colors.danger }]}>{formatCurrency(invoice.totalAmount)}</Text></View>
-                            <View style={[styles.invoiceStatus, { backgroundColor: colors.warning + '15' }]}><Text style={[styles.invoiceStatusText, { color: colors.warning }]}>{t('common.pending')}</Text></View>
+                {(pendingInvoices || []).length > 0 && (
+                  <View style={styles.invoicesSection}>
+                    <Text style={[styles.invoicesTitle, { color: colors.textPrimary }]}>{t('cards.pendingInvoices')}</Text>
+                    {(pendingInvoices || []).map(invoice => (
+                      <View key={invoice.id} style={[styles.invoiceCard, { backgroundColor: darkMode ? colors.bgCard : colors.danger + '10' }]}>
+                        <View style={styles.invoiceHeader}>
+                          <View><Text style={[styles.invoiceMonth, { color: colors.textPrimary }]}>{String(invoice.month).padStart(2, '0')}/{invoice.year}</Text><Text style={[styles.invoiceAmount, { color: colors.danger }]}>{formatCurrency(invoice.totalAmount)}</Text></View>
+                          <View style={[styles.invoiceStatus, { backgroundColor: colors.warning + '15' }]}><Text style={[styles.invoiceStatusText, { color: colors.warning }]}>{t('common.pending')}</Text></View>
+                        </View>
+                        <TouchableOpacity style={[styles.payButton, { backgroundColor: colors.primary }]} onPress={() => handlePayInvoice(invoice)}><Ionicons name="cash-outline" size={16} color="#FFF" /><Text style={styles.payButtonText}>{t('cards.payInvoice')}</Text></TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {(allInvoices || []).filter(inv => inv.status === 'paid').length > 0 && (
+                  <View style={styles.invoicesSection}>
+                    <Text style={[styles.invoicesTitle, { color: colors.textPrimary }]}>{t('cards.paidInvoices')}</Text>
+                    {(allInvoices || []).filter(inv => inv.status === 'paid').map(invoice => (
+                      <View key={invoice.id} style={[styles.invoiceCard, { backgroundColor: darkMode ? colors.bgCard : colors.success + '15' }]}>
+                        <View style={styles.invoiceHeader}>
+                          <View><Text style={[styles.invoiceMonth, { color: colors.textPrimary }]}>{String(invoice.month).padStart(2, '0')}/{invoice.year}</Text><Text style={[styles.invoiceAmount, { color: colors.success }]}>{formatCurrency(invoice.totalAmount)}</Text></View>
+                          <View style={[styles.invoiceStatus, { backgroundColor: colors.success + '20' }]}><Text style={[styles.invoiceStatusText, { color: colors.success }]}>{t('common.completed')}</Text></View>
+                        </View>
+                        {invoice.paidAt && <Text style={[styles.paidDate, { color: colors.textMuted }]}>{t('invoices.paidOn')} {new Date(invoice.paidAt).toLocaleDateString('pt-BR')}</Text>}
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                <View style={[styles.infoSection, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
+                  <View style={styles.infoRow}><Ionicons name="card-outline" size={18} color={colors.primary} /><Text style={[styles.infoText, { color: colors.textPrimary }]}>{t('cards.totalLimit')}: {formatCurrency(selectedCard.limit)}</Text></View>
+                </View>
+
+                <View style={styles.historySection}>
+                  <Text style={[styles.historyTitle, { color: colors.textPrimary }]}>{t('cards.expenseHistory')}</Text>
+                  {(cardTransactions || []).length === 0 ? (
+                    <View style={[styles.emptyHistory, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}><Ionicons name="receipt-outline" size={28} color={colors.textMuted} /><Text style={[styles.emptyHistoryText, { color: colors.textMuted }]}>{t('cards.noTransactions')}</Text></View>
+                  ) : (
+                    <View style={styles.transactionsList}>
+                      {(cardTransactions || []).map(transaction => (
+                        <View key={transaction.id} style={[styles.transactionRow, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
+                          <View style={styles.transactionLeft}>
+                            <View style={[styles.transactionIcon, { backgroundColor: colors.primary + '15' }]}><Ionicons name="pricetag-outline" size={16} color={colors.primary} /></View>
+                            <View style={{ flex: 1 }}><Text style={[styles.transactionDesc, { color: colors.textPrimary }]} numberOfLines={1}>{transaction.desc || transaction.description}</Text><Text style={[styles.transactionDate, { color: colors.textMuted }]}>{transaction.date ? transaction.date.split('-').reverse().join('/') : ''}{transaction.isNextInvoice && <Text style={{ color: colors.primary, fontWeight: '700' }}> • {t('cards.purchaseNextInvoice')}</Text>}</Text></View>
                           </View>
-                          <TouchableOpacity style={[styles.payButton, { backgroundColor: colors.primary }]} onPress={() => handlePayInvoice(invoice)}><Ionicons name="cash-outline" size={16} color="#FFF" /><Text style={styles.payButtonText}>{t('cards.payInvoice')}</Text></TouchableOpacity>
+                          <Text style={[styles.transactionAmount, { color: colors.danger }]}>- {formatCurrency(transaction.amount)}</Text>
                         </View>
                       ))}
+                      <View style={[styles.totalRow, { borderTopColor: colors.border }]}><Text style={[styles.totalLabel, { color: colors.textPrimary }]}>{t('cards.totalSpent')}</Text><Text style={[styles.totalValue, { color: colors.danger }]}>{formatCurrency((cardTransactions || []).reduce((s, t) => s + (t.amount || 0), 0))}</Text></View>
                     </View>
                   )}
+                </View>
+              </>
+            )}
+          </View>
+        </ModalContent>
+      </Modal>
 
-                  {(allInvoices || []).filter(inv => inv.status === 'paid').length > 0 && (
-                    <View style={styles.invoicesSection}>
-                      <Text style={[styles.invoicesTitle, { color: colors.textPrimary }]}>{t('cards.paidInvoices')}</Text>
-                      {(allInvoices || []).filter(inv => inv.status === 'paid').map(invoice => (
-                        <View key={invoice.id} style={[styles.invoiceCard, { backgroundColor: darkMode ? colors.bgCard : colors.success + '15' }]}>
-                          <View style={styles.invoiceHeader}>
-                            <View><Text style={[styles.invoiceMonth, { color: colors.textPrimary }]}>{String(invoice.month).padStart(2, '0')}/{invoice.year}</Text><Text style={[styles.invoiceAmount, { color: colors.success }]}>{formatCurrency(invoice.totalAmount)}</Text></View>
-                            <View style={[styles.invoiceStatus, { backgroundColor: colors.success + '20' }]}><Text style={[styles.invoiceStatusText, { color: colors.success }]}>{t('common.completed')}</Text></View>
-                          </View>
-                          {invoice.paidAt && <Text style={[styles.paidDate, { color: colors.textMuted }]}>{t('invoices.paidOn')} {new Date(invoice.paidAt).toLocaleDateString('pt-BR')}</Text>}
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  <View style={[styles.infoSection, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
-                    <View style={styles.infoRow}><Ionicons name="card-outline" size={18} color={colors.primary} /><Text style={[styles.infoText, { color: colors.textPrimary }]}>{t('cards.totalLimit')}: {formatCurrency(selectedCard.limit)}</Text></View>
-                  </View>
-
-                  <View style={styles.historySection}>
-                    <Text style={[styles.historyTitle, { color: colors.textPrimary }]}>{t('cards.expenseHistory')}</Text>
-                    {(cardTransactions || []).length === 0 ? (
-                      <View style={[styles.emptyHistory, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}><Ionicons name="receipt-outline" size={28} color={colors.textMuted} /><Text style={[styles.emptyHistoryText, { color: colors.textMuted }]}>{t('cards.noTransactions')}</Text></View>
-                    ) : (
-                      <View style={styles.transactionsList}>
-                        {(cardTransactions || []).map(transaction => (
-                          <View key={transaction.id} style={[styles.transactionRow, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
-                            <View style={styles.transactionLeft}>
-                              <View style={[styles.transactionIcon, { backgroundColor: colors.primary + '15' }]}><Ionicons name="pricetag-outline" size={16} color={colors.primary} /></View>
-                              <View style={{ flex: 1 }}><Text style={[styles.transactionDesc, { color: colors.textPrimary }]} numberOfLines={1}>{transaction.desc || transaction.description}</Text><Text style={[styles.transactionDate, { color: colors.textMuted }]}>{transaction.date ? transaction.date.split('-').reverse().join('/') : ''}{transaction.isNextInvoice && <Text style={{ color: colors.primary, fontWeight: '700' }}> • {t('cards.purchaseNextInvoice')}</Text>}</Text></View>
-                            </View>
-                            <Text style={[styles.transactionAmount, { color: colors.danger }]}>- {formatCurrency(transaction.amount)}</Text>
-                          </View>
-                        ))}
-                        <View style={[styles.totalRow, { borderTopColor: colors.border }]}><Text style={[styles.totalLabel, { color: colors.textPrimary }]}>{t('cards.totalSpent')}</Text><Text style={[styles.totalValue, { color: colors.danger }]}>{formatCurrency((cardTransactions || []).reduce((s, t) => s + (t.amount || 0), 0))}</Text></View>
-                      </View>
-                    )}
-                  </View>
-                </>
+      {/* Edit Modal — CORREÇÃO: ModalContent em vez de KeyboardAvoidingView */}
+      <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
+        <ModalContent scroll={true}>
+          <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('cards.editCard')}</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}><Ionicons name="close" size={24} color={colors.textPrimary} /></TouchableOpacity>
+            </View>
+            <ScrollView 
+              showsVerticalScrollIndicator={false} 
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 60 }}
+            >
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardName')}</Text>
+                <TouchableOpacity style={[styles.bankSelector, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]} onPress={() => { setBankModalMode('edit'); setBankSearch(''); setBankModalVisible(true); }}>
+                  {editBank ? <Text style={[styles.bankSelectorText, { color: colors.textPrimary }]}>{editBank.name}</Text> : <Text style={[styles.bankSelectorPlaceholder, { color: colors.textMuted }]}>{t('add.selectBank')}</Text>}
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.formRow}>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.limit')}</Text>
+                  <TextInput 
+                    style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} 
+                    value={editLimit} 
+                    onChangeText={(text) => setEditLimit(formatCurrencyInput(text))} 
+                    keyboardType="decimal-pad" 
+                    placeholder="R$ 0,00" 
+                    placeholderTextColor={colors.textMuted} 
+                  />
+                </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.textPrimary }]}>Dia de Vencimento</Text>
+                  <TextInput style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} value={editDueDate} onChangeText={(text) => { const numeric = text.replace(/[^0-9]/g, ''); const day = parseInt(numeric, 10); if (numeric === '') setEditDueDate(''); else if (day >= 1 && day <= 31) setEditDueDate(numeric); else if (numeric.length <= 2) setEditDueDate(numeric); }} keyboardType="numeric" maxLength={2} placeholder="DD" placeholderTextColor={colors.textMuted} />
+                </View>
+              </View>
+              {editDueDate && (
+                <View style={[styles.autoCloseInfo, { backgroundColor: darkMode ? colors.bgCard : colors.success + '15' }]}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.success} />
+                  <Text style={[styles.autoCloseText, { color: colors.success }]}>{t('add.autoClose')}: {t('add.day')} {String((parseInt(editDueDate, 10) - 7 <= 0 ? parseInt(editDueDate, 10) - 7 + 30 : parseInt(editDueDate, 10) - 7)).padStart(2, '0')}</Text>
+                </View>
               )}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardColor')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScrollContent}>
+                  {(cardGradients || []).map((gradObj) => { const isSelected = editGradient === gradObj.class; const isTemplate = gradObj.type === 'template'; const isSolid = gradObj.type === 'solid'; const gradientColors = getCardGradientColors(gradObj.class); const templateImage = isTemplate ? getCardTemplateImage(gradObj.class) : null; return (
+                    <TouchableOpacity key={gradObj.class} onPress={() => setEditGradient(gradObj.class)} style={[styles.colorCircle, isSelected && [styles.colorCircleSelected, { borderColor: colors.primary }]]} activeOpacity={0.8}>
+                      {isTemplate && templateImage ? <ImageBackground source={templateImage} style={styles.colorCirclePreview} imageStyle={{ borderRadius: 24 }}><View style={styles.templateOverlayCircle}><Text style={styles.templateLabelCircle}>IMG</Text></View></ImageBackground> : isSolid ? <View style={[styles.colorCirclePreview, { backgroundColor: gradientColors[0] }]}><Text style={styles.solidLabelCircle}>S</Text></View> : <LinearGradient colors={gradientColors} style={styles.colorCirclePreview} />}
+                      {isSelected && <View style={styles.checkOverlay}><Ionicons name="checkmark" size={18} color="#FFF" /></View>}
+                    </TouchableOpacity>
+                  ); })}
+                </ScrollView>
+              </View>
+              <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary }]} onPress={handleEditCard}><Text style={styles.submitText}>{t('cards.saveChanges')}</Text></TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </ModalContent>
       </Modal>
 
-      {/* Edit Modal */}
-      <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('cards.editCard')}</Text>
-                <TouchableOpacity onPress={() => setEditModalVisible(false)}><Ionicons name="close" size={24} color={colors.textPrimary} /></TouchableOpacity>
-              </View>
-              <ScrollView 
-                showsVerticalScrollIndicator={false} 
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingBottom: 60 }}
-              >
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardName')}</Text>
-                  <TouchableOpacity style={[styles.bankSelector, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]} onPress={() => { setBankModalMode('edit'); setBankSearch(''); setBankModalVisible(true); }}>
-                    {editBank ? <Text style={[styles.bankSelectorText, { color: colors.textPrimary }]}>{editBank.name}</Text> : <Text style={[styles.bankSelectorPlaceholder, { color: colors.textMuted }]}>{t('add.selectBank')}</Text>}
-                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.formRow}>
-                  <View style={[styles.formGroup, { flex: 1 }]}>
-                    <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.limit')}</Text>
-                    <TextInput 
-                      style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} 
-                      value={editLimit} 
-                      onChangeText={(text) => setEditLimit(formatCurrencyInput(text))} 
-                      keyboardType="decimal-pad" 
-                      placeholder="R$ 0,00" 
-                      placeholderTextColor={colors.textMuted} 
-                    />
-                  </View>
-                  <View style={[styles.formGroup, { flex: 1 }]}>
-                    <Text style={[styles.label, { color: colors.textPrimary }]}>Dia de Vencimento</Text>
-                    <TextInput style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} value={editDueDate} onChangeText={(text) => { const numeric = text.replace(/[^0-9]/g, ''); const day = parseInt(numeric, 10); if (numeric === '') setEditDueDate(''); else if (day >= 1 && day <= 31) setEditDueDate(numeric); else if (numeric.length <= 2) setEditDueDate(numeric); }} keyboardType="numeric" maxLength={2} placeholder="DD" placeholderTextColor={colors.textMuted} />
-                  </View>
-                </View>
-                {editDueDate && (
-                  <View style={[styles.autoCloseInfo, { backgroundColor: darkMode ? colors.bgCard : colors.success + '15' }]}>
-                    <Ionicons name="information-circle-outline" size={16} color={colors.success} />
-                    <Text style={[styles.autoCloseText, { color: colors.success }]}>{t('add.autoClose')}: {t('add.day')} {String((parseInt(editDueDate, 10) - 7 <= 0 ? parseInt(editDueDate, 10) - 7 + 30 : parseInt(editDueDate, 10) - 7)).padStart(2, '0')}</Text>
-                  </View>
-                )}
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardColor')}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScrollContent}>
-                    {(cardGradients || []).map((gradObj) => { const isSelected = editGradient === gradObj.class; const isTemplate = gradObj.type === 'template'; const isSolid = gradObj.type === 'solid'; const gradientColors = getCardGradientColors(gradObj.class); const templateImage = isTemplate ? getCardTemplateImage(gradObj.class) : null; return (
-                      <TouchableOpacity key={gradObj.class} onPress={() => setEditGradient(gradObj.class)} style={[styles.colorCircle, isSelected && [styles.colorCircleSelected, { borderColor: colors.primary }]]} activeOpacity={0.8}>
-                        {isTemplate && templateImage ? <ImageBackground source={templateImage} style={styles.colorCirclePreview} imageStyle={{ borderRadius: 24 }}><View style={styles.templateOverlayCircle}><Text style={styles.templateLabelCircle}>IMG</Text></View></ImageBackground> : isSolid ? <View style={[styles.colorCirclePreview, { backgroundColor: gradientColors[0] }]}><Text style={styles.solidLabelCircle}>S</Text></View> : <LinearGradient colors={gradientColors} style={styles.colorCirclePreview} />}
-                        {isSelected && <View style={styles.checkOverlay}><Ionicons name="checkmark" size={18} color="#FFF" /></View>}
-                      </TouchableOpacity>
-                    ); })}
-                  </ScrollView>
-                </View>
-                <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary }]} onPress={handleEditCard}><Text style={styles.submitText}>{t('cards.saveChanges')}</Text></TouchableOpacity>
-              </ScrollView>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Add Modal */}
+      {/* Add Modal — CORREÇÃO: ModalContent em vez de KeyboardAvoidingView */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => { setModalVisible(false); resetForm(); }}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('cards.addCard')}</Text>
-                <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); }}><Ionicons name="close" size={24} color={colors.textPrimary} /></TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 60 }}>
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardName')}</Text>
-                  <TouchableOpacity style={[styles.bankSelector, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]} onPress={() => { setBankModalMode('add'); setBankSearch(''); setBankModalVisible(true); }}>
-                    {selectedBank ? <Text style={[styles.bankSelectorText, { color: colors.textPrimary }]}>{selectedBank.name}</Text> : <Text style={[styles.bankSelectorPlaceholder, { color: colors.textMuted }]}>{t('add.selectBank')}</Text>}
-                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardNumber')}</Text>
-                  <TextInput style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} value={number} onChangeText={setNumber} keyboardType="numeric" maxLength={4} placeholder="0000" placeholderTextColor={colors.textMuted} />
-                </View>
-                <View style={styles.formRow}>
-                  <View style={[styles.formGroup, { flex: 1 }]}>
-                    <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.limit')}</Text>
-                    <TextInput 
-                      style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} 
-                      value={limit} 
-                      onChangeText={(text) => setLimit(formatCurrencyInput(text))} 
-                      keyboardType="decimal-pad" 
-                      placeholder="R$ 0,00" 
-                      placeholderTextColor={colors.textMuted} 
-                    />
-                  </View>
-                  <View style={[styles.formGroup, { flex: 1 }]}>
-                    <Text style={[styles.label, { color: colors.textPrimary }]}>Dia de Vencimento</Text>
-                    <TextInput style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} value={dueDate} onChangeText={(text) => { const numeric = text.replace(/[^0-9]/g, ''); const day = parseInt(numeric, 10); if (numeric === '') setDueDate(''); else if (day >= 1 && day <= 31) setDueDate(numeric); else if (numeric.length <= 2) setDueDate(numeric); }} keyboardType="numeric" maxLength={2} placeholder="DD" placeholderTextColor={colors.textMuted} />
-                  </View>
-                </View>
-                {dueDate && (
-                  <View style={[styles.autoCloseInfo, { backgroundColor: darkMode ? colors.bgCard : colors.success + '15' }]}>
-                    <Ionicons name="information-circle-outline" size={16} color={colors.success} />
-                    <Text style={[styles.autoCloseText, { color: colors.success }]}>{t('add.autoClose')}: {t('add.day')} {String((parseInt(dueDate, 10) - 7 <= 0 ? parseInt(dueDate, 10) - 7 + 30 : parseInt(dueDate, 10) - 7)).padStart(2, '0')}</Text>
-                  </View>
-                )}
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardColor')}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScrollContent}>
-                    {(cardGradients || []).map((gradObj) => { const isSelected = selectedGradient === gradObj.class; const isTemplate = gradObj.type === 'template'; const isSolid = gradObj.type === 'solid'; const gradientColors = getCardGradientColors(gradObj.class); const templateImage = isTemplate ? getCardTemplateImage(gradObj.class) : null; return (
-                      <TouchableOpacity key={gradObj.class} onPress={() => setSelectedGradient(gradObj.class)} style={[styles.colorCircle, isSelected && [styles.colorCircleSelected, { borderColor: colors.primary }]]} activeOpacity={0.8}>
-                        {isTemplate && templateImage ? <ImageBackground source={templateImage} style={styles.colorCirclePreview} imageStyle={{ borderRadius: 24 }}><View style={styles.templateOverlayCircle}><Text style={styles.templateLabelCircle}>IMG</Text></View></ImageBackground> : isSolid ? <View style={[styles.colorCirclePreview, { backgroundColor: gradientColors[0] }]}><Text style={styles.solidLabelCircle}>S</Text></View> : <LinearGradient colors={gradientColors} style={styles.colorCirclePreview} />}
-                        {isSelected && <View style={styles.checkOverlay}><Ionicons name="checkmark" size={18} color="#FFF" /></View>}
-                      </TouchableOpacity>
-                    ); })}
-                  </ScrollView>
-                </View>
-                <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary }]} onPress={handleAddCard}><Text style={styles.submitText}>{t('cards.save')}</Text></TouchableOpacity>
-              </ScrollView>
+        <ModalContent scroll={true}>
+          <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{t('cards.addCard')}</Text>
+              <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); }}><Ionicons name="close" size={24} color={colors.textPrimary} /></TouchableOpacity>
             </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 60 }}>
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardName')}</Text>
+                <TouchableOpacity style={[styles.bankSelector, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]} onPress={() => { setBankModalMode('add'); setBankSearch(''); setBankModalVisible(true); }}>
+                  {selectedBank ? <Text style={[styles.bankSelectorText, { color: colors.textPrimary }]}>{selectedBank.name}</Text> : <Text style={[styles.bankSelectorPlaceholder, { color: colors.textMuted }]}>{t('add.selectBank')}</Text>}
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardNumber')}</Text>
+                <TextInput style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} value={number} onChangeText={setNumber} keyboardType="numeric" maxLength={4} placeholder="0000" placeholderTextColor={colors.textMuted} />
+              </View>
+              <View style={styles.formRow}>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.limit')}</Text>
+                  <TextInput 
+                    style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} 
+                    value={limit} 
+                    onChangeText={(text) => setLimit(formatCurrencyInput(text))} 
+                    keyboardType="decimal-pad" 
+                    placeholder="R$ 0,00" 
+                    placeholderTextColor={colors.textMuted} 
+                  />
+                </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.textPrimary }]}>Dia de Vencimento</Text>
+                  <TextInput style={[styles.input, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary, color: colors.textPrimary }]} value={dueDate} onChangeText={(text) => { const numeric = text.replace(/[^0-9]/g, ''); const day = parseInt(numeric, 10); if (numeric === '') setDueDate(''); else if (day >= 1 && day <= 31) setDueDate(numeric); else if (numeric.length <= 2) setDueDate(numeric); }} keyboardType="numeric" maxLength={2} placeholder="DD" placeholderTextColor={colors.textMuted} />
+                </View>
+              </View>
+              {dueDate && (
+                <View style={[styles.autoCloseInfo, { backgroundColor: darkMode ? colors.bgCard : colors.success + '15' }]}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.success} />
+                  <Text style={[styles.autoCloseText, { color: colors.success }]}>{t('add.autoClose')}: {t('add.day')} {String((parseInt(dueDate, 10) - 7 <= 0 ? parseInt(dueDate, 10) - 7 + 30 : parseInt(dueDate, 10) - 7)).padStart(2, '0')}</Text>
+                </View>
+              )}
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.textPrimary }]}>{t('cards.cardColor')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScrollContent}>
+                  {(cardGradients || []).map((gradObj) => { const isSelected = selectedGradient === gradObj.class; const isTemplate = gradObj.type === 'template'; const isSolid = gradObj.type === 'solid'; const gradientColors = getCardGradientColors(gradObj.class); const templateImage = isTemplate ? getCardTemplateImage(gradObj.class) : null; return (
+                    <TouchableOpacity key={gradObj.class} onPress={() => setSelectedGradient(gradObj.class)} style={[styles.colorCircle, isSelected && [styles.colorCircleSelected, { borderColor: colors.primary }]]} activeOpacity={0.8}>
+                      {isTemplate && templateImage ? <ImageBackground source={templateImage} style={styles.colorCirclePreview} imageStyle={{ borderRadius: 24 }}><View style={styles.templateOverlayCircle}><Text style={styles.templateLabelCircle}>IMG</Text></View></ImageBackground> : isSolid ? <View style={[styles.colorCirclePreview, { backgroundColor: gradientColors[0] }]}><Text style={styles.solidLabelCircle}>S</Text></View> : <LinearGradient colors={gradientColors} style={styles.colorCirclePreview} />}
+                      {isSelected && <View style={styles.checkOverlay}><Ionicons name="checkmark" size={18} color="#FFF" /></View>}
+                    </TouchableOpacity>
+                  ); })}
+                </ScrollView>
+              </View>
+              <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary }]} onPress={handleAddCard}><Text style={styles.submitText}>{t('cards.save')}</Text></TouchableOpacity>
+            </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalContent>
       </Modal>
 
-      {/* Bank Modal */}
+      {/* Bank Modal — sem KeyboardAvoidingView (não tem inputs que abrem teclado) */}
       <Modal visible={bankModalVisible} animationType="slide" transparent onRequestClose={() => setBankModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>

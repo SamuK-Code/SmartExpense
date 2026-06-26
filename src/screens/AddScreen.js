@@ -1,7 +1,7 @@
 // AddScreen.js — COM INDICADOR DE PRÓXIMA FATURA + CORREÇÕES DE MODAL E INPUT DE MOEDA
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
@@ -9,6 +9,7 @@ import { useTranslate } from '../hooks/useTranslate';
 import { useCircle } from '../context/CircleContext';
 import { formatCurrency, isAfterClosingDate, getInvoiceMonth, formatInvoiceMonth } from '../utils/helpers';
 import Toast from '../components/Toast';
+import ModalContent from '../components/ModalKeyboardSafe';
 
 const AddScreen = () => {
   const { categories, cards, transactions, addTransaction, getCardUsage, cashBalance, updateCashBalance, editTransaction, mergedCards, mergedTransactions } = useApp();
@@ -355,17 +356,14 @@ const AddScreen = () => {
         <Ionicons name={fabOpen ? 'close' : 'add'} size={28} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* Modal */}
+      {/* Modal — CORREÇÃO: Usando ModalContent em vez de KeyboardAvoidingView */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
+        <ModalContent scroll={true}>
           <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
@@ -600,7 +598,7 @@ const AddScreen = () => {
               <View style={{ height: 40 }} />
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalContent>
       </Modal>
 
       <Toast {...toast} onHide={() => setToast({ ...toast, visible: false })} />

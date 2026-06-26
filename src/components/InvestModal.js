@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, TouchableOpacity, TextInput, Modal,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import ModalContent from '../components/ModalKeyboardSafe';
 
 const InvestModal = ({ visible, onClose, goal, type, balance, onConfirm, colors }) => {
   const [amount, setAmount] = useState('');
@@ -52,7 +53,7 @@ const InvestModal = ({ visible, onClose, goal, type, balance, onConfirm, colors 
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <ModalContent>
         <View style={styles.overlay}>
           <View style={[styles.content, { backgroundColor: colors?.background || '#FFF' }]}>
             {/* Header */}
@@ -124,7 +125,7 @@ const InvestModal = ({ visible, onClose, goal, type, balance, onConfirm, colors 
             </Text>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </ModalContent>
     </Modal>
   );
 };

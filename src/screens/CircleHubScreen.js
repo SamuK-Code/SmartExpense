@@ -21,6 +21,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useCircle } from '../context/CircleContext';
+import ModalContent from '../components/ModalKeyboardSafe';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslate } from '../hooks/useTranslate';
@@ -1225,10 +1226,7 @@ export default function CircleHubScreen() {
         visible={editNameModalVisible}
         onRequestClose={() => setEditNameModalVisible(false)}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
+        <ModalContent style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
               Editar Nome do Círculo
@@ -1271,7 +1269,7 @@ export default function CircleHubScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+        </ModalContent>
       </Modal>
 
       {/* ═══ MODAL: LOG DE ATIVIDADE ═══ */}

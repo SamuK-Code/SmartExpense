@@ -545,13 +545,13 @@ export const AppProvider = ({ children }) => {
     return true;
   }, [playSound]);
 
-  const completeGoal = useCallback((goalId) => {
+  const completeGoal = useCallback((goalId, extra = {}) => {
     const goal = goalsRef.current.find(g => g.id === goalId);
     if (!goal || goal.current < goal.target) return false;
 
     const completedGoal = {
       ...goal,
-      completedAt: new Date().toISOString(),
+      completedAt: extra.completedAt || new Date().toISOString(),
     };
 
     setCompletedGoals(prev => [...prev, completedGoal]);

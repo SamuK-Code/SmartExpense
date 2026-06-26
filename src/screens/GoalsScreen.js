@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Modal, TextInput, KeyboardAvoidingView, Platform,
+  Modal, TextInput,
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +17,7 @@ import GoalCard, { GOAL_ICONS } from '../components/GoalCard';
 import InvestModal from '../components/InvestModal';
 import CompletedGoalsModal from '../components/CompletedGoalsModal';
 import Toast from '../components/Toast';
+import ModalContent from '../components/ModalKeyboardSafe';
 
 const GoalsScreen = () => {
   const navigation = useNavigation();
@@ -72,7 +73,7 @@ const GoalsScreen = () => {
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [completedModalVisible, setCompletedModalVisible] = useState(false);
   const [investModalVisible, setInvestModalVisible] = useState(false);
-  const [iconPickerVisible, setIconPickerVisible] = useState(false);
+
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [investType, setInvestType] = useState('deposit');
 
@@ -80,7 +81,7 @@ const GoalsScreen = () => {
   const [newGoalName, setNewGoalName] = useState('');
   const [newGoalTarget, setNewGoalTarget] = useState('');
   const [newGoalInitial, setNewGoalInitial] = useState('');
-  const [newGoalDeadline, setNewGoalDeadline] = useState('');
+
   const [newGoalIcon, setNewGoalIcon] = useState('flag');
   const [newGoalColor, setNewGoalColor] = useState('#6366F1');
 
@@ -125,14 +126,13 @@ const GoalsScreen = () => {
       name: newGoalName.trim(),
       target: targetValue,
       currentAmount: initialValue,
-      deadline: newGoalDeadline || null,
       icon: newGoalIcon,
       color: newGoalColor,
     });
     setNewGoalName('');
     setNewGoalTarget('');
     setNewGoalInitial('');
-    setNewGoalDeadline('');
+
     setNewGoalIcon('flag');
     setNewGoalColor('#6366F1');
     setAddModalVisible(false);
@@ -160,7 +160,7 @@ const GoalsScreen = () => {
       showToast(t('common.noPermission'), 'error');
       return;
     }
-    const success = completeGoal(goal.id);
+    const success = completeGoal(goal.id, { completedAt: new Date().toISOString() });
     if (success) {
       showToast(`🎉 "${goal.name}" ${t('goals.completedShort').toLowerCase()}!`, 'success');
     }
@@ -351,12 +351,9 @@ const GoalsScreen = () => {
         )}
       </ScrollView>
 
-      {/* ═══════ MODAL ADICIONAR META — Design da versão anterior + campos extras ═══════ */}
+      {/* ═══════ MODAL ADICIONAR META — CORREÇÃO: ModalContent em vez de KeyboardAvoidingView ═══════ */}
       <Modal visible={addModalVisible} animationType="slide" transparent onRequestClose={() => setAddModalVisible(false)}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
+        <ModalContent scroll={true}>
           <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
@@ -404,27 +401,34 @@ const GoalsScreen = () => {
                 </View>
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('goals.deadline')}</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                  value={newGoalDeadline}
-                  onChangeText={setNewGoalDeadline}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                />
-              </View>
-
-              {/* Ícone — Preview + Modal separado (design anterior) */}
+              {/* Ícone — Lista horizontal inline */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('goals.icon')}</Text>
-                <TouchableOpacity
-                  style={[styles.iconPreview, { backgroundColor: (newGoalColor || colors.primary) + '15' }]}
-                  onPress={() => setIconPickerVisible(true)}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.iconRowInline}
                 >
-                  <Ionicons name={newGoalIcon} size={28} color={newGoalColor || colors.primary} />
-                  <Text style={{ color: colors.textSecondary, marginLeft: 10 }}>{t('goals.chooseIcon')}</Text>
-                </TouchableOpacity>
+                  {(GOAL_ICONS || []).map(icon => (
+                    <TouchableOpacity
+                      key={icon}
+                      style={[
+                        styles.iconOptionInline,
+                        {
+                          backgroundColor: newGoalIcon === icon ? (newGoalColor || colors.primary) + '20' : colors.bgTertiary,
+                          borderColor: newGoalIcon === icon ? (newGoalColor || colors.primary) : 'transparent'
+                        },
+                      ]}
+                      onPress={() => setNewGoalIcon(icon)}
+                    >
+                      <Ionicons
+                        name={icon}
+                        size={22}
+                        color={newGoalIcon === icon ? (newGoalColor || colors.primary) : colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
 
               {/* Cor — Lista horizontal (design anterior) */}
@@ -459,57 +463,7 @@ const GoalsScreen = () => {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ═══════ MODAL SELECIONAR ÍCONE — Design da versão anterior ═══════ */}
-      <Modal
-        animationType="slide"
-        transparent
-        visible={iconPickerVisible}
-        onRequestClose={() => setIconPickerVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.iconPickerContent, { backgroundColor: colors.bgCard }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                <Ionicons name="apps" size={20} color={colors.primary} />  {t('goals.chooseIcon')}
-              </Text>
-              <TouchableOpacity onPress={() => setIconPickerVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.iconGridHorizontal}
-            >
-              {(GOAL_ICONS || []).map(icon => (
-                <TouchableOpacity
-                  key={icon}
-                  style={[
-                    styles.iconOptionHorizontal,
-                    {
-                      backgroundColor: newGoalIcon === icon ? (newGoalColor || colors.primary) + '20' : colors.bgTertiary,
-                      borderColor: newGoalIcon === icon ? (newGoalColor || colors.primary) : 'transparent'
-                    },
-                  ]}
-                  onPress={() => {
-                    setNewGoalIcon(icon);
-                    setIconPickerVisible(false);
-                  }}
-                >
-                  <Ionicons
-                    name={icon}
-                    size={24}
-                    color={newGoalIcon === icon ? (newGoalColor || colors.primary) : colors.textMuted}
-                  />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
+        </ModalContent>
       </Modal>
 
       {/* ═══════ MODAL INVESTIR/RETIRAR ═══════ */}
@@ -767,28 +721,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Icon Picker — Visual da versão anterior
-  iconPickerContent: {
-    flex: 1,
-    marginTop: 60,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-  },
-  iconGridHorizontal: {
+  // Ícones inline no modal principal
+  iconRowInline: {
     flexDirection: 'row',
     gap: 8,
-    paddingBottom: 40,
-    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  iconOptionHorizontal: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+  iconOptionInline: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    marginRight: 8,
+    borderColor: 'transparent',
   },
 });
 

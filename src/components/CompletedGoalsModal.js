@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 const CompletedGoalsModal = ({ visible, onClose, goals, colors, onDelete }) => {
-  if (!visible) return null;
 
   const sorted = [...(goals || [])].sort((a, b) => {
     return new Date(b.completedAt || 0) - new Date(a.completedAt || 0);
@@ -31,33 +30,34 @@ const CompletedGoalsModal = ({ visible, onClose, goals, colors, onDelete }) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors?.background || '#FFF' }]}>
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+      <View style={[styles.container, { backgroundColor: colors?.bgPrimary || '#FFF' }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors?.border || '#E5E7EB', backgroundColor: colors?.card || '#FFF' }]}>
+      <View style={[styles.header, { borderBottomColor: colors?.border || '#E5E7EB', backgroundColor: colors?.bgCard || '#FFF' }]}>
         <TouchableOpacity style={styles.backBtn} onPress={onClose}>
-          <Ionicons name="arrow-back" size={24} color={colors?.text || '#000'} />
+          <Ionicons name="arrow-back" size={24} color={colors?.textPrimary || '#000'} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors?.text || '#000' }]}>Metas Concluídas</Text>
+        <Text style={[styles.headerTitle, { color: colors?.textPrimary || '#000' }]}>Metas Concluídas</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {sorted.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="trophy-outline" size={48} color={colors?.muted || '#94A3B8'} />
-            <Text style={[styles.emptyTitle, { color: colors?.text || '#000' }]}>Nenhuma meta concluída</Text>
-            <Text style={[styles.emptySub, { color: colors?.muted || '#94A3B8' }]}>
+            <Ionicons name="trophy-outline" size={48} color={colors?.textMuted || '#94A3B8'} />
+            <Text style={[styles.emptyTitle, { color: colors?.textPrimary || '#000' }]}>Nenhuma meta concluída</Text>
+            <Text style={[styles.emptySub, { color: colors?.textMuted || '#94A3B8' }]}>
               Continue investindo nas suas metas para vê-las aqui!
             </Text>
           </View>
         ) : (
           <View style={styles.list}>
-            <Text style={[styles.count, { color: colors?.muted || '#94A3B8' }]}>
+            <Text style={[styles.count, { color: colors?.textMuted || '#94A3B8' }]}>
               {sorted.length} {sorted.length === 1 ? 'meta concluída' : 'metas concluídas'}
             </Text>
 
             {sorted.map((goal, index) => (
-              <View key={goal.id} style={[styles.card, { backgroundColor: colors?.card || '#F8FAFC', shadowColor: '#000' }]}>
+              <View key={goal.id} style={[styles.card, { backgroundColor: colors?.bgCard || '#F8FAFC', shadowColor: '#000' }]}>
                 {/* Rank */}
                 <View style={[styles.rank, { backgroundColor: (goal.color || colors?.primary || '#6366F1') + '15' }]}>
                   <Text style={[styles.rankText, { color: goal.color || colors?.primary || '#6366F1' }]}>
@@ -72,8 +72,8 @@ const CompletedGoalsModal = ({ visible, onClose, goals, colors, onDelete }) => {
                       <Ionicons name={goal.icon || 'trophy'} size={22} color={goal.color || colors?.primary || '#6366F1'} />
                     </View>
                     <View style={styles.titleSection}>
-                      <Text style={[styles.goalName, { color: colors?.text || '#000' }]} numberOfLines={1}>{goal.name}</Text>
-                      <Text style={[styles.goalTarget, { color: colors?.muted || '#94A3B8' }]}>
+                      <Text style={[styles.goalName, { color: colors?.textPrimary || '#000' }]} numberOfLines={1}>{goal.name}</Text>
+                      <Text style={[styles.goalTarget, { color: colors?.textMuted || '#94A3B8' }]}>
                         {formatCurrency(goal.targetAmount || goal.target || 0)}
                       </Text>
                     </View>
@@ -90,14 +90,14 @@ const CompletedGoalsModal = ({ visible, onClose, goals, colors, onDelete }) => {
                   {/* Dates */}
                   <View style={styles.dates}>
                     <View style={styles.dateItem}>
-                      <Ionicons name="calendar-outline" size={12} color={colors?.muted || '#94A3B8'} />
-                      <Text style={[styles.dateText, { color: colors?.muted || '#94A3B8' }]}>
+                      <Ionicons name="calendar-outline" size={12} color={colors?.textMuted || '#94A3B8'} />
+                      <Text style={[styles.dateText, { color: colors?.textMuted || '#94A3B8' }]}>
                         Início: {formatDate(goal.createdAt)}
                       </Text>
                     </View>
                     <View style={styles.dateItem}>
-                      <Ionicons name="checkmark-circle-outline" size={12} color={colors?.muted || '#94A3B8'} />
-                      <Text style={[styles.dateText, { color: colors?.muted || '#94A3B8' }]}>
+                      <Ionicons name="checkmark-circle-outline" size={12} color={colors?.textMuted || '#94A3B8'} />
+                      <Text style={[styles.dateText, { color: colors?.textMuted || '#94A3B8' }]}>
                         Conclusão: {formatDate(goal.completedAt)}
                       </Text>
                     </View>
@@ -124,7 +124,8 @@ const CompletedGoalsModal = ({ visible, onClose, goals, colors, onDelete }) => {
           </View>
         )}
       </ScrollView>
-    </View>
+      </View>
+    </Modal>
   );
 };
 

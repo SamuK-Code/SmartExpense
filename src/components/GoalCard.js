@@ -113,10 +113,16 @@ const GoalCard = ({ goal, onInvest, onWithdraw, onComplete, onDelete, canEdit = 
         </View>
       </View>
 
-      {/* Info: Dias (design antigo) */}
-      <Text style={[styles.daysText, { color: colors.textMuted }]}>
-        <Ionicons name="time-outline" size={12} /> {daysSince} {daysSince === 1 ? 'dia' : 'dias'} desde o início
-      </Text>
+      {/* Info: Dias desde início OU data de conclusão */}
+      {goal.completed && goal.completedAt ? (
+        <Text style={[styles.daysText, { color: colors.success }]}>
+          <Ionicons name="checkmark-circle" size={12} /> Concluída em {new Date(goal.completedAt).toLocaleDateString('pt-BR')}
+        </Text>
+      ) : (
+        <Text style={[styles.daysText, { color: colors.textMuted }]}>
+          <Ionicons name="time-outline" size={12} /> {daysSince} {daysSince === 1 ? 'dia' : 'dias'} desde o início
+        </Text>
+      )}
 
       {/* Actions — outline style do antigo + todas as funcionalidades do recente */}
       {canEdit && (
