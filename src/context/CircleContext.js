@@ -661,17 +661,16 @@ export const CircleProvider = ({ children }) => {
   };
 
   const switchCircle = async (circleId) => {
-  // Se circleId for null, desseleciona o círculo (volta para "Meus Dados")
-  if (circleId === null) {
-    setCurrentCircle(null);
-    await AsyncStorage.removeItem(STORAGE_KEYS.currentCircle);
-    stopRealTimeSubscriptions();
-    stopAutoSync();
-    setSyncEnabled(false);
-    return { success: true };
-  }
+    if (circleId === null) {
+      setCurrentCircle(null);
+      await AsyncStorage.removeItem(STORAGE_KEYS.currentCircle);
+      stopRealTimeSubscriptions();
+      stopAutoSync();
+      setSyncEnabled(false);
+      return { success: true };
+    }
 
-  const circle = myCircles.find(c => c.id === circleId);
+    const circle = myCircles.find(c => c.id === circleId);
     if (!circle) return { error: 'Círculo não encontrado' };
 
     setCurrentCircle(circle);
@@ -710,6 +709,47 @@ export const CircleProvider = ({ children }) => {
     } catch (e) {
       console.warn('[CircleContext] Erro ao gerar código:', e);
       return { error: e.message || 'Erro ao gerar código' };
+    }
+  };
+
+  const updateCircleName = async (circleId, newName) => {
+    if (!currentUser || !circleId) return { error: 'Sem permissão' };
+
+    const circle = myCircles.find(c => c.id === circleId);
+    if (!circle) return { error: 'Círculo não encontrado' };
+    if (circle.myRole !== 'admin') {
+      return { error: 'Apenas administradores podem editar o nome do círculo' };
+    }
+
+    const cleanName = sanitizeString(newName);
+    if (!cleanName || cleanName.length < 2) {
+      return { error: 'Nome do círculo inválido' };
+    }
+
+    try {
+      const { error } = await supabase
+        .from('circles')
+        .update({ name: cleanName })
+        .eq('id', circleId);
+
+      if (error) throw error;
+
+      const updatedCircle = { ...currentCircle, name: cleanName };
+      if (currentCircle?.id === circleId) {
+        setCurrentCircle(updatedCircle);
+        await saveToStorage(STORAGE_KEYS.currentCircle, updatedCircle);
+      }
+
+      const updatedCircles = myCircles.map(c =>
+        c.id === circleId ? { ...c, name: cleanName } : c
+      );
+      setMyCircles(updatedCircles);
+      await saveToStorage(STORAGE_KEYS.myCircles, updatedCircles);
+
+      return { success: true };
+    } catch (e) {
+      console.warn('[CircleContext] Erro ao atualizar nome:', e);
+      return { error: e.message || 'Erro ao atualizar nome' };
     }
   };
 
@@ -1106,6 +1146,7 @@ export const CircleProvider = ({ children }) => {
     leaveCircle,
     switchCircle,
     generateNewInviteCode,
+    updateCircleName,
     fetchCircleMembers,
 
     sharedCards,

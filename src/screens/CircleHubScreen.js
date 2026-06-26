@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { useCircle } from '../context/CircleContext';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
@@ -53,6 +54,7 @@ export default function CircleHubScreen() {
     leaveCircle,
     switchCircle,
     generateNewInviteCode,
+    updateCircleName,
     fetchCircleMembers,
 
     // Sharing
@@ -87,6 +89,10 @@ export default function CircleHubScreen() {
   const [shareType, setShareType] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
+
+  // ─── NEW: Edit Circle Name State ───
+  const [editNameModalVisible, setEditNameModalVisible] = useState(false);
+  const [editCircleName, setEditCircleName] = useState('');
 
   // ─── HELPERS ───
 
@@ -206,6 +212,43 @@ export default function CircleHubScreen() {
         t('common.newCodeGenerated') || 'Novo Código',
         `${t('groups.inviteCode')}: ${result.inviteCode}`
       );
+    }
+  };
+
+  // ─── NEW: COPY INVITE CODE ───
+  const handleCopyCode = async () => {
+    if (!currentCircle?.inviteCode) return;
+    try {
+      await Clipboard.setStringAsync(currentCircle.inviteCode);
+      Alert.alert(
+        t('common.success') || 'Sucesso',
+        'Código copiado para a área de transferência!'
+      );
+    } catch (e) {
+      Alert.alert(t('common.error'), 'Não foi possível copiar o código');
+    }
+  };
+
+  // ─── NEW: EDIT CIRCLE NAME ───
+  const openEditNameModal = () => {
+    if (!currentCircle) return;
+    if (currentCircle.myRole !== 'admin') {
+      Alert.alert(t('common.error'), 'Apenas administradores podem editar o nome');
+      return;
+    }
+    setEditCircleName(currentCircle.name);
+    setEditNameModalVisible(true);
+  };
+
+  const handleUpdateCircleName = async () => {
+    if (!editCircleName.trim() || !currentCircle) return;
+    const result = await updateCircleName(currentCircle.id, editCircleName.trim());
+    if (result.success) {
+      setEditNameModalVisible(false);
+      setEditCircleName('');
+      Alert.alert(t('common.success'), 'Nome do círculo atualizado!');
+    } else {
+      Alert.alert(t('common.error'), result.error);
     }
   };
 
@@ -656,9 +699,16 @@ export default function CircleHubScreen() {
                     <Ionicons name="people-circle" size={32} color={colors.primary} />
                   </View>
                   <View style={styles.currentCircleInfo}>
-                    <Text style={[styles.currentCircleName, { color: colors.textPrimary }]}>
-                      {currentCircle.name}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={[styles.currentCircleName, { color: colors.textPrimary }]}>
+                        {currentCircle.name}
+                      </Text>
+                      {currentCircle.myRole === 'admin' && (
+                        <TouchableOpacity onPress={openEditNameModal}>
+                          <Ionicons name="pencil" size={18} color={colors.primary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     <Text style={[styles.currentCircleRole, { color: colors.textSecondary }]}>
                       {currentCircle.myRole === 'admin' ? '👑 Administrador' : '👤 Membro'}
                     </Text>
@@ -675,15 +725,17 @@ export default function CircleHubScreen() {
                   </View>
                   <TouchableOpacity
                     style={styles.inviteCodeValueBox}
-                    onPress={() => {
-                      Alert.alert('Código de Convite', currentCircle.inviteCode);
-                    }}
+                    onPress={handleCopyCode}
+                    activeOpacity={0.7}
                   >
                     <Text style={[styles.inviteCodeValue, { color: colors.primary }]}>
                       {currentCircle.inviteCode}
                     </Text>
                     <Ionicons name="copy-outline" size={16} color={colors.primary} />
                   </TouchableOpacity>
+                  <Text style={[styles.copyHint, { color: colors.textMuted }]}>
+                    Toque para copiar
+                  </Text>
                 </View>
 
                 {/* Ações do Círculo */}
@@ -1166,6 +1218,62 @@ export default function CircleHubScreen() {
         </View>
       </Modal>
 
+      {/* ═══ MODAL: EDITAR NOME DO CÍRCULO ═══ */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={editNameModalVisible}
+        onRequestClose={() => setEditNameModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+              Editar Nome do Círculo
+            </Text>
+            <Text style={[styles.modalDesc, { color: colors.textSecondary }]}>
+              Escolha um novo nome para o círculo:
+            </Text>
+
+            <View style={[styles.inputContainer, { backgroundColor: colors.bgTertiary, marginBottom: 16 }]}>
+              <Ionicons name="people-circle-outline" size={20} color={colors.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: colors.textPrimary }]}
+                placeholder="Nome do círculo"
+                placeholderTextColor={colors.textSecondary}
+                value={editCircleName}
+                onChangeText={setEditCircleName}
+                autoFocus
+                maxLength={50}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.authButton, { backgroundColor: colors.primary }]}
+              onPress={handleUpdateCircleName}
+              disabled={!editCircleName.trim() || isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.authButtonText}>Salvar Nome</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.cancelButton, { backgroundColor: colors.danger + '15', marginTop: 10 }]}
+              onPress={() => setEditNameModalVisible(false)}
+            >
+              <Text style={[styles.cancelButtonText, { color: colors.danger }]}>
+                {t('common.cancel')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* ═══ MODAL: LOG DE ATIVIDADE ═══ */}
       <Modal
         animationType="slide"
@@ -1313,6 +1421,7 @@ const styles = StyleSheet.create({
   inviteCodeLabel: { fontSize: 13, fontWeight: '600' },
   inviteCodeValueBox: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   inviteCodeValue: { fontSize: 22, fontWeight: '700', letterSpacing: 2 },
+  copyHint: { fontSize: 11, textAlign: 'center', marginTop: 6 },
 
   circleActions: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   circleActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, flex: 1, justifyContent: 'center' },
