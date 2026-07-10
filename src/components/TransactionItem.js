@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '../context/ThemeContext';
 
-export default function TransactionItem({ transaction, onPress }) {
+export default function TransactionItem({ transaction, onPress, onLongPress }) {
   const { colors } = useTheme();
 
   const formatCurrency = (value) => {
@@ -54,6 +54,8 @@ export default function TransactionItem({ transaction, onPress }) {
     <TouchableOpacity 
       style={[styles.container, { backgroundColor: colors.bgCard }]} 
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
       activeOpacity={0.7}
     >
       <View style={[styles.iconContainer, { backgroundColor: getIconBg() }]}>

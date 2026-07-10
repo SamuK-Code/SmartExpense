@@ -281,7 +281,7 @@ export const AppProvider = ({ children }) => {
   // ÁUDIO & NOTIFICAÇÕES
   // ═══════════════════════════════════════════════════════════
 
-  const playSound = useCallback((type) => {
+  const playSound = useCallback(async (type) => {
     if (!soundEnabledRef.current[type]) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -300,8 +300,11 @@ export const AppProvider = ({ children }) => {
         return;
       }
 
-      // ✅ CORREÇÃO: replace() para tocar do início sem seekTo
-      player.replace();
+      // ✅ CORREÇÃO SDK 57: seekTo(0) + play() — padrão documentado do expo-audio
+      // NÃO usar replace() — exige AudioSource como argumento
+      // NÃO usar stop() — pode não estar disponível em todas as builds
+      player.seekTo(0);
+      player.play();
     } catch (e) {
       console.warn('[playSound] Erro ao tocar som:', e);
     }

@@ -1,10 +1,11 @@
-// HistoryScreen.js — Histórico Unificado com Círculos Financeiros (Arquivo 5/10)
+// HistoryScreen.js — Histórico Unificado com Círculos Financeiros
 // Agora mostra transações locais + compartilhadas com filtros por círculo e origem
+// NOVO: Menu de contexto no long-press para deletar (com confirmação)
 
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Dimensions, Alert, Animated
+  Dimensions, Alert, Modal
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { PieChart, BarChart } from 'react-native-chart-kit';
@@ -34,19 +35,62 @@ const HistoryScreen = () => {
 
   // Estados
   const [chartType, setChartType] = useState('pie');
-  const [filter, setFilter] = useState('all');         // all | expense | income | boleto
-  const [originFilter, setOriginFilter] = useState('all'); // all | local | shared
+  const [filter, setFilter] = useState('all');
+  const [originFilter, setOriginFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState(null);
-  const [circleFilter, setCircleFilter] = useState(null); // null = todos os círculos | 'local' = só local
+  const [circleFilter, setCircleFilter] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
-  const [showCircleFilter, setShowCircleFilter] = useState(false);
   const [splitModalVisible, setSplitModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  // ═══════════════════════════════════════════════════════════
+  // NOVO: MENU DE CONTEXTO (Long Press)
+  // ═══════════════════════════════════════════════════════════
+  const [contextMenu, setContextMenu] = useState({
+    visible: false,
+    transaction: null,
+  });
+
+  const openContextMenu = (tx) => {
+    setContextMenu({ visible: true, transaction: tx });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ visible: false, transaction: null });
+  };
+
+  const handleDeleteFromMenu = () => {
+    const tx = contextMenu.transaction;
+    closeContextMenu();
+    if (!tx) return;
+
+    // Verifica permissão para itens compartilhados
+    const info = getItemShareInfo ? getItemShareInfo(tx) : null;
+    if (tx && tx._sharedBy && !(info && info.canEdit)) {
+      showToast(t('common.noPermission'), 'error');
+      return;
+    }
+
+    Alert.alert(
+      t('history.confirmDeleteTitle'),
+      t('history.confirmDeleteMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            deleteTransaction(tx.id);
+            showToast(t('history.transactionDeleted'), 'warning');
+          }
+        },
+      ]
+    );
+  };
 
   // ── DETERMINAR POOL DE TRANSAÇÕES ──
   const txPool = useMemo(() => {
     if (!currentCircle) return transactions || [];
-    // Se estiver em um círculo, usa mergedTransactions filtrado por círculo
     return (mergedTransactions || []).filter(tx => !tx._circleId || tx._circleId === currentCircle.id);
   }, [currentCircle, transactions, mergedTransactions]);
 
@@ -57,14 +101,12 @@ const HistoryScreen = () => {
   const originFiltered = useMemo(() => {
     let pool = [...(txPool || [])];
 
-    // Filtro por origem (local vs compartilhado)
     if (originFilter === 'local') {
       pool = pool.filter(t => !t._circleId && !t._sharedBy);
     } else if (originFilter === 'shared') {
       pool = pool.filter(t => !!t._circleId || !!t._sharedBy);
     }
 
-    // Filtro por círculo específico (quando não há currentCircle ativo)
     if (circleFilter === 'local') {
       pool = pool.filter(t => !t._circleId);
     } else if (circleFilter && circleFilter !== 'all') {
@@ -86,7 +128,7 @@ const HistoryScreen = () => {
     }, 0);
   }, [monthTransactions]);
 
-  // ── TOTAIS POR CATEGORIA (apenas despesas do mês) ──
+  // ── TOTAIS POR CATEGORIA ──
   const categoryTotals = useMemo(() => {
     const totals = {};
     (monthTransactions || [])
@@ -136,33 +178,6 @@ const HistoryScreen = () => {
     setToast({ visible: true, message, type });
   };
 
-  const handleDelete = useCallback((id) => {
-    const tx = (originFiltered || []).find(t => t.id === id);
-    const info = getItemShareInfo ? getItemShareInfo(tx) : null;
-
-    // Não permite deletar itens compartilhados por outros
-    if (tx && tx._sharedBy && !(info && info.canEdit)) {
-      showToast(t('common.noPermission'), 'error');
-      return;
-    }
-
-    Alert.alert(
-      t('history.confirmDeleteTitle'),
-      t('history.confirmDeleteMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => {
-            deleteTransaction(id);
-            showToast(t('history.transactionDeleted'), 'warning');
-          }
-        },
-      ]
-    );
-  }, [originFiltered, getItemShareInfo, t, deleteTransaction]);
-
   const getSharedBadge = (item) => {
     if (!item) return null;
     const info = getItemShareInfo ? getItemShareInfo(item) : null;
@@ -207,6 +222,51 @@ const HistoryScreen = () => {
   // ── RENDER ──
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
+
+      {/* ═══════════════════════════════════════════════════════════
+          NOVO: MODAL DE MENU DE CONTEXTO (Long Press)
+          ═══════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={contextMenu.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeContextMenu}
+      >
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={closeContextMenu}
+        >
+          <View style={[styles.contextMenuCard, { backgroundColor: darkMode ? '#1E293B' : '#FFFFFF' }]}>
+            <Text style={[styles.contextMenuTitle, { color: colors.textMuted }]}>
+              {contextMenu.transaction?.desc || contextMenu.transaction?.description || 'Transação'}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.contextMenuItem}
+              onPress={handleDeleteFromMenu}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.danger} />
+              <Text style={[styles.contextMenuItemText, { color: colors.danger }]}>
+                {t('common.delete')}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.contextMenuDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.contextMenuItem}
+              onPress={closeContextMenu}
+            >
+              <Ionicons name="close-outline" size={20} color={colors.textMuted} />
+              <Text style={[styles.contextMenuItemText, { color: colors.textMuted }]}>
+                {t('common.cancel')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.bgCard }]}>
         <View style={styles.headerTop}>
@@ -227,10 +287,9 @@ const HistoryScreen = () => {
         contentContainerStyle={{ paddingBottom: 30 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ═══════ SELETOR DE ORIGEM / CÍRCULO ═══════ */}
+        {/* Seletor de Origem / Círculo */}
         <View style={styles.originBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {/* Filtro de origem */}
             {[
               { key: 'all', label: t('history.all'), icon: 'layers-outline' },
               { key: 'local', label: t('common.private'), icon: 'person-outline' },
@@ -265,10 +324,8 @@ const HistoryScreen = () => {
               </TouchableOpacity>
             ))}
 
-            {/* Separador */}
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-            {/* Filtro por círculo (quando não há currentCircle ativo) */}
             {!currentCircle && (myCircles || []).length > 0 && (
               <>
                 <TouchableOpacity
@@ -311,7 +368,7 @@ const HistoryScreen = () => {
           </ScrollView>
         </View>
 
-        {/* ═══════ ESTATÍSTICAS RÁPIDAS ═══════ */}
+        {/* Estatísticas Rápidas */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: darkMode ? colors.bgCard : colors.success + '15' }]}>
             <Ionicons name="arrow-up-circle" size={18} color={colors.success} />
@@ -330,7 +387,7 @@ const HistoryScreen = () => {
           </View>
         </View>
 
-        {/* ═══════ GRÁFICO ═══════ */}
+        {/* Gráfico */}
         <View style={[styles.chartSection, { backgroundColor: colors.bgCard }]}>
           <View style={styles.chartHeader}>
             <Text style={[styles.chartTitle, { color: colors.textPrimary }]}>{t('history.expensesByCategory')}</Text>
@@ -412,7 +469,7 @@ const HistoryScreen = () => {
           </Text>
         </View>
 
-        {/* ═══════ FILTROS POR TIPO ═══════ */}
+        {/* Filtros por Tipo */}
         <View style={styles.filterBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {[
@@ -447,7 +504,7 @@ const HistoryScreen = () => {
           </ScrollView>
         </View>
 
-        {/* ═══════ RESUMO DO PERÍODO ═══════ */}
+        {/* Resumo do Período */}
         <View style={styles.periodSummary}>
           <View style={[styles.periodCard, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
             <Text style={[styles.periodLabel, { color: colors.textMuted }]}>{t('history.period')}</Text>
@@ -465,7 +522,7 @@ const HistoryScreen = () => {
           </View>
         </View>
 
-        {/* ═══════ LISTA DE TRANSAÇÕES ═══════ */}
+        {/* Lista de Transações */}
         <View style={styles.transactionsList}>
           {(filteredTransactions || []).length === 0 ? (
             <View style={[styles.emptyState, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
@@ -475,13 +532,14 @@ const HistoryScreen = () => {
               </Text>
             </View>
           ) : (
-            (filteredTransactions || []).map((tx, index) => (
+            (filteredTransactions || []).map((tx) => (
               <View key={tx.id}>
                 <View style={styles.txRow}>
                   <View style={styles.txItemWrapper}>
+                    {/* NOVO: onLongPress abre menu de contexto */}
                     <TransactionItem
                       transaction={tx}
-                      onLongPress={() => handleDelete(tx.id)}
+                      onLongPress={() => openContextMenu(tx)}
                     />
                   </View>
                   <View style={styles.txBadges}>
@@ -493,7 +551,6 @@ const HistoryScreen = () => {
                   </View>
                 </View>
 
-                {/* Detalhes da divisão (expandido) */}
                 {tx.split && (
                   <View style={{ marginLeft: 12, marginRight: 4 }}>
                     <SplitExpenseItem
@@ -503,7 +560,6 @@ const HistoryScreen = () => {
                   </View>
                 )}
 
-                {/* Botão Dividir (só para despesas sem split) */}
                 {tx.type === 'expense' && !tx.split && (
                   <TouchableOpacity
                     style={[styles.splitBtn, { borderColor: colors.primary + '30' }]}
@@ -531,7 +587,6 @@ const HistoryScreen = () => {
         onSplit={handleSplitSave}
       />
 
-      {/* Toast */}
       <Toast
         visible={toast.visible}
         message={toast.message}
@@ -738,6 +793,53 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     marginRight: 12,
     alignSelf: 'flex-start',
+  },
+
+  // ═══════════════════════════════════════════════════
+  // NOVO: ESTILOS DO MENU DE CONTEXTO
+  // ═══════════════════════════════════════════════════
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  contextMenuCard: {
+    width: width * 0.75,
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  contextMenuTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  contextMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginHorizontal: 4,
+  },
+  contextMenuItemText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  contextMenuDivider: {
+    height: 1,
+    marginHorizontal: 12,
+    opacity: 0.5,
   },
 });
 
