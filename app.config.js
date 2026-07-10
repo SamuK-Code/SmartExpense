@@ -93,7 +93,7 @@ export default ({ config }) => {
         {
           icon: './assets/notification-icon.png',
           color: '#8B5CF6',
-          sounds: ['./assets/notification-sound.mp3'],
+          sounds: ['./assets/notification_sound.mp3'],
         },
       ],
     ],
