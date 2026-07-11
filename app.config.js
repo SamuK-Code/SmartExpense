@@ -91,7 +91,7 @@ export default ({ config }) => {
       [
         'expo-notifications',
         {
-          icon: './assets/notification-icon.png',
+          icon: './assets/notification_icon.png',
           color: '#8B5CF6',
           sounds: ['./assets/notification_sound.mp3'],
         },
