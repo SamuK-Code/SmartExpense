@@ -1,6 +1,6 @@
 {
-  "name": "financas-pro",
-  "version": "1.0.0",
+  "name": "smartexpense",
+  "version": "3.1.0",
   "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
@@ -26,7 +26,6 @@
     "expo-clipboard": "~57.0.0",
     "expo-constants": "~57.0.3",
     "expo-crypto": "~57.0.0",
-    "expo-dev-client": "~57.0.5",
     "expo-document-picker": "~57.0.0",
     "expo-file-system": "~57.0.0",
     "expo-haptics": "~57.0.0",
