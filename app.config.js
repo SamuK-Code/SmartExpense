@@ -1,6 +1,6 @@
-// app.config.js — Configuração completa do Expo (SDK 56)
-// Substitui o app.json — inclui TODOS os plugins do projeto original
-// Variáveis de ambiente: .env (local) → eas.json (preview) → EAS Secrets (production)
+// app.config.js — Configuração corrigida para Expo SDK 57
+// REMOVIDO: expo-widgets (sem código nativo), expo-quick-actions
+// CORRIGIDO: assetBundlePatterns mais específico
 
 import 'dotenv/config';
 
@@ -13,7 +13,12 @@ export default ({ config }) => {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'automatic',
-    assetBundlePatterns: ['**/*'],
+
+    // ✅ CORRIGIDO: assetBundlePatterns específico
+    assetBundlePatterns: [
+      'assets/**/*',
+      'src/assets/**/*',
+    ],
 
     ios: {
       supportsTablet: true,
@@ -33,8 +38,8 @@ export default ({ config }) => {
         'android.permission.FOREGROUND_SERVICE',
         'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
         'android.permission.CAMERA',
-        'android.permission.READ_EXTERNAL_STORAGE',
-        'android.permission.WRITE_EXTERNAL_STORAGE',
+        // ✅ REMOVIDO: permissões de storage obsoletas no Android 13+
+        // Usar expo-file-system ou expo-media-library no lugar
       ],
     },
 
@@ -54,13 +59,12 @@ export default ({ config }) => {
         'expo-build-properties',
         {
           android: {
-            extraProguardRules: '-keep class com.facebook.react.turbomodule.** { *; }',
+            // ✅ REMOVIDO: extraProguardRules (só necessário com New Architecture)
           },
         },
       ],
       'expo-asset',
       'expo-secure-store',
-      'expo-quick-actions',
       'expo-local-authentication',
       [
         'expo-camera',
@@ -77,18 +81,6 @@ export default ({ config }) => {
         },
       ],
       [
-        'expo-widgets',
-        {
-          widgets: [
-            {
-              name: 'FinanceWidget',
-              description: 'Resumo financeiro do SmartExpense',
-              widgetFamily: ['systemSmall', 'systemMedium', 'systemLarge'],
-            },
-          ],
-        },
-      ],
-      [
         'expo-notifications',
         {
           icon: './assets/notification_icon.png',
@@ -96,14 +88,14 @@ export default ({ config }) => {
           sounds: ['./assets/notification_sound.mp3'],
         },
       ],
+      // ✅ REMOVIDO: expo-widgets (sem implementação nativa)
+      // ✅ REMOVIDO: expo-quick-actions (sem configuração completa)
     ],
 
     extra: {
-      // EAS Project ID (necessário para builds)
       eas: {
         projectId: '47ff95c8-9aa9-4d0b-b858-850490d6e14b',
       },
-      // Variáveis de ambiente — preenchidas por .env, eas.json ou EAS Secrets
       SUPABASE_URL: process.env.SUPABASE_URL || '',
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
       GOOGLE_VISION_API_KEY: process.env.GOOGLE_VISION_API_KEY || '',
