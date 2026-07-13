@@ -6,7 +6,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Constants from 'expo-constants';
 import { useQuickActions, navigationRef } from './src/config/QuickActionsConfig';
-import WidgetService from './src/services/WidgetService';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { LanguageProvider } from './src/context/LanguageContext';
@@ -18,7 +17,7 @@ import SplashScreen from './src/components/SplashScreen';
 import LockScreen from './src/components/LockScreen';
 import { useApp } from './src/context/AppContext';
 
-// 🆕 Configuração de notificações (só em development builds, não no Expo Go)
+// Configuração de notificações (só em development builds, não no Expo Go)
 let Notifications = null;
 try {
   Notifications = require('expo-notifications');
@@ -49,10 +48,10 @@ function AppContent() {
     setShowSplash(false);
   }, []);
 
-  // 🆕 Quick Actions (atalhos no ícone) - agora seguro fora do NavigationContainer
+  // Quick Actions (atalhos no ícone) - agora seguro fora do NavigationContainer
   useQuickActions();
 
-  // 🆕 Solicita permissão de notificações na inicialização (só em development builds)
+  // Solicita permissão de notificações na inicialização (só em development builds)
   useEffect(() => {
     if (isExpoGo || !Notifications) return;
 
@@ -69,7 +68,7 @@ function AppContent() {
     requestNotificationPermission();
   }, []);
 
-  // 🆕 Listener de notificações (deep link quando tocar na notificação)
+  // Listener de notificações (deep link quando tocar na notificação)
   useEffect(() => {
     if (isExpoGo || !Notifications) return;
 
@@ -93,23 +92,6 @@ function AppContent() {
   useEffect(() => {
     if (showSplash) return;
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
-      // 🆕 Atualiza widget quando app volta do background (e não está bloqueado)
-      if (appStateVisible === 'background' && nextAppState === 'active' && !isLocked) {
-        try {
-          await WidgetService.updateWidgetData({
-            balance: '0,00',
-            expenses: '0,00',
-            income: '0,00',
-            pendingBoletos: 0,
-            nextInvoice: '--',
-            nextInvoiceValue: '0,00',
-            currencySymbol: 'R$',
-          });
-        } catch (e) {
-          // Silencioso
-        }
-      }
-
       if (appStateVisible === 'background' && nextAppState === 'active') {
         if (securitySettings?.lockOnBackground && securitySettings?.pinEnabled) {
           lockApp();
@@ -118,7 +100,7 @@ function AppContent() {
       setAppStateVisible(nextAppState);
     });
     return () => subscription.remove();
-  }, [appStateVisible, showSplash, securitySettings, lockApp, isLocked]);
+  }, [appStateVisible, showSplash, securitySettings, lockApp]);
 
   const navigationTheme = darkMode
     ? { ...DarkTheme, colors: { ...DarkTheme.colors, background: '#0F172A', card: '#1E293B', text: '#F1F5F9', border: '#334155' } }
@@ -128,7 +110,6 @@ function AppContent() {
     <>
       {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
       {isLocked && <LockScreen onUnlock={unlockApp} onDevMode={enableDevMode} />}
-      {/* 🆕 NavigationContainer com ref global para Quick Actions */}
       <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         <StatusBar style={darkMode ? 'light' : 'dark'} />
         <SafeAreaProvider>

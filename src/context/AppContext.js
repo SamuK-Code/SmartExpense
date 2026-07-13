@@ -8,7 +8,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
-import WidgetService from '../services/WidgetService';
 
 const AppContext = createContext();
 
@@ -528,21 +527,6 @@ export const AppProvider = ({ children }) => {
         maximumFractionDigits: 2,
       }).format(value || 0);
     };
-
-    try {
-      await WidgetService.updateWidgetData({
-        balance: formatCurrency(cashBalanceRef.current),
-        expenses: formatCurrency(monthExpenses),
-        income: formatCurrency(monthIncome),
-        pendingBoletos: pendingBoletos.length,
-        nextInvoice: nextCard ? `Vence em ${nextCardDays} dias` : '--',
-        nextInvoiceValue: formatCurrency(nextCardAmount),
-        currencySymbol: 'R$',
-      });
-    } catch (e) {
-      // Silencioso - widget pode não estar disponível
-      console.log('[Widget] Update skipped:', e.message);
-    }
   }, []);
 
   // ═══════════════════════════════════════════════════════════
