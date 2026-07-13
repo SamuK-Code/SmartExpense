@@ -1,7 +1,3 @@
-// app.config.js — Configuração corrigida para Expo SDK 57
-// REMOVIDO: expo-widgets (sem código nativo), expo-quick-actions
-// CORRIGIDO: assetBundlePatterns mais específico
-
 import 'dotenv/config';
 
 export default ({ config }) => {
@@ -9,12 +5,12 @@ export default ({ config }) => {
     ...config,
     name: 'SmartExpense',
     slug: 'smartexpense',
-    version: '3.1.0',
+    version: '3.5.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'automatic',
 
-    // ✅ CORRIGIDO: assetBundlePatterns específico
+    // ✅ assetBundlePatterns otimizado
     assetBundlePatterns: [
       'assets/**/*',
       'src/assets/**/*',
@@ -38,41 +34,16 @@ export default ({ config }) => {
         'android.permission.FOREGROUND_SERVICE',
         'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
         'android.permission.CAMERA',
-        // ✅ REMOVIDO: permissões de storage obsoletas no Android 13+
-        // Usar expo-file-system ou expo-media-library no lugar
       ],
     },
 
     plugins: [
       'expo-audio',
       'expo-sharing',
-      [
-        'expo-splash-screen',
-        {
-          image: './assets/splash.png',
-          resizeMode: 'contain',
-          backgroundColor: '#8B5CF6',
-        },
-      ],
       'expo-status-bar',
-      [
-        'expo-build-properties',
-        {
-          android: {
-            // ✅ REMOVIDO: extraProguardRules (só necessário com New Architecture)
-          },
-        },
-      ],
       'expo-asset',
       'expo-secure-store',
       'expo-local-authentication',
-      [
-        'expo-camera',
-        {
-          cameraPermission: 'Permitir que o SmartExpense acesse sua câmera para escanear comprovantes.',
-          microphonePermission: 'Permitir que o SmartExpense acesse o microfone para gravações.',
-        },
-      ],
       [
         'expo-image-picker',
         {
@@ -88,8 +59,6 @@ export default ({ config }) => {
           sounds: ['./assets/notification_sound.mp3'],
         },
       ],
-      // ✅ REMOVIDO: expo-widgets (sem implementação nativa)
-      // ✅ REMOVIDO: expo-quick-actions (sem configuração completa)
     ],
 
     extra: {

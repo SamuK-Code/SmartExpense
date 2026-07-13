@@ -1,6 +1,6 @@
 // OCRScanner.js — Scanner de Comprovantes (OCR)
-// Extrai valor e data de comprovantes sem salvar a imagem
-// Requer: API Key do Google Cloud Vision (gratuita até 1000 requests/mês)
+// ✅ SEGURANÇA: Agora usa Edge Function do Supabase em vez de API key direta no app
+// A Google Vision API key fica no servidor, nunca no cliente
 
 import React, { useState } from 'react';
 import {
@@ -10,28 +10,23 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslate } from '../hooks/useTranslate';
-import { GOOGLE_VISION_API_KEY } from '../config/env';
+import { supabase } from '../utils/supabase';
 
 const OCRScanner = ({ onResult, onClose, visible }) => {
   const { colors } = useTheme();
   const { t } = useTranslate();
   const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState(null);
-
-  const hasApiKey = GOOGLE_VISION_API_KEY.length > 10;
 
   const extractValue = (text) => {
-    // Padrões comuns de valor monetário em comprovantes brasileiros
     const patterns = [
-      /R\$\s*([\d.]+),\d{2}/gi,           // R$ 1.234,56
-      /R\$\s*([\d.]+)\.(\d{2})/gi,        // R$ 1.234.56
-      /VALOR[\s:]*R\$\s*([\d.,]+)/gi,     // VALOR: R$ 1.234,56
-      /TOTAL[\s:]*R\$\s*([\d.,]+)/gi,     // TOTAL: R$ 1.234,56
-      /R\$\s*([\d.,]+)/gi,                // R$ qualquer valor
-      /([\d.]+),\d{2}\s*reais/gi,         // 1.234,56 reais
-      /([\d.]+)\.(\d{2})/g,               // 1234.56 (formato americano)
+      /R\$\s*([\d.]+),\d{2}/gi,
+      /R\$\s*([\d.]+)\.(\d{2})/gi,
+      /VALOR[\s:]*R\$\s*([\d.,]+)/gi,
+      /TOTAL[\s:]*R\$\s*([\d.,]+)/gi,
+      /R\$\s*([\d.,]+)/gi,
+      /([\d.]+),\d{2}\s*reais/gi,
+      /([\d.]+)\.(\d{2})/g,
     ];
-
     let bestValue = 0;
     for (const pattern of patterns) {
       const matches = text.match(pattern);
@@ -57,17 +52,12 @@ const OCRScanner = ({ onResult, onClose, visible }) => {
 
   const extractDate = (text) => {
     const patterns = [
-      // DD/MM/YYYY ou DD/MM/YY
       /(\d{2})\/(\d{2})\/(\d{4})/g,
       /(\d{2})\/(\d{2})\/(\d{2})/g,
-      // DD-MM-YYYY
       /(\d{2})-(\d{2})-(\d{4})/g,
-      // YYYY-MM-DD (ISO)
       /(\d{4})-(\d{2})-(\d{2})/g,
-      // Texto: 15 de janeiro de 2024
       /(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})/gi,
     ];
-
     const monthsPt = {
       'janeiro': 1, 'fevereiro': 2, 'março': 3, 'abril': 4,
       'maio': 5, 'junho': 6, 'julho': 7, 'agosto': 8,
@@ -75,30 +65,24 @@ const OCRScanner = ({ onResult, onClose, visible }) => {
       'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6,
       'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12,
     };
-
     for (const pattern of patterns) {
       const matches = [...text.matchAll(pattern)];
       for (const match of matches) {
         let day, month, year;
-
         if (match[0].includes('de')) {
-          // Formato textual
           day = parseInt(match[1]);
           month = monthsPt[match[2].toLowerCase()];
           year = parseInt(match[3]);
         } else if (match[0].includes('-') && match[1].length === 4) {
-          // ISO YYYY-MM-DD
           year = parseInt(match[1]);
           month = parseInt(match[2]);
           day = parseInt(match[3]);
         } else {
-          // DD/MM/YYYY
           day = parseInt(match[1]);
           month = parseInt(match[2]);
           year = parseInt(match[3]);
           if (year < 100) year += 2000;
         }
-
         if (month && day && year && year >= 2020 && year <= 2035) {
           const date = new Date(year, month - 1, day);
           if (date.getMonth() === month - 1) {
@@ -110,44 +94,22 @@ const OCRScanner = ({ onResult, onClose, visible }) => {
     return null;
   };
 
-  const callGoogleVision = async (base64Image) => {
-    const body = {
-      requests: [{
-        image: { content: base64Image },
-        features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
-      }],
-    };
-
-    const response = await fetch(
-      `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }
-    );
-
-    const result = await response.json();
-
-    if (result.responses?.[0]?.error) {
-      throw new Error(result.responses[0].error.message);
-    }
-
-    return result.responses?.[0]?.textAnnotations?.[0]?.description || '';
+  // ✅ SEGURANÇA: Chama Edge Function do Supabase em vez de usar API key direta
+  const callOcrEdgeFunction = async (base64Image) => {
+    const { data, error } = await supabase.functions.invoke('ocr-scan', {
+      body: { imageBase64: base64Image },
+    });
+    if (error) throw new Error(error.message || 'Erro no servidor OCR');
+    if (!data || data.error) throw new Error(data?.error || 'Erro no OCR');
+    return data.text || '';
   };
 
   const processImage = async (base64Image) => {
     try {
-      const fullText = await callGoogleVision(base64Image);
-
-      if (!fullText) {
-        return null;
-      }
-
+      const fullText = await callOcrEdgeFunction(base64Image);
+      if (!fullText) return null;
       const amount = extractValue(fullText);
       const date = extractDate(fullText);
-
-      // Tentar extrair descrição (primeira linha que não seja data/valor)
       const lines = fullText.split('\n').filter(l => l.trim().length > 3);
       let description = '';
       for (const line of lines) {
@@ -163,7 +125,6 @@ const OCRScanner = ({ onResult, onClose, visible }) => {
           break;
         }
       }
-
       return { amount, date, description, rawText: fullText };
     } catch (error) {
       console.warn('[OCR] Erro:', error);
@@ -172,15 +133,6 @@ const OCRScanner = ({ onResult, onClose, visible }) => {
   };
 
   const handleScan = async (source) => {
-    if (!hasApiKey) {
-      Alert.alert(
-        t('ocr.apiKeyRequired'),
-        t('ocr.apiKeyDesc'),
-        [{ text: 'OK', onPress: onClose }]
-      );
-      return;
-    }
-
     try {
       const permissionResult = source === 'camera' 
         ? await ImagePicker.requestCameraPermissionsAsync()
@@ -244,7 +196,6 @@ const OCRScanner = ({ onResult, onClose, visible }) => {
     >
       <View style={styles.overlay}>
         <View style={[styles.container, { backgroundColor: colors.bgCard }]}>
-          {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.textPrimary }]}>
               <Ionicons name="scan" size={22} color={colors.primary} />  {t('ocr.title')}
@@ -253,18 +204,6 @@ const OCRScanner = ({ onResult, onClose, visible }) => {
               <Ionicons name="close" size={24} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
-
-          {!hasApiKey && (
-            <View style={[styles.warningBox, { backgroundColor: colors.warning + '15' }]}>
-              <Ionicons name="warning" size={20} color={colors.warning} />
-              <Text style={[styles.warningText, { color: colors.warning }]}>
-                {t('ocr.apiKeyRequired')}
-              </Text>
-              <Text style={[styles.warningSub, { color: colors.textMuted }]}>
-                {t('ocr.apiKeySetup')}
-              </Text>
-            </View>
-          )}
 
           <Text style={[styles.desc, { color: colors.textSecondary }]}>
             {t('ocr.desc')}
@@ -326,32 +265,12 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 18, fontWeight: '700' },
   closeBtn: { padding: 4 },
-
-  warningBox: {
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  warningText: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  warningSub: {
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-
   desc: {
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
   },
-
   loadingBox: {
     alignItems: 'center',
     paddingVertical: 40,
@@ -361,7 +280,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 16,
   },
-
   buttonsRow: {
     flexDirection: 'row',
     gap: 16,
@@ -379,7 +297,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-
   tip: {
     fontSize: 12,
     textAlign: 'center',
@@ -388,4 +305,3 @@ const styles = StyleSheet.create({
 });
 
 export default OCRScanner;
-export { GOOGLE_VISION_API_KEY };

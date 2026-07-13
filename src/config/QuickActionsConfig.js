@@ -8,12 +8,12 @@ import { createNavigationContainerRef } from '@react-navigation/native';
  * Configuração de Quick Actions (atalhos no ícone do app)
  * 
  * Funciona em iOS e Android
- * Requer expo-quick-actions v6.0.2 para SDK 56
+ * Requer expo-quick-actions v6.0.2 para SDK 56+
  * 
- * Instalação: npx expo install expo-quick-actions@6.0.2
+ * ✅ SEGURANÇA: Ícones Android válidos (não crasham em devices)
  */
 
-// 🆕 Navigation ref global para acesso fora do NavigationContainer
+// Navigation ref global para acesso fora do NavigationContainer
 export const navigationRef = createNavigationContainerRef();
 
 export const QUICK_ACTION_IDS = {
@@ -23,42 +23,52 @@ export const QUICK_ACTION_IDS = {
   VIEW_GOALS: 'view_goals',
 };
 
+// ✅ SEGURANÇA: Ícones Android válidos do sistema
+// 'ic_menu_add' e 'ic_menu_view' não existem em todos os devices Android
+// Usamos null (sem ícone) para Android, que é seguro
+const getQuickActionIcon = (iosIcon, androidIcon = null) => {
+  if (Platform.OS === 'ios') {
+    return iosIcon;
+  }
+  // Android: retorna null se não houver ícone válido do sistema
+  // Isso evita crash em devices que não têm o ícone específico
+  return androidIcon;
+};
+
 export function useQuickActions() {
-  // 🆕 Configura os atalhos ao montar o componente
   useEffect(() => {
     QuickActions.setItems([
       {
         id: QUICK_ACTION_IDS.ADD_EXPENSE,
         title: 'Nova Despesa',
         subtitle: 'Registrar gasto',
-        icon: Platform.OS === 'ios' ? 'symbol:minus.circle.fill' : 'ic_menu_add',
+        icon: getQuickActionIcon('symbol:minus.circle.fill'),
         params: { screen: 'Add', params: { type: 'expense' } },
       },
       {
         id: QUICK_ACTION_IDS.ADD_INCOME,
         title: 'Nova Receita',
         subtitle: 'Registrar entrada',
-        icon: Platform.OS === 'ios' ? 'symbol:plus.circle.fill' : 'ic_menu_add',
+        icon: getQuickActionIcon('symbol:plus.circle.fill'),
         params: { screen: 'Add', params: { type: 'income' } },
       },
       {
         id: QUICK_ACTION_IDS.VIEW_CARDS,
         title: 'Cartões',
         subtitle: 'Ver faturas',
-        icon: Platform.OS === 'ios' ? 'symbol:creditcard.fill' : 'ic_menu_view',
+        icon: getQuickActionIcon('symbol:creditcard.fill'),
         params: { screen: 'Cards' },
       },
       {
         id: QUICK_ACTION_IDS.VIEW_GOALS,
         title: 'Metas',
         subtitle: 'Ver progresso',
-        icon: Platform.OS === 'ios' ? 'symbol:flag.fill' : 'ic_menu_view',
+        icon: getQuickActionIcon('symbol:flag.fill'),
         params: { screen: 'Goals' },
       },
     ]);
   }, []);
 
-  // 🆕 Hook correto do expo-quick-actions SDK 56
   useQuickActionCallback((action) => {
     handleQuickAction(action);
   });
@@ -69,7 +79,6 @@ function handleQuickAction(action) {
 
   const { screen, params } = action.params;
 
-  // 🆕 Só navega se o navigationRef estiver pronto
   if (!navigationRef.isReady()) {
     console.log('[QuickActions] Navigation not ready yet, retrying in 500ms...');
     setTimeout(() => handleQuickAction(action), 500);
@@ -85,17 +94,10 @@ function handleQuickAction(action) {
   }
 }
 
-/**
- * Hook para atualizar os quick actions dinamicamente
- * Ex: mudar ícone ou título baseado no contexto
- */
 export function updateQuickActions(items) {
   QuickActions.setItems(items);
 }
 
-/**
- * Limpa todos os quick actions
- */
 export function clearQuickActions() {
   QuickActions.setItems([]);
 }

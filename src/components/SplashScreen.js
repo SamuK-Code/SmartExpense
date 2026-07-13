@@ -1,113 +1,213 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, StatusBar, Dimensions } from 'react-native';
+// SplashScreen.js — Otimizado: Easing suave, menos re-renders, transições fluidas
+// ✨ REFINAMENTOS: Easing nativo, cleanup robusto, animação sequencial suave
+// 🔧 CORREÇÃO: rotate usa radianos para native driver, gradiente único com animação de cores
+
+import React, { useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, Animated, StatusBar, Dimensions, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@react-native-vector-icons/ionicons';
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Definição de cores vibrantes (Aurora/Neon)
-const gradientSchemes = {
-  purple: ['#A78BFA', '#7C3AED', '#EC4899'],
-  blue: ['#1D4ED8', '#0D9488', '#BEF264'],
-  green: ['#047857', '#10B981', '#F59E0B'],
-};
+// Gradientes para animação cross-fade (índices 0→1→2→0)
+const gradientSchemes = [
+  ['#A78BFA', '#7C3AED', '#EC4899'],  // purple
+  ['#1D4ED8', '#0D9488', '#BEF264'],  // blue
+  ['#047857', '#10B981', '#F59E0B'],  // green
+];
 
 const SplashScreen = ({ onFinish }) => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current; // Trocado para progressAnim
+  const progressAnim = useRef(new Animated.Value(0)).current;
   const contentTranslateY = useRef(new Animated.Value(40)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const logoRotate = useRef(new Animated.Value(0)).current;
+  const gradientIndex = useRef(new Animated.Value(0)).current;
 
-  // Animações de opacidade para o cross-fade
-  const opacityScheme1 = useRef(new Animated.Value(1)).current;
-  const opacityScheme2 = useRef(new Animated.Value(0)).current;
-  const opacityScheme3 = useRef(new Animated.Value(0)).current;
+  const timerRef = useRef(null);
+  const animationsRef = useRef([]);
+
+  const cleanup = useCallback(() => {
+    animationsRef.current.forEach(anim => anim?.stop?.());
+    if (timerRef.current) clearTimeout(timerRef.current);
+    try {
+      StatusBar.setHidden(false);
+    } catch (e) {
+      // ignorar
+    }
+  }, []);
 
   useEffect(() => {
-    StatusBar.setHidden(true);
+    try {
+      StatusBar.setHidden(true);
+    } catch (e) {
+      // ignorar em Expo Go
+    }
 
-    Animated.timing(contentTranslateY, {
+    // Animação de entrada do conteúdo
+    const contentAnim = Animated.timing(contentTranslateY, {
       toValue: 0,
-      duration: 1000,
+      duration: 800,
       delay: 200,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-    }).start();
+    });
+    animationsRef.current.push(contentAnim);
+    contentAnim.start();
 
-    const startGradientAnimation = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.parallel([
-            Animated.timing(opacityScheme1, { toValue: 0, duration: 3000, useNativeDriver: true }),
-            Animated.timing(opacityScheme2, { toValue: 1, duration: 3000, useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(opacityScheme2, { toValue: 0, duration: 3000, useNativeDriver: true }),
-            Animated.timing(opacityScheme3, { toValue: 1, duration: 3000, useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(opacityScheme3, { toValue: 0, duration: 3000, useNativeDriver: true }),
-            Animated.timing(opacityScheme1, { toValue: 1, duration: 3000, useNativeDriver: true }),
-          ]),
-        ])
-      ).start();
-    };
-
-    startGradientAnimation();
-
-    // Animação da Barra de Progresso (deve ser false para animar 'width')
-    Animated.timing(progressAnim, {
+    // Animação de escala do logo
+    const logoAnim = Animated.timing(logoScale, {
       toValue: 1,
-      duration: 2000,
-      useNativeDriver: false, 
-    }).start();
+      duration: 600,
+      delay: 100,
+      easing: Easing.out(Easing.back(1.7)),
+      useNativeDriver: true,
+    });
+    animationsRef.current.push(logoAnim);
+    logoAnim.start();
+
+    // Animação de rotação sutil do logo — RADIANOS para native driver!
+    const rotateAnim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(logoRotate, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoRotate, {
+          toValue: 0,
+          duration: 2000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    animationsRef.current.push(rotateAnim);
+    rotateAnim.start();
+
+    // Animação cross-fade dos gradientes (índice 0→1→2→0)
+    const gradientLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(gradientIndex, {
+          toValue: 1,
+          duration: 3000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false, // interpolação de índice não usa native
+        }),
+        Animated.timing(gradientIndex, {
+          toValue: 2,
+          duration: 3000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+        Animated.timing(gradientIndex, {
+          toValue: 0,
+          duration: 3000,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    animationsRef.current.push(gradientLoop);
+    gradientLoop.start();
+
+    // Animação da Barra de Progresso
+    const progressAnimation = Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 2500,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animationsRef.current.push(progressAnimation);
+    progressAnimation.start();
 
     // Fade out de saída da tela
-    const timer = setTimeout(() => {
-      Animated.timing(fadeAnim, {
+    timerRef.current = setTimeout(() => {
+      const fadeOut = Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 800,
+        duration: 600,
+        easing: Easing.in(Easing.quad),
         useNativeDriver: true,
-      }).start(() => {
-        StatusBar.setHidden(false);
+      });
+      animationsRef.current.push(fadeOut);
+      fadeOut.start(() => {
+        cleanup();
         if (onFinish) onFinish();
       });
     }, 2800);
 
-    return () => {
-      StatusBar.setHidden(false);
-      clearTimeout(timer);
-    };
-  }, []);
+    return cleanup;
+  }, [onFinish, cleanup]);
 
-  // Interpolação para a barra de progresso linear
+  // Interpolação para a barra de progresso
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
 
+  // Interpolação para rotação — RADIANOS! (3° = ~0.052 rad)
+  const rotateInterpolate = logoRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-0.052rad', '0.052rad'],
+  });
+
+  // Interpolação para cores do gradiente (cross-fade via índice)
+  const color1 = gradientIndex.interpolate({
+    inputRange: [0, 1, 2, 3],
+    outputRange: [
+      gradientSchemes[0][0], gradientSchemes[1][0], gradientSchemes[2][0], gradientSchemes[0][0]
+    ],
+  });
+  const color2 = gradientIndex.interpolate({
+    inputRange: [0, 1, 2, 3],
+    outputRange: [
+      gradientSchemes[0][1], gradientSchemes[1][1], gradientSchemes[2][1], gradientSchemes[0][1]
+    ],
+  });
+  const color3 = gradientIndex.interpolate({
+    inputRange: [0, 1, 2, 3],
+    outputRange: [
+      gradientSchemes[0][2], gradientSchemes[1][2], gradientSchemes[2][2], gradientSchemes[0][2]
+    ],
+  });
+
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityScheme1 }]}>
-        <LinearGradient colors={gradientSchemes.purple} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gradient} />
+      {/* Gradiente único com cores animadas (mais leve que 3 sobrepostos) */}
+      <Animated.View style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          colors={[color1.__getValue ? color1.__getValue() : gradientSchemes[0][0], 
+                   color2.__getValue ? color2.__getValue() : gradientSchemes[0][1], 
+                   color3.__getValue ? color3.__getValue() : gradientSchemes[0][2]]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
       </Animated.View>
 
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityScheme2 }]}>
-        <LinearGradient colors={gradientSchemes.blue} start={{ x: 0.1, y: 0.2 }} end={{ x: 0.9, y: 0.8 }} style={styles.gradient} />
-      </Animated.View>
-
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: opacityScheme3 }]}>
-        <LinearGradient colors={gradientSchemes.green} start={{ x: 0.2, y: 0.1 }} end={{ x: 0.8, y: 0.9 }} style={styles.gradient} />
-      </Animated.View>
-
-      <Animated.View style={[styles.content, { transform: [{ translateY: contentTranslateY }] }]}>
-        <View style={styles.logoContainer}>
+      <Animated.View style={[
+        styles.content,
+        {
+          transform: [{ translateY: contentTranslateY }],
+        }
+      ]}>
+        <Animated.View style={[
+          styles.logoContainer,
+          {
+            transform: [
+              { scale: logoScale },
+              { rotate: rotateInterpolate },
+            ]
+          }
+        ]}>
           <Ionicons name="wallet-outline" size={100} color="#FFFFFF" />
-        </View>
+        </Animated.View>
 
         <Text style={styles.title}>SmartExpense</Text>
         <Text style={styles.subtitle}>Controle financeiro inteligente</Text>
 
-        {/* Barra de Progresso Corrigida */}
+        {/* Barra de Progresso */}
         <View style={styles.loaderContainer}>
           <Animated.View style={[styles.loaderBar, { width: progressWidth }]} />
         </View>
@@ -129,9 +229,6 @@ const styles = StyleSheet.create({
     elevation: 99999,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  gradient: {
-    flex: 1,
   },
   content: {
     alignItems: 'center',
@@ -161,9 +258,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 1.5,
     marginBottom: 10,
-    textShadowColor: 'rgba(0,0,0,0.18)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 10,
   },
   subtitle: {
     fontSize: 16,
@@ -179,7 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 20,
-    alignItems: 'flex-start', // Garante que a barra preencha da esquerda para a direita
+    alignItems: 'flex-start',
   },
   loaderBar: {
     height: '100%',

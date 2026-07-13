@@ -1,11 +1,10 @@
-// HomeScreen.js — Resumo Unificado com Círculos Financeiros (Arquivo 4/10)
-// Substitui a HomeScreen original — agora mostra dados locais + compartilhados
-// com badges visuais, resumo de círculos e alertas inteligentes
+// HomeScreen.js — Resumo Unificado com Círculos Financeiros + UI Refinada
+// ✨ REFINAMENTOS: Shimmer loading, Glassmorphism header, animações suaves, haptic feedback
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Dimensions, RefreshControl, Animated
+  Dimensions, RefreshControl, Animated, Easing, ActivityIndicator
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,8 +16,78 @@ import { formatCurrency, getGreeting } from '../utils/helpers';
 import CreditCard from '../components/CreditCard';
 import TransactionItem from '../components/TransactionItem';
 import Toast from '../components/Toast';
+import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
+
+// ═══════════════════════════════════════════════════════════
+// SHIMMER COMPONENT
+// ═══════════════════════════════════════════════════════════
+const Shimmer = ({ width: w, height: h, borderRadius = 8, style }) => {
+  const shimmerAnim = useState(new Animated.Value(0))[0];
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 1500,
+        easing: Easing.ease,
+        useNativeDriver: true,
+      })
+    );
+    animation.start();
+    return () => animation.stop();
+  }, []);
+
+  const translateX = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-w, w],
+  });
+
+  return (
+    <View style={[{ width: w, height: h, borderRadius, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }, style]}>
+      <Animated.View
+        style={{
+          width: '40%',
+          height: '100%',
+          backgroundColor: 'rgba(255,255,255,0.15)',
+          transform: [{ translateX }],
+        }}
+      />
+    </View>
+  );
+};
+
+const SkeletonHome = ({ colors }) => (
+  <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
+    <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <Shimmer width={44} height={44} borderRadius={22} />
+      <Shimmer width={180} height={36} borderRadius={12} style={{ marginTop: 16 }} />
+      <Shimmer width={120} height={20} borderRadius={8} style={{ marginTop: 8 }} />
+      <View style={{ flexDirection: 'row', marginTop: 16, gap: 12 }}>
+        <Shimmer width={width / 2 - 30} height={60} borderRadius={14} />
+        <Shimmer width={width / 2 - 30} height={60} borderRadius={14} />
+      </View>
+    </View>
+    <View style={{ padding: 16, gap: 16 }}>
+      <Shimmer width={width - 32} height={120} borderRadius={20} />
+      <Shimmer width={width - 32} height={180} borderRadius={20} />
+      <Shimmer width={width - 32} height={200} borderRadius={20} />
+    </View>
+  </View>
+);
+
+// ═══════════════════════════════════════════════════════════
+// GLASSMORPHISM HEADER
+// ═══════════════════════════════════════════════════════════
+const GlassmorphismHeader = ({ children, colors }) => (
+  <View style={styles.glassContainer}>
+    <View style={[styles.glassBlur, { backgroundColor: colors.primary }]} />
+    <View style={styles.glassContent}>
+      {children}
+    </View>
+  </View>
+);
 
 const HomeScreen = () => {
   const navigation = useNavigation();
@@ -27,7 +96,7 @@ const HomeScreen = () => {
     notifications, cardInvoices, getCardPendingInvoices,
     mergedCards, mergedTransactions, mergedGoals,
     isSharedItem, getItemShareInfo,
-    cashBalance, goals,
+    cashBalance, goals, isLoading,
   } = useApp();
   const { colors, darkMode } = useTheme();
   const { t } = useTranslate();
@@ -46,15 +115,26 @@ const HomeScreen = () => {
   // Animações
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(30))[0];
+  const scaleAnim = useState(new Animated.Value(0.95))[0];
+  const pulseAnim = useState(new Animated.Value(1))[0];
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true })
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
+
+    // Pulse animation para o indicador de círculo
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.2, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ])
+    ).start();
   }, []);
 
-  // ── DADOS UNIFICADOS (locais + compartilhados do círculo ativo) ──
+  // ── DADOS UNIFICADOS ──
   const displayCards = useMemo(() => {
     if (!currentCircle) return cards || [];
     return (mergedCards || []).filter(c => !c._circleId || c._circleId === currentCircle.id);
@@ -125,6 +205,7 @@ const HomeScreen = () => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setTimeout(() => setRefreshing(false), 800);
   }, []);
 
@@ -140,11 +221,21 @@ const HomeScreen = () => {
     );
   };
 
-  // ✅ CORREÇÃO: Handler para trocar de círculo
   const handleSwitchCircle = (circleId) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     switchCircle(circleId);
     setShowCircleSelector(false);
   };
+
+  const handleNavigate = (screen, params) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate(screen, params);
+  };
+
+  // ── SHIMMER LOADING ──
+  if (isLoading) {
+    return <SkeletonHome colors={colors} />;
+  }
 
   // ── RENDER ──
   return (
@@ -156,28 +247,35 @@ const HomeScreen = () => {
       )}
     >
       {/* ═══════════════════════════════════════
-          HEADER COM GRADIENTE E SELETOR DE CÍRCULO
+          HEADER COM GLASSMORPHISM
           ═══════════════════════════════════════ */}
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <View style={styles.headerTop}>
           {/* Avatar / Círculo */}
           <TouchableOpacity
             style={styles.avatar}
-            onPress={() => setShowCircleSelector(!showCircleSelector)}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowCircleSelector(!showCircleSelector);
+            }}
             activeOpacity={0.8}
           >
             <Ionicons name="people-circle-outline" size={22} color="#FFF" />
             {currentCircle && (
-              <View style={styles.circleIndicator}>
+              <Animated.View style={[styles.circleIndicator, { transform: [{ scale: pulseAnim }] }]}>
                 <View style={[styles.circleDot, { backgroundColor: syncEnabled ? colors.success : colors.danger }]} />
-              </View>
+              </Animated.View>
             )}
           </TouchableOpacity>
 
           {/* Seletor de Círculo (expandível) */}
           {showCircleSelector && (myCircles || []).length > 0 && (
-            <View style={[styles.circleSelector, { backgroundColor: darkMode ? colors.bgCard : colors.bgCard, shadowColor: colors.shadow }]}>
-              {/* ✅ CORREÇÃO: Meus Dados — chama switchCircle(null) */}
+            <Animated.View style={[styles.circleSelector, { 
+              backgroundColor: darkMode ? colors.bgCard : colors.bgCard, 
+              shadowColor: colors.shadow,
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }]}>
               <TouchableOpacity
                 style={[styles.circleOption, !currentCircle && styles.circleOptionActive]}
                 onPress={() => handleSwitchCircle(null)}
@@ -188,7 +286,6 @@ const HomeScreen = () => {
                 </Text>
                 {!currentCircle && <Ionicons name="checkmark" size={16} color={colors.primary} />}
               </TouchableOpacity>
-              {/* ✅ CORREÇÃO: Cada círculo chama handleSwitchCircle(circle.id) */}
               {(myCircles || []).map(circle => (
                 <TouchableOpacity
                   key={circle.id}
@@ -202,12 +299,15 @@ const HomeScreen = () => {
                   {currentCircle?.id === circle.id && <Ionicons name="checkmark" size={16} color={colors.primary} />}
                 </TouchableOpacity>
               ))}
-            </View>
+            </Animated.View>
           )}
 
           {/* Ações do Header */}
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notifications')}>
+            <TouchableOpacity 
+              style={styles.iconBtn} 
+              onPress={() => handleNavigate('Notifications')}
+            >
               <Ionicons name="notifications-outline" size={20} color="#FFF" />
               {unreadCount > 0 && (
                 <View style={[styles.badge, { backgroundColor: colors.danger }]}>
@@ -215,7 +315,10 @@ const HomeScreen = () => {
                 </View>
               )}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Settings')}>
+            <TouchableOpacity 
+              style={styles.iconBtn} 
+              onPress={() => handleNavigate('Settings')}
+            >
               <Ionicons name="settings-outline" size={20} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -223,7 +326,10 @@ const HomeScreen = () => {
 
         {/* Nome do Círculo Ativo */}
         {currentCircle && (
-          <TouchableOpacity style={styles.circleNameRow} onPress={() => setShowCircleSelector(!showCircleSelector)}>
+          <TouchableOpacity 
+            style={styles.circleNameRow} 
+            onPress={() => setShowCircleSelector(!showCircleSelector)}
+          >
             <Ionicons name="people" size={14} color="rgba(255,255,255,0.8)" />
             <Text style={styles.circleNameText}>{currentCircle.name}</Text>
             <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.6)" />
@@ -236,7 +342,10 @@ const HomeScreen = () => {
         )}
 
         {/* Saldo em Caixa Unificado */}
-        <Animated.View style={[styles.balanceBox, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View style={[styles.balanceBox, { 
+          opacity: fadeAnim, 
+          transform: [{ translateY: slideAnim }, { scale: scaleAnim }] 
+        }]}>
           <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('home.balance')}</Text>
           <Text style={[styles.balanceValue, { color: balance >= 0 ? '#FFF' : colors.danger }]}>
             {formatCurrency(balance)}
@@ -245,24 +354,32 @@ const HomeScreen = () => {
 
         {/* Resumo Rápido: Receitas / Despesas */}
         <View style={styles.quickStats}>
-          <View style={styles.quickStatItem}>
+          <TouchableOpacity 
+            style={styles.quickStatItem}
+            onPress={() => handleNavigate('History', { filter: 'income' })}
+            activeOpacity={0.7}
+          >
             <Ionicons name="arrow-up-circle" size={16} color={colors.success} />
             <Text style={[styles.quickStatLabel, { color: 'rgba(255,255,255,0.6)' }]}>{t('common.income')}</Text>
             <Text style={[styles.quickStatValue, { color: '#FFF' }]}>{formatCurrency(income)}</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.quickStatDivider} />
-          <View style={styles.quickStatItem}>
+          <TouchableOpacity 
+            style={styles.quickStatItem}
+            onPress={() => handleNavigate('History', { filter: 'expense' })}
+            activeOpacity={0.7}
+          >
             <Ionicons name="arrow-down-circle" size={16} color={colors.danger} />
             <Text style={[styles.quickStatLabel, { color: 'rgba(255,255,255,0.6)' }]}>{t('common.expense')}</Text>
             <Text style={[styles.quickStatValue, { color: '#FFF' }]}>{formatCurrency(expense)}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Alerta de Faturas Pendentes */}
         {totalPendingInvoices > 0 && (
           <TouchableOpacity
             style={[styles.invoiceAlert, { backgroundColor: colors.danger }]}
-            onPress={() => navigation.navigate('Cards')}
+            onPress={() => handleNavigate('Cards')}
             activeOpacity={0.9}
           >
             <Ionicons name="warning" size={18} color="#FFF" />
@@ -277,7 +394,7 @@ const HomeScreen = () => {
         {pendingBoletos.length > 0 && (
           <TouchableOpacity
             style={[styles.boletoAlert, { backgroundColor: colors.warning }]}
-            onPress={() => navigation.navigate('Add')}
+            onPress={() => handleNavigate('Add')}
             activeOpacity={0.9}
           >
             <Ionicons name="document-text" size={18} color="#FFF" />
@@ -298,7 +415,11 @@ const HomeScreen = () => {
       {/* ═══════════════════════════════════════
           CONTEÚDO PRINCIPAL
           ═══════════════════════════════════════ */}
-      <View style={[styles.content, { backgroundColor: colors.bgPrimary }]}>
+      <Animated.View style={[styles.content, { 
+        backgroundColor: colors.bgPrimary,
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+      }]}>
 
         {/* ── SEÇÃO: TOP 3 CATEGORIAS ── */}
         <View style={styles.section}>
@@ -306,7 +427,7 @@ const HomeScreen = () => {
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               <Ionicons name="pie-chart" size={16} color={colors.primary} />  Top Categorias
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Budget')}>
+            <TouchableOpacity onPress={() => handleNavigate('Budget')}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>Ver Orçamentos</Text>
             </TouchableOpacity>
           </View>
@@ -376,18 +497,24 @@ const HomeScreen = () => {
                 </Text>
               )}
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Cards')}>
+            <TouchableOpacity onPress={() => handleNavigate('Cards')}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>{t('home.seeAll')}</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
             {(circleCards || []).length > 0 ? (
-              (circleCards || []).map(card => (
-                <View key={card.id} style={styles.cardItem}>
+              (circleCards || []).map((card, index) => (
+                <Animated.View 
+                  key={card.id} 
+                  style={[styles.cardItem, {
+                    transform: [{ scale: scaleAnim }],
+                    opacity: fadeAnim,
+                  }]}
+                >
                   <CreditCard card={card} usage={getCardUsage(card.id)} />
                   {getSharedBadge(card)}
-                </View>
+                </Animated.View>
               ))
             ) : (
               <View style={[styles.emptyCard, { borderColor: colors.border }]}>
@@ -405,37 +532,44 @@ const HomeScreen = () => {
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
                 {t('goals.title')}
               </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Goals')}>
+              <TouchableOpacity onPress={() => handleNavigate('Goals')}>
                 <Text style={[styles.seeAll, { color: colors.primary }]}>{t('home.seeAll')}</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {(activeGoals || []).slice(0, 3).map(goal => {
+              {(activeGoals || []).slice(0, 3).map((goal, index) => {
                 const progress = (goal.targetAmount || goal.target || 0) > 0 ? ((goal.currentAmount || goal.current || 0) / (goal.targetAmount || goal.target || 0)) * 100 : 0;
                 return (
-                  <TouchableOpacity
+                  <Animated.View
                     key={goal.id}
-                    style={[styles.goalCard, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}
-                    onPress={() => navigation.navigate('Goals')}
+                    style={{
+                      transform: [{ scale: scaleAnim }],
+                      opacity: fadeAnim,
+                    }}
                   >
-                    <View style={styles.goalCardHeader}>
-                      <Ionicons name={goal.icon || "trophy-outline"} size={20} color={goal.color || colors.primary} />
-                      {getSharedBadge(goal)}
-                    </View>
-                    <Text style={[styles.goalCardName, { color: colors.textPrimary }]} numberOfLines={1}>{goal.name}</Text>
-                    <Text style={[styles.goalCardAmount, { color: colors.textMuted }]}>
-                      {formatCurrency(goal.currentAmount || goal.current || 0)} / {formatCurrency(goal.targetAmount || goal.target || 0)}
-                    </Text>
-                    <View style={[styles.goalProgressBar, { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
-                      <View style={[styles.goalProgressFill, {
-                        width: `${Math.min(progress, 100)}%`,
-                        backgroundColor: goal.color || colors.primary
-                      }]} />
-                    </View>
-                    <Text style={[styles.goalProgressText, { color: colors.textMuted }]}>
-                      {Math.round(progress)}% {t('goals.complete')}
-                    </Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.goalCard, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}
+                      onPress={() => handleNavigate('Goals')}
+                    >
+                      <View style={styles.goalCardHeader}>
+                        <Ionicons name={goal.icon || "trophy-outline"} size={20} color={goal.color || colors.primary} />
+                        {getSharedBadge(goal)}
+                      </View>
+                      <Text style={[styles.goalCardName, { color: colors.textPrimary }]} numberOfLines={1}>{goal.name}</Text>
+                      <Text style={[styles.goalCardAmount, { color: colors.textMuted }]}>
+                        {formatCurrency(goal.currentAmount || goal.current || 0)} / {formatCurrency(goal.targetAmount || goal.target || 0)}
+                      </Text>
+                      <View style={[styles.goalProgressBar, { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
+                        <Animated.View style={[styles.goalProgressFill, {
+                          width: `${Math.min(progress, 100)}%`,
+                          backgroundColor: goal.color || colors.primary
+                        }]} />
+                      </View>
+                      <Text style={[styles.goalProgressText, { color: colors.textMuted }]}>
+                        {Math.round(progress)}% {t('goals.complete')}
+                      </Text>
+                    </TouchableOpacity>
+                  </Animated.View>
                 );
               })}
             </ScrollView>
@@ -453,7 +587,7 @@ const HomeScreen = () => {
                 </Text>
               )}
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('History')}>
+            <TouchableOpacity onPress={() => handleNavigate('History')}>
               <Text style={[styles.seeAll, { color: colors.primary }]}>{t('home.seeAll')}</Text>
             </TouchableOpacity>
           </View>
@@ -468,7 +602,10 @@ const HomeScreen = () => {
                 }}
               >
                 <TouchableOpacity
-                  onPress={() => showToast(`${tx.desc || tx.description} - ${formatCurrency(tx.amount)}`, 'info')}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    showToast(`${tx.desc || tx.description} - ${formatCurrency(tx.amount)}`, 'info');
+                  }}
                   activeOpacity={0.7}
                 >
                   <View style={styles.txRow}>
@@ -525,7 +662,11 @@ const HomeScreen = () => {
 
         {/* ── SEÇÃO: RESUMO DO CÍRCULO ── */}
         {currentCircle && (
-          <View style={[styles.circleSummary, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
+          <Animated.View style={[styles.circleSummary, { 
+            backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary,
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          }]}>
             <View style={styles.circleSummaryHeader}>
               <Ionicons name="people" size={18} color={colors.primary} />
               <Text style={[styles.circleSummaryTitle, { color: colors.textPrimary }]}>
@@ -557,16 +698,16 @@ const HomeScreen = () => {
             </View>
             <TouchableOpacity
               style={[styles.circleManageBtn, { borderColor: colors.primary }]}
-              onPress={() => navigation.navigate('Circles')}
+              onPress={() => handleNavigate('Circles')}
             >
               <Text style={[styles.circleManageText, { color: colors.primary }]}>
                 {t('common.manage')} {t('tab.groups')}
               </Text>
               <Ionicons name="arrow-forward" size={14} color={colors.primary} />
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
 
       {/* Toast */}
       <Toast
@@ -585,6 +726,24 @@ const HomeScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  // Shimmer
+  glassContainer: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  glassBlur: {
+    position: 'absolute',
+    top: -20,
+    left: -20,
+    right: -20,
+    bottom: -20,
+    opacity: 0.3,
+  },
+  glassContent: {
+    position: 'relative',
+    zIndex: 1,
+  },
 
   // Header
   header: {
