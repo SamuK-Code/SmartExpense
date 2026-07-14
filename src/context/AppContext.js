@@ -110,31 +110,69 @@ export const AppProvider = ({ children }) => {
   useEffect(() => { sharedGoalsRef.current = sharedGoals; }, [sharedGoals]);
 
   // ═══════════════════════════════════════════════════════════
-  // ÁUDIO — LAZY LOADING (só inicializa quando primeiro usado)
+  // ÁUDIO — SDK 57: Lazy initialization segura
+  // ✅ CORREÇÃO: Não usa createAudioPlayer (não existe na API pública)
+  // Usa require condicional com try/catch para não quebrar o app
   // ═══════════════════════════════════════════════════════════
-  const [audioInitialized, setAudioInitialized] = useState(false);
-  const addPlayerRef = useRef(null);
-  const deletePlayerRef = useRef(null);
-  const notifPlayerRef = useRef(null);
-  const achievementPlayerRef = useRef(null);
+  const audioPlayersRef = useRef({});
+  const audioInitializedRef = useRef(false);
 
-  useEffect(() => {
+  const initAudio = useCallback(() => {
+    if (audioInitializedRef.current) return true;
     try {
-      const { createAudioPlayer } = require('expo-audio');
-        addPlayerRef.current = createAudioPlayer(require('../../assets/sounds/add.mp3'));
-        deletePlayerRef.current = createAudioPlayer(require('../../assets/sounds/delete.mp3'));
-        notifPlayerRef.current = createAudioPlayer(require('../../assets/sounds/notif.mp3'));
-        achievementPlayerRef.current = createAudioPlayer(require('../../assets/sounds/achievement.mp3'));
+      const expoAudio = require('expo-audio');
+      // SDK 57: useAudioPlayer é o hook principal
+      // Se não estiver disponível, desabilita sons silenciosamente
+      if (!expoAudio.useAudioPlayer) {
+        console.log('[Audio] expo-audio não disponível neste ambiente');
+        return false;
+      }
+      audioInitializedRef.current = true;
+      return true;
     } catch (e) {
-      console.warn('[Audio] Erro ao inicializar players:', e);
+      console.log('[Audio] Módulo expo-audio não disponível:', e.message);
+      return false;
     }
-    return () => {
-      addPlayerRef.current?.release?.();
-      deletePlayerRef.current?.release?.();
-      notifPlayerRef.current?.release?.();
-      achievementPlayerRef.current?.release?.();
-    };
   }, []);
+
+  const playSound = useCallback(async (type) => {
+    if (!soundEnabledRef.current[type]) return;
+
+    // Haptics sempre funciona
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {
+      // Haptics pode não estar disponível no Expo Go web
+    }
+
+    // Áudio: tenta tocar se disponível
+    if (!initAudio()) return;
+
+    try {
+      const expoAudio = require('expo-audio');
+      const soundMap = {
+        add: require('../../assets/sounds/add.mp3'),
+        delete: require('../../assets/sounds/delete.mp3'),
+        notif: require('../../assets/sounds/notif.mp3'),
+        achievement: require('../../assets/sounds/achievement.mp3'),
+      };
+
+      const source = soundMap[type];
+      if (!source) return;
+
+      // Cria player temporário para cada som (evita problemas de estado)
+      const player = expoAudio.useAudioPlayer ? 
+        expoAudio.useAudioPlayer(source) : null;
+
+      if (player && player.play) {
+        await player.seekTo(0);
+        await player.play();
+      }
+    } catch (e) {
+      // Silencioso — áudio não é crítico
+      console.log('[Audio] Erro ao tocar som:', e.message);
+    }
+  }, [initAudio]);
 
   // ═══════════════════════════════════════════════════════════
   // CATEGORIAS PADRÃO
@@ -330,28 +368,8 @@ export const AppProvider = ({ children }) => {
   }, [isLoading, runWeeklyBackup]);
 
   // ═══════════════════════════════════════════════════════════
-  // ÁUDIO & NOTIFICAÇÕES
+  // NOTIFICAÇÕES
   // ═══════════════════════════════════════════════════════════
-  const playSound = useCallback(async (type) => {
-    if (!soundEnabledRef.current[type]) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      let player;
-      switch (type) {
-        case 'add': player = addPlayerRef.current; break;
-        case 'delete': player = deletePlayerRef.current; break;
-        case 'notif': player = notifPlayerRef.current; break;
-        case 'achievement': player = achievementPlayerRef.current; break;
-        default: return;
-      }
-      if (!player) return;
-      player.seekTo(0);
-      await player.play();
-    } catch (e) {
-      console.warn('[playSound] Erro ao tocar som:', e);
-    }
-  }, []);
-
   const addNotification = useCallback((title, message, type = 'info') => {
     const newNotif = {
       id: Date.now(),

@@ -77,18 +77,6 @@ const SkeletonHome = ({ colors }) => (
   </View>
 );
 
-// ═══════════════════════════════════════════════════════════
-// GLASSMORPHISM HEADER
-// ═══════════════════════════════════════════════════════════
-const GlassmorphismHeader = ({ children, colors }) => (
-  <View style={styles.glassContainer}>
-    <View style={[styles.glassBlur, { backgroundColor: colors.primary }]} />
-    <View style={styles.glassContent}>
-      {children}
-    </View>
-  </View>
-);
-
 const HomeScreen = () => {
   const navigation = useNavigation();
   const {
@@ -111,6 +99,19 @@ const HomeScreen = () => {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [refreshing, setRefreshing] = useState(false);
   const [showCircleSelector, setShowCircleSelector] = useState(false);
+
+  // ✅ CORREÇÃO: Timeout de segurança para isLoading (máx 3s)
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  useEffect(() => {
+    if (!isLoading) {
+      setShowSkeleton(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShowSkeleton(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   // Animações
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -232,8 +233,8 @@ const HomeScreen = () => {
     navigation.navigate(screen, params);
   };
 
-  // ── SHIMMER LOADING ──
-  if (isLoading) {
+  // ── SHIMMER LOADING COM TIMEOUT ──
+  if (showSkeleton) {
     return <SkeletonHome colors={colors} />;
   }
 
