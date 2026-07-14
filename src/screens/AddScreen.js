@@ -1,7 +1,7 @@
-// AddScreen.js — COM INDICADOR DE PRÓXIMA FATURA + CORREÇÕES DE MODAL E INPUT DE MOEDA
+// AddScreen.js — Abas inferiores: Despesa | Receita | Boleto
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useApp } from '../context/AppContext';
@@ -10,18 +10,23 @@ import { useTranslate } from '../hooks/useTranslate';
 import { useCircle } from '../context/CircleContext';
 import { formatCurrency, isAfterClosingDate, getInvoiceMonth, formatInvoiceMonth } from '../utils/helpers';
 import Toast from '../components/Toast';
-import ModalContent from '../components/ModalKeyboardSafe';
 import SplitExpenseModal from '../components/SplitExpenseModal';
 import OCRScanner from '../components/OCRScanner';
+
+const TABS = [
+  { key: 'expense', label: 'Despesa', icon: 'remove-circle', colorKey: 'danger' },
+  { key: 'income', label: 'Receita', icon: 'add-circle', colorKey: 'success' },
+  { key: 'boleto', label: 'Boleto', icon: 'barcode', colorKey: 'warning' },
+];
 
 const AddScreen = () => {
   const { categories, cards, transactions, addTransaction, getCardUsage, cashBalance, updateCashBalance, editTransaction, mergedCards, mergedTransactions } = useApp();
   const navigation = useNavigation();
-  const { colors } = useTheme();
+  const { colors, darkMode } = useTheme();
   const { t } = useTranslate();
   const { currentCircle } = useCircle();
-  const [modalVisible, setModalVisible] = useState(false);
-  const [transactionType, setTransactionType] = useState('expense');
+
+  const [activeTab, setActiveTab] = useState('expense');
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -31,12 +36,10 @@ const AddScreen = () => {
   const [cardType, setCardType] = useState('credit');
   const [boletoDue, setBoletoDue] = useState('');
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
-  const [fabOpen, setFabOpen] = useState(false);
   const [splitModalVisible, setSplitModalVisible] = useState(false);
   const [splitData, setSplitData] = useState(null);
   const [ocrModalVisible, setOcrModalVisible] = useState(false);
 
-  // ── POOL DE DADOS ──
   const displayCards = useMemo(() => {
     return currentCircle
       ? (mergedCards || []).filter(c => !c._circleId || c._circleId === currentCircle.id)
@@ -50,12 +53,11 @@ const AddScreen = () => {
   }, [currentCircle, transactions, mergedTransactions]);
 
   const typeConfig = {
-    expense: { title: t('add.newExpense'), color: colors.danger, icon: 'remove-circle' },
-    income: { title: t('add.newIncome'), color: colors.success, icon: 'add-circle' },
-    boleto: { title: t('add.newBoleto'), color: colors.warning, icon: 'barcode' },
+    expense: { title: t('add.newExpense'), color: colors.danger, icon: 'remove-circle', submit: t('add.registerExpense') },
+    income: { title: t('add.newIncome'), color: colors.success, icon: 'add-circle', submit: t('add.registerIncome') },
+    boleto: { title: t('add.newBoleto'), color: colors.warning, icon: 'barcode', submit: t('add.registerBoleto') },
   };
 
-  // ── HELPERS DE FORMATAÇÃO DE MOEDA ──
   const formatCurrencyInput = (value) => {
     let cleaned = value.replace(/[^\d.,]/g, '');
     let normalized = cleaned.replace(',', '.');
@@ -78,7 +80,6 @@ const AddScreen = () => {
     setAmount(formatted);
   };
 
-  // Calcular cartões mais utilizados (top 3 por valor gasto)
   const topCards = useMemo(() => {
     return displayCards
       .map(card => ({ ...card, used: getCardUsage(card.id) }))
@@ -87,7 +88,6 @@ const AddScreen = () => {
       .slice(0, 3);
   }, [displayCards, displayTransactions, getCardUsage]);
 
-  // Calcular categorias mais utilizadas (top 5 por valor gasto)
   const topCategories = useMemo(() => {
     const catTotals = {};
     displayTransactions
@@ -104,14 +104,12 @@ const AddScreen = () => {
       .slice(0, 5);
   }, [displayTransactions, t]);
 
-  // Boletos pendentes (não pagos)
   const pendingBoletos = useMemo(() => {
     return displayTransactions
       .filter(t => t.paymentMethod === 'boleto' && !t.isPaid)
       .sort((a, b) => new Date(a.boletoDue || a.date) - new Date(b.boletoDue || b.date));
   }, [displayTransactions]);
 
-  // Função para quitar boleto usando cashBalance
   const handlePayBoleto = (boleto) => {
     if (cashBalance < boleto.amount) {
       showToast(`Saldo em caixa insuficiente. Disponível: ${formatCurrency(cashBalance)}`, 'error');
@@ -129,9 +127,8 @@ const AddScreen = () => {
     showToast(`Boleto "${boleto.desc}" quitado! ${formatCurrency(boleto.amount)} deduzido do caixa.`, 'success');
   };
 
-  // Verificar se a compra no cartão de CRÉDITO vai para a próxima fatura
   const getInvoiceWarning = () => {
-    if (transactionType !== 'expense' || paymentMethod !== 'card' || cardType !== 'credit' || !cardId) return null;
+    if (activeTab !== 'expense' || paymentMethod !== 'card' || cardType !== 'credit' || !cardId) return null;
 
     const selectedCard = displayCards.find(c => c.id.toString() === cardId.toString());
     if (!selectedCard || !selectedCard.closeDate) return null;
@@ -166,27 +163,27 @@ const AddScreen = () => {
     showToast(t('ocr.success'), 'success');
   };
 
-  const openModal = (type) => {
-    setTransactionType(type);
-    setModalVisible(true);
+  const switchTab = (tabKey) => {
+    setActiveTab(tabKey);
     setDesc('');
     setAmount('');
     setCategoryId('');
     setCardType('credit');
-    setPaymentMethod(type === 'income' ? 'pix' : 'card');
+    setPaymentMethod(tabKey === 'income' ? 'pix' : tabKey === 'boleto' ? 'boleto' : 'card');
     setCardId('');
     setBoletoDue('');
-    setFabOpen(false);
+    setSplitData(null);
+    Keyboard.dismiss();
   };
 
   const handleSubmit = () => {
     const numericAmount = parseCurrencyToNumber(amount);
-    if (!desc || !numericAmount || (transactionType !== 'income' && !categoryId)) {
+    if (!desc || !numericAmount || (activeTab !== 'income' && !categoryId)) {
       showToast(t('add.fillRequired'), 'error');
       return;
     }
 
-    const category = transactionType === 'income'
+    const category = activeTab === 'income'
       ? { id: 'income', name: 'Receita', icon: 'cash', color: colors.success }
       : categories.find(c => c.id === categoryId);
 
@@ -201,7 +198,7 @@ const AddScreen = () => {
     }
 
     const transaction = {
-      type: transactionType,
+      type: activeTab,
       desc,
       amount: numericAmount,
       date,
@@ -212,51 +209,387 @@ const AddScreen = () => {
       paymentMethod,
       cardId: paymentMethod === 'card' ? parseInt(cardId, 10) : null,
       cardType: paymentMethod === 'card' ? cardType : null,
-      boletoDue: transactionType === 'boleto' ? boletoDue : null,
+      boletoDue: activeTab === 'boleto' ? boletoDue : null,
+      isPaid: activeTab === 'boleto' ? false : undefined,
       isNextInvoice: isCreditCard && selectedCard ? isAfterClosingDate(date, selectedCard.closeDate) : false,
       invoiceMonth: isCreditCard && selectedCard ? getInvoiceMonth(date, selectedCard.closeDate) : null,
       split: splitData || null,
     };
 
     addTransaction(transaction);
-    setModalVisible(false);
-    setFabOpen(false);
-    showToast(`${typeConfig[transactionType].title} ${t('add.success')}`, 'success');
+    setDesc('');
+    setAmount('');
+    setCategoryId('');
+    setCardId('');
+    setBoletoDue('');
+    setSplitData(null);
+    showToast(`${typeConfig[activeTab].title} ${t('add.success')}`, 'success');
   };
 
-  const paymentMethods = transactionType === 'income'
+  const handlePayBoletoDirect = () => {
+    const numericAmount = parseCurrencyToNumber(amount);
+    if (!desc || !numericAmount || !categoryId || !boletoDue) {
+      showToast(t('add.fillRequired'), 'error');
+      return;
+    }
+    if (cashBalance < numericAmount) {
+      showToast(`Saldo em caixa insuficiente. Disponível: ${formatCurrency(cashBalance)}`, 'error');
+      return;
+    }
+    const category = categories.find(c => c.id === categoryId);
+    addTransaction({
+      type: 'expense',
+      desc: desc + ' (Quitado)',
+      amount: numericAmount,
+      date,
+      category: categoryId,
+      categoryName: category?.name || t('categories.other'),
+      categoryIcon: category?.icon || 'pricetag',
+      categoryColor: category?.color || '#94A3B8',
+      paymentMethod: 'boleto',
+      cardId: null,
+      cardType: null,
+      boletoDue,
+      isPaid: true,
+      paidAt: new Date().toISOString(),
+    });
+    updateCashBalance(-numericAmount);
+    setDesc('');
+    setAmount('');
+    setCategoryId('');
+    setBoletoDue('');
+    showToast('Boleto quitado com sucesso!', 'success');
+  };
+
+  const paymentMethods = activeTab === 'income'
     ? [
-        { key: 'pix', label: t('add.pix'), icon: 'qr-code' },
-        { key: 'cash', label: t('add.cash'), icon: 'cash' },
+        { key: 'pix', label: t('add.pix'), icon: 'qr-code', color: '#10B981' },
+        { key: 'cash', label: t('add.cash'), icon: 'cash', color: '#F59E0B' },
+      ]
+    : activeTab === 'boleto'
+    ? [
+        { key: 'boleto', label: t('add.boleto'), icon: 'barcode', color: colors.warning },
       ]
     : [
-        { key: 'card', label: t('add.card'), icon: 'card' },
-        { key: 'pix', label: t('add.pix'), icon: 'qr-code' },
-        { key: 'boleto', label: t('add.boleto'), icon: 'barcode' },
+        { key: 'card', label: t('add.card'), icon: 'card', color: '#8B5CF6' },
+        { key: 'pix', label: t('add.pix'), icon: 'qr-code', color: '#10B981' },
       ];
 
   const cardTypes = [
-    { key: 'credit', label: t('add.credit'), icon: 'card' },
-    { key: 'debit', label: t('add.debit'), icon: 'card' },
+    { key: 'credit', label: t('add.credit'), icon: 'card', color: '#8B5CF6' },
+    { key: 'debit', label: t('add.debit'), icon: 'card', color: '#3B82F6' },
   ];
+
+  const renderInput = (label, value, onChange, placeholder, keyboardType = 'default', props = {}) => (
+    <View style={styles.formGroup}>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      <TextInput
+        style={[styles.input, { backgroundColor: darkMode ? colors.bgTertiary : '#F1F5F9', color: colors.textPrimary }]}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        value={value}
+        onChangeText={onChange}
+        keyboardType={keyboardType}
+        {...props}
+      />
+    </View>
+  );
+
+  const renderForm = () => (
+    <View style={{ paddingBottom: 20 }}>
+      {renderInput(t('add.description'), desc, setDesc, t('common.descriptionPlaceholder') || 'Ex: Supermercado Extra')}
+
+      <View style={styles.formRow}>
+        {renderInput(t('add.amount'), amount, handleAmountChange, '0,00', 'decimal-pad')}
+        {renderInput(t('add.date'), date, setDate, 'YYYY-MM-DD')}
+      </View>
+
+      {/* Categorias */}
+      {activeTab !== 'income' && (
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.category')}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryScroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            {categories.map(c => (
+              <TouchableOpacity
+                key={c.id}
+                activeOpacity={0.7}
+                style={[styles.categoryChip, {
+                  backgroundColor: categoryId === c.id ? c.color + '18' : darkMode ? colors.bgTertiary : '#F1F5F9',
+                  borderColor: categoryId === c.id ? c.color + '50' : 'transparent',
+                  borderWidth: categoryId === c.id ? 1.5 : 1,
+                }]}
+                onPress={() => { Keyboard.dismiss(); setCategoryId(c.id); }}
+              >
+                <View style={[styles.categoryChipIcon, { backgroundColor: c.color + '15' }]}>
+                  <Ionicons name={c.icon} size={14} color={c.color} />
+                </View>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: categoryId === c.id ? c.color : colors.textPrimary }}>
+                  {c.name}
+                </Text>
+                {categoryId === c.id && (
+                  <View style={[styles.checkBadge, { backgroundColor: c.color }]}>
+                    <Ionicons name="checkmark" size={9} color="#FFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Métodos de pagamento */}
+      <View style={styles.formGroup}>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.paymentMethod')}</Text>
+        <View style={styles.paymentGrid}>
+          {paymentMethods.map(method => (
+            <TouchableOpacity
+              key={method.key}
+              activeOpacity={0.7}
+              style={[styles.paymentOption, {
+                backgroundColor: paymentMethod === method.key ? method.color + '12' : darkMode ? colors.bgTertiary : '#F1F5F9',
+                borderColor: paymentMethod === method.key ? method.color + '50' : 'transparent',
+                borderWidth: paymentMethod === method.key ? 1.5 : 1,
+              }]}
+              onPress={() => { Keyboard.dismiss(); setPaymentMethod(method.key); if (method.key === 'card') setCardType('credit'); }}
+            >
+              <View style={[styles.paymentIcon, { backgroundColor: method.color + '15' }]}>
+                <Ionicons name={method.icon} size={14} color={method.color} />
+              </View>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: paymentMethod === method.key ? method.color : colors.textPrimary }}>
+                {method.label}
+              </Text>
+              {paymentMethod === method.key && (
+                <View style={[styles.checkBadgeSmall, { backgroundColor: method.color }]}>
+                  <Ionicons name="checkmark" size={8} color="#FFF" />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Cartão */}
+      {activeTab !== 'income' && paymentMethod === 'card' && displayCards.length > 0 && (
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.card')}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cardScroll}
+            keyboardShouldPersistTaps="handled"
+          >
+            {displayCards.map(c => (
+              <TouchableOpacity
+                key={c.id}
+                activeOpacity={0.7}
+                style={[styles.cardChip, {
+                  backgroundColor: String(cardId) === String(c.id) ? (c.color || colors.primary) + '12' : darkMode ? colors.bgTertiary : '#F1F5F9',
+                  borderColor: String(cardId) === String(c.id) ? (c.color || colors.primary) + '60' : 'transparent',
+                  borderWidth: String(cardId) === String(c.id) ? 2 : 1,
+                }]}
+                onPress={() => { Keyboard.dismiss(); setCardId(c.id); }}
+              >
+                <View style={[styles.cardChipIcon, { backgroundColor: (c.color || colors.primary) + '15' }]}>
+                  <Ionicons name="card" size={14} color={c.color || colors.primary} />
+                </View>
+                <View>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: String(cardId) === String(c.id) ? (c.color || colors.primary) : colors.textPrimary }}>
+                    {c.name}
+                  </Text>
+                  <Text style={{ fontSize: 9, color: colors.textMuted, marginTop: 1 }}>{c.number}</Text>
+                </View>
+                {String(cardId) === String(c.id) && (
+                  <View style={[styles.cardCheckBadge, { backgroundColor: c.color || colors.primary }]}>
+                    <Ionicons name="checkmark" size={10} color="#FFF" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {invoiceWarning && (
+            <View style={[styles.invoiceWarning, { backgroundColor: invoiceWarning.color + '10', borderColor: invoiceWarning.color + '30' }]}>
+              <Ionicons name="calendar" size={14} color={invoiceWarning.color} />
+              <Text style={[styles.invoiceWarningText, { color: invoiceWarning.color }]}>{invoiceWarning.message}</Text>
+            </View>
+          )}
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.cardType')}</Text>
+            <View style={styles.paymentGrid}>
+              {cardTypes.map(type => (
+                <TouchableOpacity
+                  key={type.key}
+                  activeOpacity={0.7}
+                  style={[styles.paymentOption, {
+                    backgroundColor: cardType === type.key ? type.color + '12' : darkMode ? colors.bgTertiary : '#F1F5F9',
+                    borderColor: cardType === type.key ? type.color + '50' : 'transparent',
+                    borderWidth: cardType === type.key ? 1.5 : 1,
+                  }]}
+                  onPress={() => { Keyboard.dismiss(); setCardType(type.key); }}
+                >
+                  <View style={[styles.paymentIcon, { backgroundColor: type.color + '15' }]}>
+                    <Ionicons name={type.icon} size={14} color={type.color} />
+                  </View>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: cardType === type.key ? type.color : colors.textPrimary }}>
+                    {type.label}
+                  </Text>
+                  {cardType === type.key && (
+                    <View style={[styles.checkBadgeSmall, { backgroundColor: type.color }]}>
+                      <Ionicons name="checkmark" size={8} color="#FFF" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Boleto Due */}
+      {activeTab === 'boleto' && (
+        <View style={styles.formGroup}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.boletoDue') || 'Data de Vencimento'}</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: darkMode ? colors.bgTertiary : '#F1F5F9', color: colors.textPrimary }]}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.textMuted}
+            value={boletoDue}
+            onChangeText={setBoletoDue}
+          />
+          <Text style={[styles.inputHint, { color: colors.textMuted }]}>
+            O boleto será listado como pendente até ser quitado.
+          </Text>
+        </View>
+      )}
+
+      {/* Ações do Boleto */}
+      {activeTab === 'boleto' && (
+        <View style={styles.boletoActions}>
+          <TouchableOpacity
+            style={[styles.boletoActionBtn, { backgroundColor: colors.warning }]}
+            onPress={() => { Keyboard.dismiss(); handleSubmit(); }}
+          >
+            <Ionicons name="document-text" size={16} color="#FFF" />
+            <Text style={styles.boletoActionText}>Salvar como Pendente</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.boletoActionBtn, { backgroundColor: colors.success }]}
+            onPress={() => { Keyboard.dismiss(); handlePayBoletoDirect(); }}
+          >
+            <Ionicons name="checkmark-circle" size={16} color="#FFF" />
+            <Text style={styles.boletoActionText}>Salvar e Quitar Agora</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {activeTab === 'boleto' && (
+        <View style={styles.boletoInfoBox}>
+          <Ionicons name="information-circle" size={14} color={colors.primary} />
+          <Text style={[styles.boletoInfoText, { color: colors.textMuted }]}>
+            Salvar como pendente: o boleto aparecerá na lista de boletos pendentes.
+Quitar agora: o valor será deduzido do saldo em caixa imediatamente.
+          </Text>
+        </View>
+      )}
+
+      {/* Scanner OCR */}
+      {activeTab === 'expense' && (
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '25' }]}
+          onPress={() => { Keyboard.dismiss(); setOcrModalVisible(true); }}
+        >
+          <View style={[styles.actionBtnIcon, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name="scan" size={16} color={colors.primary} />
+          </View>
+          <View style={styles.actionBtnTextBox}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>{t('ocr.scanReceipt')}</Text>
+            <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 1 }}>Preencha automaticamente</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+        </TouchableOpacity>
+      )}
+
+      {/* Dividir Despesa */}
+      {activeTab === 'expense' && (
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '25' }]}
+          onPress={() => {
+            Keyboard.dismiss();
+            const parsed = parseCurrencyToNumber(amount);
+            if (!desc || parsed <= 0) { showToast(t('add.fillRequired'), 'error'); return; }
+            setSplitModalVisible(true);
+          }}
+        >
+          <View style={[styles.actionBtnIcon, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons name="people" size={16} color={colors.primary} />
+          </View>
+          <View style={styles.actionBtnTextBox}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>
+              {splitData ? t('split.editSplit') : t('split.divideExpense')}
+            </Text>
+            <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 1 }}>
+              {splitData ? `${splitData.participants?.length || 0} participantes` : 'Divida com amigos ou círculo'}
+            </Text>
+          </View>
+          {splitData && (
+            <View style={[styles.splitBadge, { backgroundColor: colors.success }]}>
+              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>{splitData.participants?.length || 0}</Text>
+            </View>
+          )}
+          <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+        </TouchableOpacity>
+      )}
+
+      {/* Hint income */}
+      {activeTab === 'income' && (
+        <View style={styles.incomeHint}>
+          <Ionicons name="information-circle" size={14} color={colors.primary} />
+          <Text style={[styles.incomeHintText, { color: colors.textMuted }]}>
+            Receitas são registradas automaticamente sem categoria.
+          </Text>
+        </View>
+      )}
+
+      {/* Submit: expense e income */}
+      {activeTab !== 'boleto' && (
+        <TouchableOpacity
+          style={[styles.submitBtn, { backgroundColor: typeConfig[activeTab].color }]}
+          onPress={() => { Keyboard.dismiss(); handleSubmit(); }}
+        >
+          <Ionicons name="save" size={16} color="#FFF" />
+          <Text style={styles.submitText}>{typeConfig[activeTab].submit}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
-      {/* Header — CORREÇÃO: layout limpo, título e chip bem separados */}
-      <View style={[styles.header, { backgroundColor: colors.bgCard, borderBottomColor: colors.border }]}>
+      {/* HEADER */}
+      <View style={[styles.header, { backgroundColor: colors.bgCard, borderBottomColor: colors.border + '30' }]}>
         <View style={styles.headerTop}>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-            <Ionicons name="add-circle" size={20} color={colors.primary} />  {t('add.title')}
-          </Text>
+          <View style={styles.headerTitleBox}>
+            <View style={[styles.headerIconBox, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="add-circle" size={18} color={colors.primary} />
+            </View>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{t('add.title')}</Text>
+          </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
-              style={[styles.budgetBtn, { backgroundColor: colors.primary + '15' }]}
+              style={[styles.headerActionBtn, { backgroundColor: colors.primary + '10' }]}
               onPress={() => navigation.navigate('Budget')}
             >
-              <Ionicons name="wallet" size={18} color={colors.primary} />
+              <Ionicons name="wallet" size={16} color={colors.primary} />
             </TouchableOpacity>
             {currentCircle && (
-              <View style={[styles.circleChip, { backgroundColor: colors.primary + '15' }]}>
+              <View style={[styles.circleChip, { backgroundColor: colors.primary + '10' }]}>
                 <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />
                 <Text style={[styles.circleChipText, { color: colors.primary }]} numberOfLines={1}>
                   {currentCircle.name}
@@ -267,18 +600,60 @@ const AddScreen = () => {
         </View>
       </View>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 16 }}>
-        {/* Resumo - Cartões Mais Utilizados */}
+      {/* SCROLL PRINCIPAL */}
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={{ paddingTop: 16 }} />
+
+        {/* QUICK SUMMARY */}
+        <View style={styles.quickSummary}>
+          <View style={[styles.summaryCard, { backgroundColor: darkMode ? colors.bgCard : '#FFF' }]}>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <View style={[styles.summaryIcon, { backgroundColor: colors.success + '12' }]}>
+                  <Ionicons name="wallet" size={16} color={colors.success} />
+                </View>
+                <View>
+                  <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Saldo em Caixa</Text>
+                  <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(cashBalance)}</Text>
+                </View>
+              </View>
+              <View style={[styles.summaryDivider, { backgroundColor: colors.border + '30' }]} />
+              <View style={styles.summaryItem}>
+                <View style={[styles.summaryIcon, { backgroundColor: colors.warning + '12' }]}>
+                  <Ionicons name="document-text" size={16} color={colors.warning} />
+                </View>
+                <View>
+                  <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Boletos Pendentes</Text>
+                  <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{pendingBoletos.length}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* TOP CARDS */}
         {topCards.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-              <Ionicons name="card" size={14} color={colors.primary} />  {t('add.topCards')}
-            </Text>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                <Ionicons name="card" size={14} color={colors.primary} />  {t('add.topCards')}
+              </Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardScroll}>
               {topCards.map(card => (
-                <View key={card.id} style={[styles.topCard, { backgroundColor: colors.bgCard }]}>
+                <View key={card.id} style={[styles.topCard, { backgroundColor: darkMode ? colors.bgCard : '#FFF' }]}>
                   <View style={[styles.topCardBar, { backgroundColor: card.color || colors.primary }]} />
-                  <Text style={[styles.topCardName, { color: colors.textPrimary }]} numberOfLines={1}>{card.name}</Text>
+                  <View style={styles.topCardHeader}>
+                    <View style={[styles.topCardIcon, { backgroundColor: (card.color || colors.primary) + '12' }]}>
+                      <Ionicons name="card" size={14} color={card.color || colors.primary} />
+                    </View>
+                    <Text style={[styles.topCardName, { color: colors.textPrimary }]} numberOfLines={1}>{card.name}</Text>
+                  </View>
                   <Text style={[styles.topCardNumber, { color: colors.textMuted }]}>{card.number}</Text>
                   <Text style={[styles.topCardValue, { color: colors.danger }]}>{formatCurrency(card.used)}</Text>
                   <Text style={[styles.topCardLabel, { color: colors.textMuted }]}>{t('cards.used')}</Text>
@@ -288,21 +663,27 @@ const AddScreen = () => {
           </View>
         )}
 
-        {/* Resumo - Categorias Mais Utilizadas */}
+        {/* TOP CATEGORIES */}
         {topCategories.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-              <Ionicons name="pie-chart" size={14} color={colors.primary} />  {t('add.topCategories')}
-            </Text>
-            <View style={[styles.categoryList, { backgroundColor: colors.bgCard }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                <Ionicons name="pie-chart" size={14} color={colors.primary} />  Top Categorias
+              </Text>
+            </View>
+            <View style={[styles.categoryList, { backgroundColor: darkMode ? colors.bgCard : '#FFF' }]}>
               {topCategories.map((cat, index) => (
                 <View key={cat.name} style={styles.categoryRow}>
                   <View style={styles.categoryLeft}>
-                    <View style={[styles.categoryRank, { backgroundColor: index < 3 ? cat.color + '20' : colors.bgTertiary }]}>
-                      <Text style={[styles.categoryRankText, { color: index < 3 ? cat.color : colors.textMuted }]}>{index + 1}</Text>
+                    <View style={[styles.categoryRank, {
+                      backgroundColor: index === 0 ? '#F59E0B18' : index === 1 ? '#6B728018' : '#92400E18'
+                    }]}>
+                      <Text style={[styles.categoryRankText, {
+                        color: index === 0 ? '#F59E0B' : index === 1 ? '#6B7280' : '#92400E'
+                      }]}>{index + 1}</Text>
                     </View>
-                    <View style={[styles.categoryIconBg, { backgroundColor: cat.color + '15' }]}>
-                      <Ionicons name={cat.icon} size={16} color={cat.color} />
+                    <View style={[styles.categoryIconBg, { backgroundColor: cat.color + '12' }]}>
+                      <Ionicons name={cat.icon} size={14} color={cat.color} />
                     </View>
                     <Text style={[styles.categoryName, { color: colors.textPrimary }]}>{cat.name}</Text>
                   </View>
@@ -313,20 +694,22 @@ const AddScreen = () => {
           </View>
         )}
 
-        {/* Boletos Pendentes */}
+        {/* BOLETOS PENDENTES */}
         {pendingBoletos.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-              <Ionicons name="barcode" size={14} color={colors.warning} />  Boletos Pendentes
-            </Text>
-            <View style={[styles.boletoList, { backgroundColor: colors.bgCard }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                <Ionicons name="barcode" size={14} color={colors.warning} />  Boletos Pendentes
+              </Text>
+            </View>
+            <View style={[styles.boletoList, { backgroundColor: darkMode ? colors.bgCard : '#FFF' }]}>
               {pendingBoletos.map(boleto => (
                 <View key={boleto.id} style={styles.boletoRow}>
                   <View style={styles.boletoLeft}>
-                    <View style={[styles.boletoIconBg, { backgroundColor: colors.warning + '15' }]}>
-                      <Ionicons name="barcode" size={16} color={colors.warning} />
+                    <View style={[styles.boletoIconBg, { backgroundColor: colors.warning + '12' }]}>
+                      <Ionicons name="document-text" size={16} color={colors.warning} />
                     </View>
-                    <View>
+                    <View style={styles.boletoInfo}>
                       <Text style={[styles.boletoName, { color: colors.textPrimary }]} numberOfLines={1}>{boleto.desc}</Text>
                       <Text style={[styles.boletoDue, { color: colors.textMuted }]}>Vence: {boleto.boletoDue || 'N/A'}</Text>
                     </View>
@@ -334,12 +717,12 @@ const AddScreen = () => {
                   <View style={styles.boletoRight}>
                     <Text style={[styles.boletoValue, { color: colors.danger }]}>{formatCurrency(boleto.amount)}</Text>
                     <TouchableOpacity
-                      style={[styles.payBoletoBtnSmall, { backgroundColor: cashBalance >= boleto.amount ? colors.success : colors.textMuted }]}
+                      style={[styles.payBtn, { backgroundColor: cashBalance >= boleto.amount ? colors.success : colors.textMuted + '60' }]}
                       onPress={() => handlePayBoleto(boleto)}
                       disabled={cashBalance < boleto.amount}
                     >
-                      <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
-                      <Text style={styles.payBoletoBtnSmallText}>Quitar</Text>
+                      <Ionicons name="checkmark-circle" size={10} color="#FFF" />
+                      <Text style={styles.payBtnText}>Quitar</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -348,339 +731,67 @@ const AddScreen = () => {
           </View>
         )}
 
-        {/* Mensagem quando vazio */}
+        {/* EMPTY STATE */}
         {topCards.length === 0 && topCategories.length === 0 && pendingBoletos.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="hand-left" size={48} color={colors.textMuted} />
-            <Text style={[styles.hint, { color: colors.textMuted }]}>{t('add.hint')}</Text>
-            <Text style={[styles.subHint, { color: colors.textMuted }]}>{t('add.subHint')}</Text>
+            <View style={[styles.emptyIconBox, { backgroundColor: colors.primary + '10' }]}>
+              <Ionicons name="hand-left" size={36} color={colors.primary} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>{t('add.hint')}</Text>
+            <Text style={[styles.emptySub, { color: colors.textMuted }]}>{t('add.subHint')}</Text>
           </View>
         )}
 
-        <View style={{ height: 100 }} />
+        {/* SEPARADOR */}
+        <View style={[styles.separator, { backgroundColor: colors.border + '20' }]} />
+
+        {/* TÍTULO DO FORMULÁRIO */}
+        <View style={styles.formHeader}>
+          <View style={[styles.formHeaderIcon, { backgroundColor: typeConfig[activeTab].color + '15' }]}>
+            <Ionicons name={typeConfig[activeTab].icon} size={18} color={typeConfig[activeTab].color} />
+          </View>
+          <Text style={[styles.formHeaderTitle, { color: colors.textPrimary }]}>
+            {typeConfig[activeTab].title}
+          </Text>
+        </View>
+
+        {/* FORMULÁRIO */}
+        {renderForm()}
       </ScrollView>
 
-      {/* FAB Menu */}
-      {fabOpen && (
-        <View style={styles.fabMenu}>
-          <TouchableOpacity 
-            style={[styles.fabItem, { backgroundColor: colors.danger }]} 
-            onPress={() => openModal('expense')}
-          >
-            <Ionicons name="remove" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.fabItem, { backgroundColor: colors.success }]} 
-            onPress={() => openModal('income')}
-          >
-            <Ionicons name="add" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <TouchableOpacity 
-        style={[styles.fab, { backgroundColor: colors.primary }]} 
-        onPress={() => setFabOpen(!fabOpen)}
-      >
-        <Ionicons name={fabOpen ? 'close' : 'add'} size={28} color="#FFFFFF" />
-      </TouchableOpacity>
-
-      {/* Modal — CORREÇÃO: Usando ModalContent em vez de KeyboardAvoidingView */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <ModalContent scroll={true}>
-          <View style={[styles.modalContent, { backgroundColor: colors.bgCard }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                <Ionicons name={typeConfig[transactionType].icon} size={20} color={typeConfig[transactionType].color} />
-                {'  '}{typeConfig[transactionType].title}
+      {/* TABS INFERIORES */}
+      <View style={[styles.tabBar, { backgroundColor: colors.bgCard, borderTopColor: colors.border + '30' }]}>
+        {TABS.map(tab => {
+          const isActive = activeTab === tab.key;
+          const tabColor = colors[tab.colorKey];
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              activeOpacity={0.7}
+              style={[styles.tabItem, isActive && { backgroundColor: tabColor + '12' }]}
+              onPress={() => switchTab(tab.key)}
+            >
+              <Ionicons
+                name={tab.icon}
+                size={20}
+                color={isActive ? tabColor : colors.textMuted}
+              />
+              <Text style={[styles.tabLabel, { color: isActive ? tabColor : colors.textMuted }]}>
+                {tab.label}
               </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.description')}</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                  placeholder={t('add.description')}
-                  placeholderTextColor={colors.textMuted}
-                  value={desc}
-                  onChangeText={setDesc}
-                />
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.amount')}</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                    placeholder="0,00"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="decimal-pad"
-                    value={amount}
-                    onChangeText={handleAmountChange}
-                  />
-                </View>
-                <View style={[styles.formGroup, { flex: 1 }]}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.date')}</Text>
-                  <TextInput
-                    style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                    value={date}
-                    onChangeText={setDate}
-                  />
-                </View>
-              </View>
-
-              {/* Categorias - Scroll Horizontal (apenas para expense e boleto) */}
-              {transactionType !== 'income' && (
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.category')}</Text>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoryScroll}
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {categories.map(c => (
-                      <TouchableOpacity
-                        key={c.id}
-                        activeOpacity={0.7}
-                        style={[
-                          styles.categoryChip,
-                          { backgroundColor: categoryId === c.id ? c.color + '20' : colors.bgTertiary },
-                        ]}
-                        onPress={() => setCategoryId(c.id)}
-                      >
-                        <Ionicons name={c.icon} size={18} color={categoryId === c.id ? c.color : colors.textMuted} />
-                        <Text style={{ fontSize: 12, color: categoryId === c.id ? c.color : colors.textPrimary, marginLeft: 6 }}>{c.name}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
+              {isActive && (
+                <View style={[styles.tabIndicator, { backgroundColor: tabColor }]} />
               )}
-
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.paymentMethod')}</Text>
-                <View style={styles.paymentOptions}>
-                  {paymentMethods.map(method => (
-                    <TouchableOpacity
-                      key={method.key}
-                      activeOpacity={0.7}
-                      style={[
-                        styles.paymentOption,
-                        { backgroundColor: paymentMethod === method.key ? colors.primary + '10' : colors.bgTertiary },
-                      ]}
-                      onPress={() => {
-                        setPaymentMethod(method.key);
-                        if (method.key === 'card') {
-                          setCardType('credit');
-                        }
-                      }}
-                    >
-                      <Ionicons 
-                        name={method.icon} 
-                        size={16} 
-                        color={paymentMethod === method.key ? colors.primary : colors.textMuted} 
-                      />
-                      <Text style={{ fontSize: 12, color: paymentMethod === method.key ? colors.primary : colors.textSecondary }}>
-                        {method.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Cartão selecionado */}
-              {transactionType !== 'income' && paymentMethod === 'card' && displayCards.length > 0 && (
-                <>
-                  <View style={styles.formGroup}>
-                    <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.card')}</Text>
-                    <ScrollView 
-                      horizontal 
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.cardScroll}
-                      keyboardShouldPersistTaps="handled"
-                    >
-                      {displayCards.map(c => (
-                        <TouchableOpacity
-                          key={c.id}
-                          activeOpacity={0.7}
-                          style={[
-                            styles.cardChip,
-                            { backgroundColor: cardId === c.id.toString() ? colors.primary + '20' : colors.bgTertiary },
-                          ]}
-                          onPress={() => setCardId(c.id)}
-                        >
-                          <Ionicons name="card" size={16} color={cardId === c.id.toString() ? colors.primary : colors.textMuted} />
-                          <Text style={{ fontSize: 11, color: cardId === c.id.toString() ? colors.primary : colors.textPrimary, marginLeft: 4 }}>
-                            {c.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {invoiceWarning && (
-                    <View style={[styles.invoiceWarning, { backgroundColor: invoiceWarning.color + '15', borderColor: invoiceWarning.color + '40' }]}>
-                      <Ionicons name="calendar" size={16} color={invoiceWarning.color} />
-                      <Text style={[styles.invoiceWarningText, { color: invoiceWarning.color }]}>
-                        {invoiceWarning.message}
-                      </Text>
-                    </View>
-                  )}
-
-                  <View style={styles.formGroup}>
-                    <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.cardType')}</Text>
-                    <View style={styles.paymentOptions}>
-                      {cardTypes.map(type => (
-                        <TouchableOpacity
-                          key={type.key}
-                          activeOpacity={0.7}
-                          style={[
-                            styles.paymentOption,
-                            { backgroundColor: cardType === type.key ? colors.primary + '10' : colors.bgTertiary },
-                          ]}
-                          onPress={() => setCardType(type.key)}
-                        >
-                          <Ionicons 
-                            name={type.icon} 
-                            size={16} 
-                            color={cardType === type.key ? colors.primary : colors.textMuted} 
-                          />
-                          <Text style={{ fontSize: 12, color: cardType === type.key ? colors.primary : colors.textSecondary }}>
-                            {type.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                </>
-              )}
-
-              {transactionType === 'boleto' && (
-                <>
-                  <View style={styles.formGroup}>
-                    <Text style={[styles.label, { color: colors.textSecondary }]}>{t('add.boletoDue')}</Text>
-                    <TextInput
-                      style={[styles.input, { backgroundColor: colors.bgTertiary, color: colors.textPrimary }]}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor={colors.textMuted}
-                      value={boletoDue}
-                      onChangeText={setBoletoDue}
-                    />
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.payBoletoBtn, { backgroundColor: colors.success }]}
-                    onPress={() => {
-                      const numericAmount = parseCurrencyToNumber(amount);
-                      if (!desc || !numericAmount) {
-                        showToast(t('add.fillRequired'), 'error');
-                        return;
-                      }
-                      const category = categories.find(c => c.id === categoryId);
-                      const transaction = {
-                        type: 'expense',
-                        desc: desc + ' (Boleto Quitado)',
-                        amount: numericAmount,
-                        date,
-                        category: categoryId,
-                        categoryName: category ? category.name : t('categories.other'),
-                        categoryIcon: category ? category.icon : 'pricetag',
-                        categoryColor: category ? category.color : '#94A3B8',
-                        paymentMethod: 'boleto',
-                        cardId: null,
-                        cardType: null,
-                        boletoDue,
-                        isPaid: true,
-                        paidAt: new Date().toISOString(),
-                      };
-                      addTransaction(transaction);
-                      setModalVisible(false);
-                      setFabOpen(false);
-                      showToast('Boleto quitado com sucesso!', 'success');
-                    }}
-                  >
-                    <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
-                    <Text style={styles.payBoletoText}>Quitar Boleto</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {/* Botão Escanear Comprovante (só para despesas) */}
-              {transactionType === 'expense' && (
-                <TouchableOpacity
-                  style={[styles.scanBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}
-                  onPress={() => setOcrModalVisible(true)}
-                >
-                  <Ionicons name="scan" size={18} color={colors.primary} />
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.primary, marginLeft: 8 }}>
-                    {t('ocr.scanReceipt')}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Botão Dividir Despesa (só para despesas) */}
-              {transactionType === 'expense' && (
-                <TouchableOpacity
-                  style={[styles.splitBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}
-                  onPress={() => {
-                    const parsedAmount = parseCurrencyToNumber(amount);
-                    if (!desc || parsedAmount <= 0) {
-                      showToast(t('add.fillRequired'), 'error');
-                      return;
-                    }
-                    setSplitModalVisible(true);
-                  }}
-                >
-                  <Ionicons name="people" size={18} color={colors.primary} />
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: colors.primary, marginLeft: 8 }}>
-                    {splitData ? t('split.editSplit') : t('split.divideExpense')}
-                  </Text>
-                  {splitData && (
-                    <View style={[styles.splitBadge, { backgroundColor: colors.success }]}>
-                      <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>
-                        {splitData.participants?.length || 0}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={[styles.submitBtn, { backgroundColor: typeConfig[transactionType].color }]}
-                onPress={handleSubmit}
-              >
-                <Ionicons name="save" size={18} color="#FFFFFF" />
-                <Text style={styles.submitText}>
-                  {transactionType === 'expense' ? t('add.registerExpense') : 
-                   transactionType === 'income' ? t('add.registerIncome') : t('add.registerBoleto')}
-                </Text>
-              </TouchableOpacity>
-
-              <View style={{ height: 40 }} />
-            </ScrollView>
-          </View>
-        </ModalContent>
-      </Modal>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       <SplitExpenseModal
         visible={splitModalVisible}
         onClose={() => setSplitModalVisible(false)}
-        transaction={{
-          desc,
-          amount: parseCurrencyToNumber(amount),
-        }}
-        onSplit={(data) => {
-          setSplitData(data);
-          showToast(t('split.saved'), 'success');
-        }}
+        transaction={{ desc, amount: parseCurrencyToNumber(amount) }}
+        onSplit={(data) => { setSplitData(data); showToast(t('split.saved'), 'success'); }}
       />
 
       <OCRScanner
@@ -696,140 +807,162 @@ const AddScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  budgetBtn: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+
+  // Header
+  header: { paddingTop: 44, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  circleChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, maxWidth: 160 },
+  headerTitleBox: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIconBox: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerActionBtn: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  circleChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, maxWidth: 140 },
   onlineDot: { width: 8, height: 8, borderRadius: 4 },
-  circleChipText: { fontSize: 12, fontWeight: '700' },
-  header: { 
-    paddingTop: 50, 
-    paddingHorizontal: 16, 
-    paddingBottom: 16, 
-    borderBottomWidth: 1,
-  },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
+  circleChipText: { fontSize: 10, fontWeight: '600' },
+
   scroll: { flex: 1, paddingHorizontal: 16 },
 
-  section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+  // Quick Summary
+  quickSummary: { marginBottom: 20 },
+  summaryCard: { borderRadius: 16, padding: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center' },
+  summaryItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  summaryIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  summaryLabel: { fontSize: 10, fontWeight: '500', letterSpacing: 0.2, textTransform: 'uppercase' },
+  summaryValue: { fontSize: 16, fontWeight: '700', marginTop: 1 },
+  summaryDivider: { width: 1, height: 40, marginHorizontal: 12 },
 
-  cardScroll: { paddingRight: 16, gap: 10 },
-  topCard: { width: 160, padding: 14, borderRadius: 16, marginRight: 10 },
-  topCardBar: { width: 40, height: 4, borderRadius: 2, marginBottom: 10 },
-  topCardName: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  topCardNumber: { fontSize: 11, marginBottom: 8 },
-  topCardValue: { fontSize: 16, fontWeight: '700' },
-  topCardLabel: { fontSize: 10, textTransform: 'uppercase', marginTop: 2 },
+  // Sections
+  section: { marginBottom: 16 },
+  sectionHeader: { marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '700' },
 
-  categoryList: { borderRadius: 16, padding: 12 },
-  categoryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
-  categoryLeft: { flexDirection: 'row', alignItems: 'center' },
-  categoryRank: { width: 24, height: 24, borderRadius: 6, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  categoryRankText: { fontSize: 12, fontWeight: '700' },
-  categoryIconBg: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  categoryName: { fontSize: 14, fontWeight: '600' },
-  categoryValue: { fontSize: 14, fontWeight: '700' },
+  // Top Cards
+  cardScroll: { paddingRight: 12, gap: 8 },
+  topCard: { width: 150, padding: 10, borderRadius: 14, marginRight: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  topCardBar: { width: 32, height: 3, borderRadius: 2, marginBottom: 8 },
+  topCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  topCardIcon: { width: 24, height: 24, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  topCardName: { fontSize: 12, fontWeight: '600', flex: 1 },
+  topCardNumber: { fontSize: 10, marginBottom: 6 },
+  topCardValue: { fontSize: 14, fontWeight: '700' },
+  topCardLabel: { fontSize: 9, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.3, marginTop: 1 },
 
-  emptyState: { alignItems: 'center', paddingVertical: 100 },
-  hint: { fontSize: 16, fontWeight: '600', marginTop: 16 },
-  subHint: { fontSize: 13, marginTop: 4 },
+  // Categories
+  categoryList: { borderRadius: 14, padding: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  categoryLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  categoryRank: { width: 22, height: 22, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  categoryRankText: { fontSize: 10, fontWeight: '800' },
+  categoryIconBg: { width: 28, height: 28, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  categoryName: { fontSize: 12, fontWeight: '600' },
+  categoryValue: { fontSize: 12, fontWeight: '700' },
 
-  fab: { position: 'absolute', right: 20, bottom: 30, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6 },
-  fabMenu: { position: 'absolute', right: 20, bottom: 96, alignItems: 'center', gap: 12 },
-  fabItem: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 4 },
+  // Boletos
+  boletoList: { borderRadius: 14, padding: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+  boletoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  boletoLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  boletoIconBg: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  boletoInfo: { flex: 1 },
+  boletoName: { fontSize: 12, fontWeight: '600' },
+  boletoDue: { fontSize: 10, fontWeight: '400', marginTop: 1 },
+  boletoRight: { alignItems: 'flex-end', gap: 6 },
+  boletoValue: { fontSize: 12, fontWeight: '700' },
+  payBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 },
+  payBtnText: { color: '#FFF', fontSize: 10, fontWeight: '600' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, maxHeight: '90%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: '700' },
+  // Empty State
+  emptyState: { alignItems: 'center', paddingVertical: 60 },
+  emptyIconBox: { width: 60, height: 60, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  emptyTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  emptySub: { fontSize: 11, fontWeight: '400' },
 
+  // Separator
+  separator: { height: 8, marginVertical: 20, borderRadius: 4 },
+
+  // Form Header
+  formHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
+  formHeaderIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  formHeaderTitle: { fontSize: 18, fontWeight: '700' },
+
+  // Form
   formGroup: { marginBottom: 16 },
   formRow: { flexDirection: 'row', gap: 12 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   input: { padding: 14, borderRadius: 12, fontSize: 16 },
+  inputHint: { fontSize: 11, fontWeight: '500', marginTop: 6, lineHeight: 16 },
 
+  // Category Selector
   categoryScroll: { paddingRight: 16, gap: 8 },
-  categoryChip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, marginRight: 8 },
+  categoryChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, marginRight: 5 },
+  categoryChipIcon: { width: 24, height: 24, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  checkBadge: { width: 14, height: 14, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
 
-  paymentOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  paymentOption: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12 },
+  // Payment Grid
+  paymentGrid: { flexDirection: 'row', gap: 10 },
+  paymentOption: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10 },
+  paymentIcon: { width: 24, height: 24, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  checkBadgeSmall: { width: 14, height: 14, borderRadius: 7, justifyContent: 'center', alignItems: 'center', position: 'absolute', top: 6, right: 6 },
 
-  cardChip: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, marginRight: 8 },
+  // Card Selector
+  cardScroll: { paddingRight: 16, gap: 8 },
+  cardChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, marginRight: 5, position: 'relative' },
+  cardChipIcon: { width: 22, height: 22, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  cardCheckBadge: { position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
 
-  invoiceWarning: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8, 
-    padding: 12, 
-    borderRadius: 10, 
-    marginBottom: 16,
-    borderWidth: 1,
+  // Invoice Warning
+  invoiceWarning: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8, borderRadius: 8, marginTop: 6, borderWidth: 1 },
+  invoiceWarningText: { fontSize: 11, fontWeight: '600', flex: 1 },
+
+  // Action Buttons (Scanner / Split)
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, borderRadius: 10, marginBottom: 6, borderWidth: 1, borderStyle: 'dashed' },
+  actionBtnIcon: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  actionBtnTextBox: { flex: 1 },
+  splitBadge: { width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+
+  // Submit
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10, borderRadius: 10, marginTop: 6 },
+  submitText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+
+  // Income Hint
+  incomeHint: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8, borderRadius: 8, backgroundColor: 'rgba(129,140,248,0.08)', marginBottom: 8 },
+  incomeHintText: { fontSize: 11, fontWeight: '500', flex: 1, lineHeight: 16 },
+
+  // Boleto Actions
+  boletoActions: { gap: 10, marginBottom: 14 },
+  boletoActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 10, borderRadius: 12 },
+  boletoActionText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  boletoInfoBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 12, borderRadius: 12, backgroundColor: 'rgba(129,140,248,0.06)' },
+  boletoInfoText: { fontSize: 10, fontWeight: '400', flex: 1, lineHeight: 14 },
+
+  // Tab Bar
+  tabBar: {
+    flexDirection: 'row',
+    paddingTop: 6,
+    paddingBottom: 28,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    gap: 8,
   },
-  invoiceWarningText: { 
-    fontSize: 13, 
-    fontWeight: '600', 
+  tabItem: {
     flex: 1,
-  },
-
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 14, marginTop: 8 },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-
-  payBoletoBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    padding: 14,
+    paddingVertical: 8,
     borderRadius: 12,
-    marginBottom: 16,
+    position: 'relative',
   },
-  payBoletoText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
   },
-
-  boletoList: { borderRadius: 16, padding: 12 },
-  boletoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
-  boletoLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  boletoIconBg: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  boletoName: { fontSize: 14, fontWeight: '600', maxWidth: 160 },
-  boletoDue: { fontSize: 11, marginTop: 2 },
-  boletoRight: { alignItems: 'flex-end' },
-  boletoValue: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  payBoletoBtnSmall: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
-  payBoletoBtnSmallText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-
-  splitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 12,
-    borderWidth: 1.5,
-  },
-  splitBadge: {
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 4,
     width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 6,
-  },
-
-  scanBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 12,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
+    height: 3,
+    borderRadius: 2,
   },
 });
 

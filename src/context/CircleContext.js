@@ -1,6 +1,7 @@
 // CircleContext.js — Sistema de Círculos Financeiros
+// Substitui completamente o GroupContext.js
+// Features: tempo real, permissões granulares, notificações de atividade, dados merged
 // V2: Fallback offline, health check, sync manual, redução de tráfego
-// ✅ SEGURANÇA: Hash de senha com HMAC-SHA256 e 100.000 iterações
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,18 +27,11 @@ const sanitizeString = (str) => {
   return str.trim().replace(/[<>'"&]/g, '').slice(0, 100);
 };
 
-// ✅ SEGURANÇA: HMAC-SHA256 com 100.000 iterações (mais forte)
 const hashPassword = async (password, salt) => {
-  const iterations = 100000;
-  let hash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    password + salt
-  );
+  const iterations = 10000;
+  let hash = password + salt;
   for (let i = 0; i < iterations; i++) {
-    hash = await Crypto.digestStringAsync(
-      Crypto.CryptoDigestAlgorithm.SHA256,
-      hash + salt + i.toString()
-    );
+    hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, hash);
   }
   return hash;
 };
@@ -104,6 +98,7 @@ export const CircleProvider = ({ children }) => {
   const subscriptionsRef = useRef([]);
   const syncIntervalRef = useRef(null);
   const lastSyncRef = useRef(0);
+  const healthCheckRef = useRef(null);
 
   // ========== PERSISTÊNCIA LOCAL ==========
 
@@ -191,11 +186,12 @@ export const CircleProvider = ({ children }) => {
             await logActivity(op.action, op.itemType, op.itemName, op.itemId);
             break;
         }
+        // Remove operação processada
         queue.splice(i, 1);
         i--;
       } catch (e) {
         console.warn('[CircleContext] Falha ao processar operação offline:', e);
-        break;
+        break; // Para de processar se falhar, tenta na próxima vez
       }
     }
 
@@ -232,6 +228,7 @@ export const CircleProvider = ({ children }) => {
     }
     try {
       const result = await operation();
+      // Se voltou online, processa fila
       if (offlineQueue.length > 0) {
         processOfflineQueue();
       }
@@ -282,6 +279,7 @@ export const CircleProvider = ({ children }) => {
       const queue = await loadFromStorage(STORAGE_KEYS.offlineQueue, []);
       setOfflineQueue(queue);
 
+      // Health check inicial
       await checkSupabaseHealth();
     } catch (e) {
       console.warn('[CircleContext] Erro ao carregar sessão:', e);
@@ -298,15 +296,18 @@ export const CircleProvider = ({ children }) => {
       if (isSupabaseOnline) {
         startRealTimeSubscriptions();
       }
+      // Sync manual ao entrar no círculo (sem auto-sync de 30s)
       syncWithCircle();
     } else {
       stopRealTimeSubscriptions();
     }
+
     return () => {
       stopRealTimeSubscriptions();
     };
   }, [currentCircle?.id, currentUser?.id, isSupabaseOnline]);
 
+  // Health check periódico (a cada 60s) — leve, não consome quota
   useEffect(() => {
     const interval = setInterval(() => {
       checkSupabaseHealth();
@@ -314,6 +315,7 @@ export const CircleProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Quando voltar online, processa fila e resync
   useEffect(() => {
     if (isSupabaseOnline && offlineQueue.length > 0) {
       processOfflineQueue();
@@ -326,6 +328,7 @@ export const CircleProvider = ({ children }) => {
 
   const startRealTimeSubscriptions = useCallback(() => {
     if (!currentCircle?.id || !isSupabaseOnline) return;
+
     stopRealTimeSubscriptions();
 
     const itemsChannel = supabase
@@ -471,8 +474,9 @@ export const CircleProvider = ({ children }) => {
     });
   };
 
+  // REMOVIDO: startAutoSync (setInterval de 30s) — agora sync é manual
   const startAutoSync = useCallback(() => {
-    // Sync manual apenas
+    // Sync manual apenas — sem interval automático para economizar quota
   }, []);
 
   const stopAutoSync = useCallback(() => {
@@ -1226,12 +1230,14 @@ export const CircleProvider = ({ children }) => {
       // Ignorar erro de network
     }
 
+    // Verifica saúde do Supabase antes de sync
     const online = await checkSupabaseHealth();
     if (!online) return;
 
     setIsSyncing(true);
 
     try {
+      // Reduzido: select apenas colunas necessárias + limit 100
       const { data: allItems, error: itemsError } = await supabase
         .from('circle_items')
         .select('id, item_type, item_id, shared_by, shared_by_name, permissions, item_data, created_at')
@@ -1269,6 +1275,7 @@ export const CircleProvider = ({ children }) => {
       await saveToStorage(STORAGE_KEYS.sharedTransactions, transactions);
       await saveToStorage(STORAGE_KEYS.sharedGoals, goals);
 
+      // Reduzido: limit 20 atividades recentes
       const { data: recentActivity, error: activityError } = await supabase
         .from('circle_activity_log')
         .select('id, user_id, user_name, action, item_type, item_name, message, created_at')
@@ -1435,6 +1442,7 @@ export const CircleProvider = ({ children }) => {
     isItemFromCircle,
     getItemOwnerName,
 
+    // ─── Offline Resilience (novo) ───
     isSupabaseOnline,
     offlineQueue,
     isProcessingQueue,

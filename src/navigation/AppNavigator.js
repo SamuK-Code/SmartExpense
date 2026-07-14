@@ -1,16 +1,15 @@
-// AppNavigator.js — Navegação com Círculos Financeiros + UI Refinada
-// ✨ REFINAMENTOS: Scale animation nos tabs, Haptic feedback, badge animado
+// AppNavigator.js — Navegação com Círculos Financeiros (Arquivo 9/10)
+// Substitui GroupScreen por CircleHubScreen, adiciona stack para CircleHub
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TouchableOpacity, View, Text, Animated, StyleSheet } from 'react-native';
+import { TouchableOpacity, View, Text } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslate } from '../hooks/useTranslate';
 import { useApp } from '../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 
 import HomeScreen from '../screens/HomeScreen';
 import AddScreen from '../screens/AddScreen';
@@ -24,62 +23,6 @@ import BudgetScreen from '../screens/BudgetScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
-
-// ═══════════════════════════════════════════════════
-// TAB BUTTON COM SCALE ANIMATION + HAPTIC
-// ═══════════════════════════════════════════════════
-const AnimatedTabButton = ({ children, onPress, accessibilityState }) => {
-  const [scaleAnim] = useState(new Animated.Value(1));
-  const focused = accessibilityState?.selected;
-
-  const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 0.85, duration: 80, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1.05, duration: 80, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
-    ]).start(() => onPress?.());
-  };
-
-  return (
-    <TouchableOpacity
-      onPress={handlePress}
-      activeOpacity={0.7}
-      style={styles.tabButton}
-    >
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        {children}
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
-
-// ═══════════════════════════════════════════════════
-// ANIMATED BADGE
-// ═══════════════════════════════════════════════════
-const AnimatedBadge = ({ count, colors }) => {
-  const [pulseAnim] = useState(new Animated.Value(1));
-
-  useEffect(() => {
-    if (count > 0) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ])
-      ).start();
-    }
-  }, [count]);
-
-  return (
-    <Animated.View style={[
-      styles.badgeContainer,
-      { backgroundColor: colors.danger, transform: [{ scale: pulseAnim }] }
-    ]}>
-      <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
-    </Animated.View>
-  );
-};
 
 // ═══════════════════════════════════════════════════
 // TAB NAVIGATOR (Bottom Tabs)
@@ -100,7 +43,7 @@ function TabNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted || colors.muted,
-        tabBarButton: (props) => <AnimatedTabButton {...props} />,
+        tabBarButton: (props) => <TouchableOpacity {...props} activeOpacity={0.7} />,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -143,14 +86,7 @@ function TabNavigator() {
             default:
               iconName = 'checkbox-outline';
           }
-          return (
-            <View>
-              <Ionicons name={iconName} size={size || 22} color={color} />
-              {route.name === 'Home' && unreadNotificationsCount > 0 && (
-                <AnimatedBadge count={unreadNotificationsCount} colors={colors} />
-              )}
-            </View>
-          );
+          return <Ionicons name={iconName} size={size || 22} color={color} />;
         },
       })}
     >
@@ -159,6 +95,8 @@ function TabNavigator() {
         component={HomeScreen}
         options={{ 
           tabBarLabel: t('tab.home'),
+          tabBarBadge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.danger, fontSize: 11, fontWeight: '700' },
         }}
       />
       <Tab.Screen
@@ -204,27 +142,3 @@ export default function AppNavigator() {
     </Stack.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  tabButton: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeContainer: {
-    position: 'absolute',
-    top: -6,
-    right: -10,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-});

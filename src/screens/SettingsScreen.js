@@ -1,7 +1,6 @@
-// SettingsScreen.js — COM PERFIL, TRADUÇÕES, SELETOR DE TEMA, ÍCONES HORIZONTAIS
-// ✨ REFINAMENTOS: Shake animation no PIN, Ripple nos botões, Haptic feedback aprimorado
+// SettingsScreen.js — COM PERFIL, TRADUÇÕES, SELETOR DE TEMA E ÍCONES HORIZONTAIS
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { 
@@ -15,9 +14,6 @@ import {
   Modal, 
   TextInput,
   Image,
-  Animated,
-  Easing,
-  Vibration,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
@@ -31,7 +27,6 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as Haptics from 'expo-haptics';
 import { GOAL_ICONS } from '../utils/helpers';
 
 const SettingsScreen = () => {
@@ -85,15 +80,12 @@ const SettingsScreen = () => {
   const [securityModalVisible, setSecurityModalVisible] = useState(false);
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [changePinModalVisible, setChangePinModalVisible] = useState(false);
-  const [pinStep, setPinStep] = useState('create');
+  const [pinStep, setPinStep] = useState('create'); // 'create' | 'confirm' | 'verify' | 'new' | 'confirmNew'
   const [pinValue, setPinValue] = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
   const [pinError, setPinError] = useState('');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState(null);
-
-  // Shake animation para PIN errado
-  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   // Cores em linha horizontal (12 cores)
   const colorOptions = [
@@ -103,20 +95,6 @@ const SettingsScreen = () => {
 
   const showToast = (message, type = 'success') => {
     setToast({ visible: true, message, type });
-  };
-
-  // Shake animation
-  const triggerShake = () => {
-    Vibration.vibrate(50);
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 5, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -5, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
-    ]).start();
   };
 
   // Verificar disponibilidade de biometria
@@ -388,12 +366,14 @@ const SettingsScreen = () => {
 
   const handleTogglePin = async (value) => {
     if (value) {
+      // Ativar PIN
       setPinStep('create');
       setPinValue('');
       setPinConfirm('');
       setPinError('');
       setPinModalVisible(true);
     } else {
+      // Desativar PIN — requer verificação
       setPinStep('verify');
       setPinValue('');
       setPinError('');
@@ -406,7 +386,6 @@ const SettingsScreen = () => {
     const current = pinStep === 'confirm' || pinStep === 'confirmNew' ? pinConfirm : pinValue;
     if (current.length < 4) {
       const updated = current + digit;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       if (pinStep === 'confirm' || pinStep === 'confirmNew') {
         setPinConfirm(updated);
         if (updated.length === 4) {
@@ -436,7 +415,6 @@ const SettingsScreen = () => {
         } else {
           setPinValue('');
           setPinError(t('lock.wrongPin'));
-          triggerShake();
           setTimeout(() => setPinError(''), 2000);
         }
       });
@@ -458,12 +436,10 @@ const SettingsScreen = () => {
         } else {
           setPinConfirm('');
           setPinError(t('settings.pinError'));
-          triggerShake();
         }
       } else {
         setPinConfirm('');
         setPinError(t('settings.pinMismatch'));
-        triggerShake();
         setTimeout(() => setPinError(''), 2000);
       }
     } else if (pinStep === 'confirmNew') {
@@ -477,19 +453,16 @@ const SettingsScreen = () => {
         } else {
           setPinConfirm('');
           setPinError(t('settings.pinError'));
-          triggerShake();
         }
       } else {
         setPinConfirm('');
         setPinError(t('settings.pinMismatch'));
-        triggerShake();
         setTimeout(() => setPinError(''), 2000);
       }
     }
   };
 
   const handlePinDelete = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (pinStep === 'confirm' || pinStep === 'confirmNew') {
       setPinConfirm(prev => prev.slice(0, -1));
     } else {
@@ -517,7 +490,6 @@ const SettingsScreen = () => {
       } else {
         setPinValue('');
         setPinError(t('lock.wrongPin'));
-        triggerShake();
         setTimeout(() => setPinError(''), 2000);
       }
     });
@@ -543,37 +515,8 @@ const SettingsScreen = () => {
   const themeNames = { pt: 'name', en: 'nameEn', es: 'nameEs' };
   const currentThemeName = currentTheme[themeNames[language] || 'name'];
 
-  // ═══════════════════════════════════════════════════════════
-  // RIPPLE BUTTON COMPONENT
-  // ═══════════════════════════════════════════════════════════
-  const RippleButton = ({ onPress, style, children, activeOpacity = 0.7 }) => {
-    const [rippleScale] = useState(new Animated.Value(0));
-    const [rippleOpacity] = useState(new Animated.Value(0.3));
-
-    const handlePressIn = () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      rippleScale.setValue(0);
-      rippleOpacity.setValue(0.3);
-      Animated.parallel([
-        Animated.timing(rippleScale, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(rippleOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]).start();
-    };
-
-    return (
-      <TouchableOpacity 
-        onPress={onPress} 
-        onPressIn={handlePressIn}
-        activeOpacity={activeOpacity}
-        style={[{ overflow: 'hidden' }, style]}
-      >
-        {children}
-      </TouchableOpacity>
-    );
-  };
-
   const SettingRow = ({ icon, iconColor, iconBg, label, value, onPress, isSwitch, switchValue, onSwitchChange, danger, rightContent }) => (
-    <RippleButton 
+    <TouchableOpacity 
       style={[styles.row, { backgroundColor: colors.bgCard }]}
       onPress={onPress}
       activeOpacity={isSwitch ? 1 : 0.7}
@@ -591,10 +534,7 @@ const SettingsScreen = () => {
       ) : isSwitch ? (
         <Switch
           value={switchValue}
-          onValueChange={(val) => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onSwitchChange(val);
-          }}
+          onValueChange={onSwitchChange}
           trackColor={{ false: '#E2E8F0', true: colors.primary }}
           thumbColor="#FFFFFF"
         />
@@ -603,7 +543,7 @@ const SettingsScreen = () => {
       ) : (
         <Ionicons name="chevron-forward" size={18} color={danger ? colors.danger : colors.textMuted} />
       )}
-    </RippleButton>
+    </TouchableOpacity>
   );
 
   const Section = ({ title, children }) => (
@@ -634,7 +574,7 @@ const SettingsScreen = () => {
         contentContainerStyle={{ paddingTop: 16 }}
       >
         {/* PROFILE CARD */}
-        <RippleButton 
+        <TouchableOpacity 
           style={[styles.profileCard, { backgroundColor: colors.primary }]}
           onPress={() => {
             setEditName(userProfile.name);
@@ -668,7 +608,7 @@ const SettingsScreen = () => {
           </View>
 
           <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
-        </RippleButton>
+        </TouchableOpacity>
 
         {/* Aparência */}
         <Section title={t('settings.appearance')}>
@@ -681,6 +621,7 @@ const SettingsScreen = () => {
             onSwitchChange={toggleDarkMode}
           />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          {/* 🎨 SELETOR DE TEMA */}
           <SettingRow
             icon="color-palette"
             iconColor={colors.primary}
@@ -913,13 +854,13 @@ const SettingsScreen = () => {
                     <Ionicons name="person" size={40} color="#FFFFFF" />
                   </View>
                 )}
-                <RippleButton 
+                <TouchableOpacity 
                   style={[styles.changePhotoBtn, { backgroundColor: colors.primary }]}
                   onPress={handlePhotoOptions}
                 >
                   <Ionicons name="camera" size={16} color="#FFFFFF" />
                   <Text style={styles.changePhotoText}>{t('settings.changePhoto')}</Text>
-                </RippleButton>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.formGroup}>
@@ -945,13 +886,13 @@ const SettingsScreen = () => {
                 />
               </View>
 
-              <RippleButton
+              <TouchableOpacity
                 style={[styles.submitBtn, { backgroundColor: colors.primary }]}
                 onPress={handleSaveName}
               >
                 <Ionicons name="save" size={18} color="#FFFFFF" />
                 <Text style={styles.submitText}>{t('settings.saveProfile')}</Text>
-              </RippleButton>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -979,7 +920,7 @@ const SettingsScreen = () => {
 
             <View style={styles.modalBody}>
               {LANGUAGES.map((lang) => (
-                <RippleButton
+                <TouchableOpacity
                   key={lang.code}
                   style={[
                     styles.langOption,
@@ -1000,7 +941,7 @@ const SettingsScreen = () => {
                   {language === lang.code && (
                     <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
                   )}
-                </RippleButton>
+                </TouchableOpacity>
               ))}
             </View>
           </View>
@@ -1032,7 +973,7 @@ const SettingsScreen = () => {
                 const nameKey = themeNames[language] || 'name';
                 const isSelected = themeKey === theme.key;
                 return (
-                  <RippleButton
+                  <TouchableOpacity
                     key={theme.key}
                     style={[
                       styles.themeOption,
@@ -1042,6 +983,7 @@ const SettingsScreen = () => {
                       }
                     ]}
                     onPress={() => handleThemeChange(theme.key)}
+                    activeOpacity={0.8}
                   >
                     <View style={[styles.themePreview, { backgroundColor: theme.primary }]}>
                       <View style={[styles.themePreviewInner, { 
@@ -1063,7 +1005,7 @@ const SettingsScreen = () => {
                     {isSelected && (
                       <Ionicons name="checkmark-circle" size={26} color={theme.primary} />
                     )}
-                  </RippleButton>
+                  </TouchableOpacity>
                 );
               })}
             </ScrollView>
@@ -1072,7 +1014,7 @@ const SettingsScreen = () => {
       </Modal>
 
       {/* ═══════════════════════════════════════════
-          🎯 MODAL ADICIONAR CATEGORIA
+          🎯 MODAL ADICIONAR CATEGORIA — ÍCONES HORIZONTAIS
       ═══════════════════════════════════════════ */}
       <Modal
         animationType="slide"
@@ -1092,6 +1034,7 @@ const SettingsScreen = () => {
             </View>
 
             <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+              {/* Nome */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.categoryName')}</Text>
                 <TextInput
@@ -1103,6 +1046,7 @@ const SettingsScreen = () => {
                 />
               </View>
 
+              {/* 🎨 Cores em linha horizontal */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.categoryColor')}</Text>
                 <ScrollView 
@@ -1111,26 +1055,25 @@ const SettingsScreen = () => {
                   contentContainerStyle={styles.colorRow}
                 >
                   {colorOptions.map((color) => (
-                    <RippleButton
+                    <TouchableOpacity
                       key={color}
                       style={[
                         styles.colorCircleRow,
                         { backgroundColor: color },
                         newCatColor === color && styles.colorSelectedRow
                       ]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setNewCatColor(color);
-                      }}
+                      onPress={() => setNewCatColor(color)}
+                      activeOpacity={0.8}
                     >
                       {newCatColor === color && (
                         <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                       )}
-                    </RippleButton>
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
 
+              {/* 🎯 Ícones em lista horizontal */}
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.textSecondary }]}>{t('settings.categoryIcon')}</Text>
                 <ScrollView
@@ -1139,7 +1082,7 @@ const SettingsScreen = () => {
                   contentContainerStyle={styles.iconRowSettings}
                 >
                   {GOAL_ICONS.map((icon) => (
-                    <RippleButton
+                    <TouchableOpacity
                       key={icon}
                       style={[
                         styles.iconOptionSettings,
@@ -1148,35 +1091,33 @@ const SettingsScreen = () => {
                           borderColor: newCatIcon === icon ? newCatColor : 'transparent',
                         }
                       ]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setNewCatIcon(icon);
-                      }}
+                      onPress={() => setNewCatIcon(icon)}
+                      activeOpacity={0.7}
                     >
                       <Ionicons 
                         name={icon} 
                         size={22} 
                         color={newCatIcon === icon ? newCatColor : colors.textMuted} 
                       />
-                    </RippleButton>
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
 
-              <RippleButton
+              <TouchableOpacity
                 style={[styles.submitBtn, { backgroundColor: colors.primary }]}
                 onPress={handleAddCategory}
               >
                 <Ionicons name="save" size={18} color="#FFFFFF" />
                 <Text style={styles.submitText}>{t('settings.saveCategory')}</Text>
-              </RippleButton>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
       </Modal>
 
       {/* ═══════════════════════════════════════════
-          🔒 MODAL DE PIN (Ativar/Desativar) — COM SHAKE
+          🔒 MODAL DE PIN (Ativar/Desativar)
       ═══════════════════════════════════════════ */}
       <Modal
         animationType="slide"
@@ -1201,7 +1142,7 @@ const SettingsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <Animated.View style={[styles.pinModalBody, { transform: [{ translateX: shakeAnim }] }]}>
+            <View style={styles.pinModalBody}>
               <Text style={[styles.pinLabel, { color: colors.textSecondary }]}>
                 {pinStep === 'create' ? t('settings.enterNewPin') :
                  pinStep === 'confirm' ? t('settings.reenterPin') :
@@ -1259,7 +1200,7 @@ const SettingsScreen = () => {
                   <Ionicons name="backspace-outline" size={22} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-            </Animated.View>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1284,7 +1225,7 @@ const SettingsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <Animated.View style={[styles.pinModalBody, { transform: [{ translateX: shakeAnim }] }]}>
+            <View style={styles.pinModalBody}>
               <Text style={[styles.pinLabel, { color: colors.textSecondary }]}>
                 {t('settings.enterCurrentPin')}
               </Text>
@@ -1316,7 +1257,6 @@ const SettingsScreen = () => {
                     onPress={() => {
                       if (pinError) setPinError('');
                       const updated = pinValue + num;
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setPinValue(updated);
                       if (updated.length === 4) {
                         setTimeout(() => handleVerifyForChange(updated), 150);
@@ -1333,7 +1273,6 @@ const SettingsScreen = () => {
                   onPress={() => {
                     if (pinError) setPinError('');
                     const updated = pinValue + '0';
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setPinValue(updated);
                     if (updated.length === 4) {
                       setTimeout(() => handleVerifyForChange(updated), 150);
@@ -1345,16 +1284,13 @@ const SettingsScreen = () => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.pinKey}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setPinValue(prev => prev.slice(0, -1));
-                  }}
+                  onPress={() => setPinValue(prev => prev.slice(0, -1))}
                   activeOpacity={0.6}
                 >
                   <Ionicons name="backspace-outline" size={22} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
-            </Animated.View>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1481,6 +1417,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   input: { padding: 14, borderRadius: 12, fontSize: 16 },
 
+  // 🎨 Cores em linha horizontal
   colorRow: {
     flexDirection: 'row',
     gap: 10,
@@ -1511,6 +1448,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.1 }],
   },
 
+  // 🎯 Ícones em lista horizontal
   iconRowSettings: {
     flexDirection: 'row',
     gap: 6,
@@ -1523,6 +1461,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
+    borderColor: 'transparent',
+  },
+
+  // Manter estilos antigos para compatibilidade
+  iconGridLarge: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 6, 
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  iconOptionLarge: { 
+    width: 44, 
+    height: 44, 
+    borderRadius: 12, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    borderWidth: 2, 
     borderColor: 'transparent',
   },
 
@@ -1547,6 +1503,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent' 
   },
 
+  // 🎨 Estilos do seletor de tema
   themeOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1579,7 +1536,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.1)',
   },
 
-  // 🔒 Estilos do PIN — Layout corrigido com 3 colunas fixas + Shake
+  // 🔒 Estilos do PIN — Layout corrigido com 3 colunas fixas
   pinModalBody: {
     alignItems: 'center',
     paddingVertical: 20,

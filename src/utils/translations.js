@@ -77,7 +77,7 @@ export const translations = {
     home: { balance: 'Saldo em Caixa', myCards: 'Meus Cartões', seeAll: 'Ver todos', recentTransactions: 'Últimas Movimentações', noTransactions: 'Nenhuma movimentação', noCards: 'Nenhum cartão' },
 
     add: { title: 'Adicionar', newExpense: 'Nova Despesa', newIncome: 'Nova Receita', newBoleto: 'Novo Boleto',
-      topCards: 'Cartões Mais Usados', topCategories: 'Categorias Top', hint: 'Toque no botão + para adicionar',
+      topCards: 'Cartões Mais Usados', topCategories: 'Principais Categorias', hint: 'Toque no botão + para adicionar',
       subHint: 'Despesas, receitas ou boletos', description: 'Descrição', amount: 'Valor (R$)', date: 'Data',
       category: 'Categoria', paymentMethod: 'Forma de Pagamento', card: 'Cartão', cardType: 'Tipo do Cartão',
       credit: 'Crédito', debit: 'Débito', pix: 'PIX', cash: 'Dinheiro', boleto: 'Boleto',

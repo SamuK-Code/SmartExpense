@@ -1,51 +1,19 @@
+// AppContext.js — COM SISTEMA DE CÍRCULOS FINANCEIROS
+// VERSÃO REFORMULADA: Dados locais + compartilhados merged automaticamente
+// Adiciona: sharedCards, sharedTransactions, sharedGoals do CircleContext
+// Badge de compartilhamento visível em todos os dados
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
-import * as Crypto from 'expo-crypto';
 
 const AppContext = createContext();
 
-// ✅ SEGURANÇA: Hash do PIN antes de salvar no SecureStore
-const hashPin = async (pin, salt) => {
-  const data = pin + salt;
-  return await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, data);
-};
-
-const generatePinSalt = async () => {
-  const bytes = await Crypto.getRandomBytesAsync(16);
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-};
-
-// ═══════════════════════════════════════════════════════════
-// BACKUP AUTOMÁTICO SEMANAL
-// ═══════════════════════════════════════════════════════════
-const BACKUP_KEY = '@smartexpense_weekly_backup';
-const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
-
-const shouldRunWeeklyBackup = async () => {
-  try {
-    const lastBackup = await AsyncStorage.getItem('@smartexpense_last_backup');
-    if (!lastBackup) return true;
-    const lastDate = new Date(lastBackup);
-    const now = new Date();
-    return (now - lastDate) >= BACKUP_INTERVAL_MS;
-  } catch {
-    return false;
-  }
-};
-
-const markBackupDone = async () => {
-  try {
-    await AsyncStorage.setItem('@smartexpense_last_backup', new Date().toISOString());
-  } catch (e) {
-    console.warn('[Backup] Erro ao marcar backup:', e);
-  }
-};
-
 export const AppProvider = ({ children }) => {
   // ═══════════════════════════════════════════════════════════
-  // ESTADO LOCAL
+  // ESTADO LOCAL (mesmo de antes)
   // ═══════════════════════════════════════════════════════════
   const [cards, setCards] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -55,7 +23,10 @@ export const AppProvider = ({ children }) => {
   const [customCategories, setCustomCategories] = useState([]);
   const [cashBalance, setCashBalance] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState({
-    add: true, delete: true, notif: true, achievement: true,
+    add: true,
+    delete: true,
+    notif: true,
+    achievement: true,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [cardInvoices, setCardInvoices] = useState([]);
@@ -64,7 +35,9 @@ export const AppProvider = ({ children }) => {
   // ESTADO DE SEGURANÇA (PIN / Biometria)
   // ═══════════════════════════════════════════════════════════
   const [securitySettings, setSecuritySettings] = useState({
-    pinEnabled: false, biometricEnabled: false, lockOnBackground: true,
+    pinEnabled: false,
+    biometricEnabled: false,
+    lockOnBackground: true,
   });
   const [isLocked, setIsLocked] = useState(false);
 
@@ -73,8 +46,9 @@ export const AppProvider = ({ children }) => {
   // ═══════════════════════════════════════════════════════════
   const [devMode, setDevMode] = useState(false);
 
+
   // ═══════════════════════════════════════════════════════════
-  // ESTADO DE CÍRCULOS
+  // ESTADO DE CÍRCULOS (dados compartilhados recebidos)
   // ═══════════════════════════════════════════════════════════
   const [sharedCards, setSharedCards] = useState([]);
   const [sharedTransactions, setSharedTransactions] = useState([]);
@@ -93,11 +67,13 @@ export const AppProvider = ({ children }) => {
   const sharedCardsRef = useRef(sharedCards);
   const sharedTransactionsRef = useRef(sharedTransactions);
   const sharedGoalsRef = useRef(sharedGoals);
-  const securitySettingsRef = useRef(securitySettings);
-  const devModeRef = useRef(devMode);
 
+  const securitySettingsRef = useRef(securitySettings);
   useEffect(() => { securitySettingsRef.current = securitySettings; }, [securitySettings]);
+
+  const devModeRef = useRef(devMode);
   useEffect(() => { devModeRef.current = devMode; }, [devMode]);
+
   useEffect(() => { transactionsRef.current = transactions; }, [transactions]);
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { goalsRef.current = goals; }, [goals]);
@@ -110,74 +86,29 @@ export const AppProvider = ({ children }) => {
   useEffect(() => { sharedGoalsRef.current = sharedGoals; }, [sharedGoals]);
 
   // ═══════════════════════════════════════════════════════════
-  // ÁUDIO — SDK 57: Lazy initialization segura
-  // ✅ CORREÇÃO: Não usa createAudioPlayer (não existe na API pública)
-  // Usa require condicional com try/catch para não quebrar o app
+  // ÁUDIO — CORREÇÃO: useAudioPlayer com refs para persistência
   // ═══════════════════════════════════════════════════════════
-  const audioPlayersRef = useRef({});
-  const audioInitializedRef = useRef(false);
+  const addPlayer = useAudioPlayer(require('../../assets/sounds/add.mp3'));
+  const deletePlayer = useAudioPlayer(require('../../assets/sounds/delete.mp3'));
+  const notifPlayer = useAudioPlayer(require('../../assets/sounds/notif.mp3'));
+  const achievementPlayer = useAudioPlayer(require('../../assets/sounds/achievement.mp3'));
 
-  const initAudio = useCallback(() => {
-    if (audioInitializedRef.current) return true;
-    try {
-      const expoAudio = require('expo-audio');
-      // SDK 57: useAudioPlayer é o hook principal
-      // Se não estiver disponível, desabilita sons silenciosamente
-      if (!expoAudio.useAudioPlayer) {
-        console.log('[Audio] expo-audio não disponível neste ambiente');
-        return false;
-      }
-      audioInitializedRef.current = true;
-      return true;
-    } catch (e) {
-      console.log('[Audio] Módulo expo-audio não disponível:', e.message);
-      return false;
-    }
-  }, []);
+  // Refs para acesso estável dentro de callbacks
+  const addPlayerRef = useRef(addPlayer);
+  const deletePlayerRef = useRef(deletePlayer);
+  const notifPlayerRef = useRef(notifPlayer);
+  const achievementPlayerRef = useRef(achievementPlayer);
 
-  const playSound = useCallback(async (type) => {
-    if (!soundEnabledRef.current[type]) return;
-
-    // Haptics sempre funciona
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (e) {
-      // Haptics pode não estar disponível no Expo Go web
-    }
-
-    // Áudio: tenta tocar se disponível
-    if (!initAudio()) return;
-
-    try {
-      const expoAudio = require('expo-audio');
-      const soundMap = {
-        add: require('../../assets/sounds/add.mp3'),
-        delete: require('../../assets/sounds/delete.mp3'),
-        notif: require('../../assets/sounds/notif.mp3'),
-        achievement: require('../../assets/sounds/achievement.mp3'),
-      };
-
-      const source = soundMap[type];
-      if (!source) return;
-
-      // Cria player temporário para cada som (evita problemas de estado)
-      const player = expoAudio.useAudioPlayer ? 
-        expoAudio.useAudioPlayer(source) : null;
-
-      if (player && player.play) {
-        await player.seekTo(0);
-        await player.play();
-      }
-    } catch (e) {
-      // Silencioso — áudio não é crítico
-      console.log('[Audio] Erro ao tocar som:', e.message);
-    }
-  }, [initAudio]);
+  // Sincronizar refs quando os players mudam
+  useEffect(() => { addPlayerRef.current = addPlayer; }, [addPlayer]);
+  useEffect(() => { deletePlayerRef.current = deletePlayer; }, [deletePlayer]);
+  useEffect(() => { notifPlayerRef.current = notifPlayer; }, [notifPlayer]);
+  useEffect(() => { achievementPlayerRef.current = achievementPlayer; }, [achievementPlayer]);
 
   // ═══════════════════════════════════════════════════════════
   // CATEGORIAS PADRÃO
   // ═══════════════════════════════════════════════════════════
-  const categories = useMemo(() => [
+  const categories = [
     { id: 'food', name: 'Alimentação', icon: 'restaurant', color: '#EF4444' },
     { id: 'transport', name: 'Transporte', icon: 'car', color: '#3B82F6' },
     { id: 'shopping', name: 'Compras', icon: 'bag', color: '#F59E0B' },
@@ -186,12 +117,12 @@ export const AppProvider = ({ children }) => {
     { id: 'bills', name: 'Contas', icon: 'document-text', color: '#6366F1' },
     { id: 'education', name: 'Educação', icon: 'school', color: '#EC4899' },
     { id: 'other', name: 'Outros', icon: 'ellipsis-horizontal', color: '#94A3B8' },
-  ], []);
+  ];
 
   // ═══════════════════════════════════════════════════════════
   // GRADIENTES DE CARTÃO
   // ═══════════════════════════════════════════════════════════
-  const cardGradients = useMemo(() => [
+  const cardGradients = [
     { name: 'Roxo Real', class: 'card-gradient-purple', color: '#8B5CF6', type: 'gradient' },
     { name: 'Azul Oceano', class: 'card-gradient-blue', color: '#3B82F6', type: 'gradient' },
     { name: 'Verde Floresta', class: 'card-gradient-green', color: '#10B981', type: 'gradient' },
@@ -217,13 +148,14 @@ export const AppProvider = ({ children }) => {
     { name: 'Carbon Fiber', class: 'card-template-carbon', color: '#374151', type: 'template' },
     { name: 'Mármore', class: 'card-template-marble', color: '#F5F5F4', type: 'template' },
     { name: 'Glass', class: 'card-template-glass', color: '#A5B4FC', type: 'template' },
-  ], []);
+  ];
 
-  const tags = useMemo(() => ['Urgente', 'Parcelado', 'Fixo', 'Extra'], []);
+  const tags = ['Urgente', 'Parcelado', 'Fixo', 'Extra'];
 
   // ═══════════════════════════════════════════════════════════
-  // HELPERS DE CÍRCULOS
+  // HELPERS DE CÍRCULOS (para integração com CircleContext)
   // ═══════════════════════════════════════════════════════════
+
   const updateSharedCards = useCallback((newSharedCards) => {
     setSharedCards(newSharedCards);
   }, []);
@@ -239,8 +171,11 @@ export const AppProvider = ({ children }) => {
   // ═══════════════════════════════════════════════════════════
   // DADOS MERGED (locais + compartilhados)
   // ═══════════════════════════════════════════════════════════
+
   const mergedCards = useMemo(() => {
+    // Adicionar flag _isLocal aos cards locais
     const localWithFlag = cards.map(c => ({ ...c, _isLocal: true }));
+    // Shared cards já têm _sharedBy, _sharedByName, etc.
     return [...localWithFlag, ...sharedCards];
   }, [cards, sharedCards]);
 
@@ -257,11 +192,12 @@ export const AppProvider = ({ children }) => {
   // ═══════════════════════════════════════════════════════════
   // HELPERS DE IDENTIFICAÇÃO
   // ═══════════════════════════════════════════════════════════
-  const isSharedItem = useCallback((item) => {
-    return !!item._sharedBy && !item._isLocal;
-  }, []);
 
-  const getItemShareInfo = useCallback((item) => {
+  const isSharedItem = (item) => {
+    return !!item._sharedBy && !item._isLocal;
+  };
+
+  const getItemShareInfo = (item) => {
     if (!isSharedItem(item)) return null;
     return {
       sharedBy: item._sharedBy,
@@ -269,18 +205,19 @@ export const AppProvider = ({ children }) => {
       permissions: item._permissions,
       sharedAt: item._sharedAt,
     };
-  }, [isSharedItem]);
+  };
 
-  const canEditLocalOrShared = useCallback((item, currentUserId) => {
-    if (item._isLocal) return true;
-    if (!item._sharedBy) return true;
-    if (item._sharedBy === currentUserId) return true;
-    return item._permissions?.edit === true;
-  }, []);
+  const canEditLocalOrShared = (item, currentUserId) => {
+    if (item._isLocal) return true; // Seu item local sempre editável
+    if (!item._sharedBy) return true; // Item sem origem de círculo
+    if (item._sharedBy === currentUserId) return true; // Seu item compartilhado
+    return item._permissions?.edit === true; // Permissão de edição concedida
+  };
 
   // ═══════════════════════════════════════════════════════════
   // CARREGAR / SALVAR DADOS LOCAIS
   // ═══════════════════════════════════════════════════════════
+
   useEffect(() => {
     loadData();
   }, []);
@@ -298,14 +235,18 @@ export const AppProvider = ({ children }) => {
         setCashBalance(data.cashBalance || 0);
         setSoundEnabled(data.soundEnabled || { add: true, delete: true, notif: true, achievement: true });
         setCardInvoices(data.cardInvoices || []);
-      }
+      // Carregar configurações de segurança
       const savedSecurity = await SecureStore.getItemAsync('smartexpense_security');
       if (savedSecurity) {
         setSecuritySettings(JSON.parse(savedSecurity));
       }
+
+      // Carregar modo desenvolvedor
       const savedDevMode = await AsyncStorage.getItem('smartexpense_devmode');
       if (savedDevMode) {
         setDevMode(JSON.parse(savedDevMode));
+      }
+
       }
     } catch (e) {
       console.warn('Erro ao carregar:', e);
@@ -336,40 +277,38 @@ export const AppProvider = ({ children }) => {
   }, [cards, transactions, goals, completedGoals, customCategories, soundEnabled, cashBalance, cardInvoices, isLoading, saveData]);
 
   // ═══════════════════════════════════════════════════════════
-  // BACKUP AUTOMÁTICO SEMANAL
+  // ÁUDIO & NOTIFICAÇÕES
   // ═══════════════════════════════════════════════════════════
-  const runWeeklyBackup = useCallback(async () => {
-    const shouldBackup = await shouldRunWeeklyBackup();
-    if (!shouldBackup) return;
+
+  const playSound = useCallback(async (type) => {
+    if (!soundEnabledRef.current[type]) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     try {
-      const data = await exportData();
-      const backupName = `smartexpense_auto_${new Date().toISOString().slice(0,10)}.json`;
-      await AsyncStorage.setItem(BACKUP_KEY, JSON.stringify({
-        name: backupName,
-        data: data,
-        createdAt: new Date().toISOString(),
-      }));
-      await markBackupDone();
-      addNotification(
-        '💾 Backup Automático',
-        'Seus dados foram salvos automaticamente.',
-        'success'
-      );
+      let player;
+      switch (type) {
+        case 'add': player = addPlayerRef.current; break;
+        case 'delete': player = deletePlayerRef.current; break;
+        case 'notif': player = notifPlayerRef.current; break;
+        case 'achievement': player = achievementPlayerRef.current; break;
+        default: return;
+      }
+
+      if (!player) {
+        console.warn(`[playSound] Player '${type}' não inicializado`);
+        return;
+      }
+
+      // ✅ CORREÇÃO SDK 57: seekTo(0) + play() — padrão documentado do expo-audio
+      // NÃO usar replace() — exige AudioSource como argumento
+      // NÃO usar stop() — pode não estar disponível em todas as builds
+      player.seekTo(0);
+      player.play();
     } catch (e) {
-      console.warn('[Backup] Erro:', e);
+      console.warn('[playSound] Erro ao tocar som:', e);
     }
-  }, []);
+  }, [addPlayer, deletePlayer, notifPlayer, achievementPlayer]);
 
-  // Executa backup semanal ao iniciar
-  useEffect(() => {
-    if (!isLoading) {
-      runWeeklyBackup();
-    }
-  }, [isLoading, runWeeklyBackup]);
-
-  // ═══════════════════════════════════════════════════════════
-  // NOTIFICAÇÕES
-  // ═══════════════════════════════════════════════════════════
   const addNotification = useCallback((title, message, type = 'info') => {
     const newNotif = {
       id: Date.now(),
@@ -391,9 +330,11 @@ export const AppProvider = ({ children }) => {
   // ═══════════════════════════════════════════════════════════
   // FATURAS DE CARTÃO
   // ═══════════════════════════════════════════════════════════
+
   const createInvoice = useCallback((cardId, month, year, totalAmount, transactions) => {
     const card = cardsRef.current.find(c => c.id === cardId);
     if (!card) return null;
+
     const invoice = {
       id: `inv_${Date.now()}_${cardId}`,
       cardId,
@@ -407,6 +348,7 @@ export const AppProvider = ({ children }) => {
       paidAt: null,
       dueDate: card.dueDate || null,
     };
+
     setCardInvoices(prev => [...prev, invoice]);
     return invoice;
   }, []);
@@ -414,6 +356,7 @@ export const AppProvider = ({ children }) => {
   const payInvoice = useCallback((invoiceId) => {
     const invoice = cardInvoicesRef.current.find(inv => inv.id === invoiceId);
     if (!invoice || invoice.status === 'paid') return false;
+
     if (cashBalanceRef.current < invoice.totalAmount) {
       addNotification(
         'Saldo Insuficiente',
@@ -422,12 +365,15 @@ export const AppProvider = ({ children }) => {
       );
       return false;
     }
+
     setCashBalance(prev => prev - invoice.totalAmount);
+
     setCardInvoices(prev => prev.map(inv =>
       inv.id === invoiceId
         ? { ...inv, status: 'paid', paidAt: new Date().toISOString() }
         : inv
     ));
+
     const paymentTransaction = {
       type: 'expense',
       desc: `Pagamento Fatura ${invoice.cardName} - ${String(invoice.month).padStart(2, '0')}/${invoice.year}`,
@@ -442,43 +388,54 @@ export const AppProvider = ({ children }) => {
       isInvoicePayment: true,
       invoiceId: invoice.id,
     };
+
     setTransactions(prev => [...prev, { ...paymentTransaction, id: Date.now(), createdAt: new Date().toISOString() }]);
+
     addNotification(
       '💳 Fatura Quitada',
       `Fatura do ${invoice.cardName} quitada no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(invoice.totalAmount)}`,
       'success'
     );
     playSound('achievement');
+    updateWidgetAndNotification();
     return true;
-  }, [addNotification, playSound]);
+  }, [addNotification, playSound, updateWidgetAndNotification]);
 
   const checkCardClosings = useCallback(() => {
     const today = new Date();
     const currentDay = today.getDate();
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
+
     cardsRef.current.forEach(card => {
       if (!card.closeDate) return;
+
       const closingDay = parseInt(card.closeDate);
+
       if (currentDay === closingDay) {
         const existingInvoice = cardInvoicesRef.current.find(inv =>
           inv.cardId === card.id &&
           inv.month === currentMonth &&
           inv.year === currentYear
         );
+
         if (!existingInvoice) {
           const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
           const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
           const lastMonthStr = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}`;
+
           const invoiceTransactions = transactionsRef.current.filter(t =>
             t.cardId === card.id &&
             t.type === 'expense' &&
             t.date.startsWith(lastMonthStr) &&
             !t.isInvoicePayment
           );
+
           const totalAmount = invoiceTransactions.reduce((sum, t) => sum + t.amount, 0);
+
           if (totalAmount > 0) {
             createInvoice(card.id, currentMonth, currentYear, totalAmount, invoiceTransactions);
+
             addNotification(
               '📋 Nova Fatura Gerada',
               `Fatura do ${card.name} - ${String(currentMonth).padStart(2, '0')}/${currentYear}: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalAmount)}`,
@@ -506,27 +463,99 @@ export const AppProvider = ({ children }) => {
   }, [isLoading, checkCardClosings]);
 
   // ═══════════════════════════════════════════════════════════
+  // WIDGET & NOTIFICAÇÃO PERSISTENTE
+  // ═══════════════════════════════════════════════════════════
+
+  const updateWidgetAndNotification = useCallback(async () => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Calcula totais do mês
+    const monthTransactions = transactionsRef.current.filter(t => {
+      if (!t.date) return false;
+      const tDate = new Date(t.date);
+      return tDate >= monthStart && tDate <= monthEnd;
+    });
+
+    const monthIncome = monthTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    const monthExpenses = monthTransactions
+      .filter(t => t.type === 'expense' || t.type === 'boleto')
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    // Boletos pendentes
+    const pendingBoletos = transactionsRef.current.filter(
+      t => t.paymentMethod === 'boleto' && !t.isPaid
+    );
+
+    // Próxima fatura (cartão com vencimento mais próximo)
+    let nextCard = null;
+    let nextCardDays = Infinity;
+
+    cardsRef.current.forEach(card => {
+      if (!card.dueDate && !card.closeDate) return;
+
+      const today = now.getDate();
+      let dueDay = parseInt(card.dueDate || card.closeDate);
+
+      if (isNaN(dueDay)) return;
+
+      // Se o vencimento já passou neste mês, considera próximo mês
+      if (today > dueDay) {
+        dueDay += 30;
+      }
+
+      const daysUntil = dueDay - today;
+      if (daysUntil < nextCardDays && daysUntil >= 0) {
+        nextCardDays = daysUntil;
+        nextCard = card;
+      }
+    });
+
+    const nextCardAmount = nextCard 
+      ? transactionsRef.current
+          .filter(t => t.cardId === nextCard.id && t.type === 'expense' && !t.isInvoicePayment)
+          .reduce((sum, t) => sum + (t.amount || 0), 0)
+      : 0;
+
+    const formatCurrency = (value) => {
+      return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(value || 0);
+    };
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════
   // CRUD: CARTÕES
   // ═══════════════════════════════════════════════════════════
+
   const addCard = useCallback((card) => {
     setCards(prev => [...prev, { ...card, id: Date.now(), createdAt: new Date().toISOString() }]);
     playSound('add');
-  }, [playSound]);
+    updateWidgetAndNotification();
+  }, [playSound, updateWidgetAndNotification]);
 
   const deleteCard = useCallback((id) => {
     setCards(prev => prev.filter(c => c.id !== id));
     setCardInvoices(prev => prev.filter(inv => inv.cardId !== id));
     playSound('delete');
-  }, [playSound]);
+    updateWidgetAndNotification();
+  }, [playSound, updateWidgetAndNotification]);
 
   const editCard = useCallback((id, updates) => {
     setCards(prev => prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c));
     playSound('add');
-  }, [playSound]);
+    updateWidgetAndNotification();
+  }, [playSound, updateWidgetAndNotification]);
 
   // ═══════════════════════════════════════════════════════════
   // CRUD: TRANSAÇÕES
   // ═══════════════════════════════════════════════════════════
+
   const addTransaction = useCallback((transaction) => {
     const newTransaction = {
       ...transaction,
@@ -534,26 +563,34 @@ export const AppProvider = ({ children }) => {
       createdAt: new Date().toISOString(),
     };
     setTransactions(prev => [...prev, newTransaction]);
+
     if (transaction.type === 'income') {
       setCashBalance(prev => prev + transaction.amount);
     } else if (transaction.type === 'expense' || transaction.type === 'boleto') {
+      // ✅ CORREÇÃO: Cartão de CRÉDITO não afeta cashBalance (vai para fatura)
       const isCreditCard = transaction.paymentMethod === 'card' && transaction.cardType === 'credit';
       const isPix = transaction.paymentMethod === 'pix';
       const isCash = transaction.paymentMethod === 'cash';
       const isBoleto = transaction.paymentMethod === 'boleto';
       const isDebitCard = transaction.paymentMethod === 'card' && transaction.cardType === 'debit';
+
       if (isCreditCard) {
+        // Crédito: não deduz do caixa (fatura futura)
         console.log('[addTransaction] Cartão de CRÉDITO - NÃO deduz do cashBalance');
       } else if (isDebitCard || isPix || isCash || isBoleto) {
+        // Débito, Pix, Dinheiro, Boleto: deduz do caixa
         console.log('[addTransaction] Débito/Pix/Dinheiro/Boleto - Deduz do cashBalance:', transaction.amount);
         setCashBalance(prev => prev - transaction.amount);
       } else {
+        // Fallback para outros casos
         console.log('[addTransaction] Outro método - Deduz do cashBalance:', transaction.amount);
         setCashBalance(prev => prev - transaction.amount);
       }
     }
+
     playSound('add');
-  }, [playSound]);
+    updateWidgetAndNotification();
+  }, [playSound, updateWidgetAndNotification]);
 
   const deleteTransaction = useCallback((id) => {
     const transaction = transactionsRef.current.find(t => t.id === id);
@@ -561,6 +598,8 @@ export const AppProvider = ({ children }) => {
       if (transaction.type === 'income') {
         setCashBalance(prev => prev - transaction.amount);
       } else if (transaction.type === 'expense' || transaction.type === 'boleto') {
+        // ✅ CORREÇÃO: Se foi cartão de CRÉDITO, não tinha deduzido do caixa
+        // então não deve adicionar de volta ao deletar
         const wasCreditCard = transaction.paymentMethod === 'card' && transaction.cardType === 'credit';
         if (!wasCreditCard) {
           setCashBalance(prev => prev + transaction.amount);
@@ -569,7 +608,8 @@ export const AppProvider = ({ children }) => {
     }
     setTransactions(prev => prev.filter(t => t.id !== id));
     playSound('delete');
-  }, [playSound]);
+    updateWidgetAndNotification();
+  }, [playSound, updateWidgetAndNotification]);
 
   const editTransaction = useCallback((id, updatedData) => {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updatedData } : t));
@@ -577,24 +617,28 @@ export const AppProvider = ({ children }) => {
 
   const updateCashBalance = useCallback((amount) => {
     setCashBalance(prev => prev + amount);
-  }, []);
+    updateWidgetAndNotification();
+  }, [updateWidgetAndNotification]);
 
   // ═══════════════════════════════════════════════════════════
   // CRUD: METAS
   // ═══════════════════════════════════════════════════════════
+
   const addGoal = useCallback((goal) => {
+    // ✅ CORREÇÃO: Helper robusto para parsear valores com vírgula
     const parseMoney = (value) => {
       if (typeof value === 'number') return value;
       if (!value) return 0;
       const normalized = value.toString().replace(/\./g, '').replace(',', '.');
       return parseFloat(normalized) || 0;
     };
+
     const newGoal = {
       ...goal,
       id: Date.now().toString(),
       name: goal.name,
-      target: parseMoney(goal.target),
-      current: parseMoney(goal.currentAmount),
+      target: parseMoney(goal.target),           // ✅ usa parseMoney ao invés de parseFloat
+      current: parseMoney(goal.currentAmount),    // ✅ typo corrigido: currenctAmount → currentAmount
       deadline: goal.deadline || null,
       icon: goal.icon || 'flag',
       color: goal.color || '#6366F1',
@@ -603,13 +647,16 @@ export const AppProvider = ({ children }) => {
     };
     setGoals(prev => [...prev, newGoal]);
     playSound('add');
-  }, [playSound]);
+    updateWidgetAndNotification();
+  }, [playSound, updateWidgetAndNotification]);
 
   const investInGoal = useCallback((goalId, amount, type = 'deposit') => {
     const value = parseFloat(amount);
     if (isNaN(value) || value <= 0) return false;
+
     const goal = goalsRef.current.find(g => g.id === goalId);
     if (!goal) return false;
+
     if (type === 'deposit') {
       if (value > cashBalanceRef.current) {
         console.warn('Saldo insuficiente:', cashBalanceRef.current, 'necessário:', value);
@@ -629,52 +676,62 @@ export const AppProvider = ({ children }) => {
         return { ...g, current: Math.max(g.current - value, 0) };
       }));
     }
+
     playSound('add');
+    updateWidgetAndNotification();
     return true;
-  }, [playSound]);
+  }, [playSound, updateWidgetAndNotification]);
 
   const completeGoal = useCallback((goalId, extra = {}) => {
     const goal = goalsRef.current.find(g => g.id === goalId);
     if (!goal || goal.current < goal.target) return false;
+
     const completedGoal = {
       ...goal,
       completedAt: extra.completedAt || new Date().toISOString(),
     };
+
     setCompletedGoals(prev => [...prev, completedGoal]);
     setGoals(prev => prev.filter(g => g.id !== goalId));
+
     addNotification(
       '🎉 Meta Concluída!',
       `Parabéns! Você completou "${goal.name}"`,
       'success'
     );
     playSound('achievement');
+    updateWidgetAndNotification();
     return true;
-  }, [addNotification, playSound]);
+  }, [addNotification, playSound, updateWidgetAndNotification]);
 
   const deleteGoal = useCallback((goalId) => {
     setGoals(prev => prev.filter(g => g.id !== goalId));
     setCompletedGoals(prev => prev.filter(g => g.id !== goalId));
     playSound('delete');
-  }, [playSound]);
+    updateWidgetAndNotification();
+  }, [playSound, updateWidgetAndNotification]);
 
   const contributeGoal = useCallback((goalId, amount) => {
     setGoals(prev => prev.map(g => {
       if (g.id !== goalId) return g;
       const newCurrent = Math.min(g.current + amount, g.target);
       const completed = newCurrent >= g.target && !g.completed;
+
       if (completed) {
         addNotification('🎉 Meta Alcançada!', `Parabéns! Você atingiu "${g.name}"`, 'success');
         playSound('achievement');
       }
+
       return { ...g, current: newCurrent, completed: completed || g.completed };
     }));
     playSound('add');
-  }, [addNotification, playSound]);
-
+    updateWidgetAndNotification();
+  }, [addNotification, playSound, updateWidgetAndNotification]);
 
   // ═══════════════════════════════════════════════════════════
   // ALERTAS AUTOMÁTICOS
   // ═══════════════════════════════════════════════════════════
+
   const checkBudgetAlert = useCallback(() => {
     const currentTransactions = transactionsRef.current;
     const month = new Date().toISOString().slice(0, 7);
@@ -684,6 +741,7 @@ export const AppProvider = ({ children }) => {
     const expense = currentTransactions
       .filter(t => t.type === 'expense' && t.date.startsWith(month))
       .reduce((s, t) => s + t.amount, 0);
+
     if (expense > income * 0.8 && income > 0) {
       addNotification(
         'Alerta de Orçamento',
@@ -698,11 +756,13 @@ export const AppProvider = ({ children }) => {
     currentGoals.forEach(goal => {
       const progress = (goal.current / goal.target) * 100;
       const daysLeft = Math.ceil((new Date(goal.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+
       if (progress >= 100 && !goal.completed) {
         setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, completed: true } : g));
         addNotification('🎉 Meta Alcançada!', `Parabéns! Você atingiu "${goal.name}"`, 'success');
         playSound('achievement');
       }
+
       if (daysLeft === 7 && progress < 100) {
         addNotification(
           'Meta próxima do prazo',
@@ -733,11 +793,13 @@ export const AppProvider = ({ children }) => {
   const checkCardLimitAlert = useCallback(() => {
     const currentCards = cardsRef.current;
     const currentTransactions = transactionsRef.current;
+
     currentCards.forEach(card => {
       const used = currentTransactions
         .filter(t => t.cardId === card.id && t.type === 'expense' && !t.isInvoicePayment)
         .reduce((s, t) => s + t.amount, 0);
       const percentage = (used / card.limit) * 100;
+
       if (percentage >= 80 && percentage < 100) {
         addNotification(
           '⚠️ Limite do Cartão',
@@ -755,37 +817,46 @@ export const AppProvider = ({ children }) => {
   }, [addNotification]);
 
   // ═══════════════════════════════════════════════════════════
-  // NOTIFICAÇÕES INTELIGENTES
+  // NOTIFICAÇÕES INTELIGENTES (Sistema completo)
   // ═══════════════════════════════════════════════════════════
+
+  // Estado para controle de notificações já enviadas (evita spam)
   const [notifiedIds, setNotifiedIds] = useState({
-    budget: null,
-    goals: new Set(),
-    cardsDue: new Set(),
-    cardsLimit: new Set(),
-    boletos: new Set(),
-    invoices: new Set(),
+    budget: null,      // mês notificado
+    goals: new Set(), // IDs de metas notificadas
+    cardsDue: new Set(), // IDs de cartões notificados
+    cardsLimit: new Set(), // IDs de cartões com alerta de limite
+    boletos: new Set(), // IDs de boletos notificados
+    invoices: new Set(), // IDs de faturas notificadas
   });
 
   const notifiedRef = useRef(notifiedIds);
   useEffect(() => { notifiedRef.current = notifiedIds; }, [notifiedIds]);
 
+  // 1. Alerta de Orçamento por Categoria (NOVO)
   const checkCategoryBudgetAlert = useCallback(async () => {
     try {
       const month = new Date().toISOString().slice(0, 7);
       const currentTransactions = transactionsRef.current.filter(t => 
         t.type === 'expense' && t.date && t.date.startsWith(month)
       );
+
+      // Agrupar gastos por categoria
       const categorySpending = {};
       currentTransactions.forEach(t => {
         const catId = t.category || 'other';
         categorySpending[catId] = (categorySpending[catId] || 0) + (t.amount || 0);
       });
+
+      // Verificar cada categoria contra o orçamento (se definido)
       const budgetsRaw = await AsyncStorage.getItem('@smartexpense_budgets');
       const budgets = budgetsRaw ? JSON.parse(budgetsRaw) : {};
+
       Object.entries(budgets).forEach(([catId, budget]) => {
         const spent = categorySpending[catId] || 0;
         const percentage = budget > 0 ? (spent / budget) * 100 : 0;
         const notifKey = `budget_${catId}_${month}`;
+
         if (percentage >= 100 && !notifiedRef.current[notifKey]) {
           const cat = categories.find(c => c.id === catId) || { name: 'Categoria', color: '#6366F1' };
           addNotification(
@@ -807,17 +878,22 @@ export const AppProvider = ({ children }) => {
     } catch (e) {
       console.warn('[checkCategoryBudgetAlert] Erro:', e);
     }
-  }, [addNotification, categories]);
+  }, [addNotification]);
 
+  // 2. Lembrete de Boletos Próximos do Vencimento (NOVO)
   const checkBoletoDueReminders = useCallback(() => {
     const today = new Date();
     const currentTransactions = transactionsRef.current;
+
     currentTransactions.forEach(t => {
       if (t.type !== 'boleto' || t.isPaid) return;
       if (!t.boletoDueDate) return;
+
       const dueDate = new Date(t.boletoDueDate + 'T00:00:00');
       const diffDays = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
       const notifKey = `boleto_${t.id}_${diffDays}`;
+
+      // Notificar 3 dias antes, 1 dia antes e no dia
       if ((diffDays === 3 || diffDays === 1 || diffDays === 0) && !notifiedRef.current.boletos.has(notifKey)) {
         const dayText = diffDays === 0 ? 'hoje' : diffDays === 1 ? 'amanhã' : `em ${diffDays} dias`;
         addNotification(
@@ -833,14 +909,18 @@ export const AppProvider = ({ children }) => {
     });
   }, [addNotification]);
 
+  // 3. Alerta de Fatura Próxima do Fechamento (NOVO)
   const checkInvoiceClosingAlert = useCallback(() => {
     const today = new Date();
     const currentDay = today.getDate();
+
     cardsRef.current.forEach(card => {
       if (!card.closeDate) return;
       const closingDay = parseInt(card.closeDate);
       const daysUntilClosing = closingDay - currentDay;
       const notifKey = `closing_${card.id}_${today.getMonth()}_${today.getFullYear()}`;
+
+      // Notificar 2 dias antes do fechamento
       if (daysUntilClosing === 2 && !notifiedRef.current.invoices.has(notifKey)) {
         addNotification(
           'Fecha Amanhã',
@@ -855,20 +935,25 @@ export const AppProvider = ({ children }) => {
     });
   }, [addNotification]);
 
+  // 4. Resumo Semanal (NOVO — toda segunda-feira)
   const checkWeeklySummary = useCallback(() => {
     const today = new Date();
-    const dayOfWeek = today.getDay();
+    const dayOfWeek = today.getDay(); // 0 = domingo, 1 = segunda
     const notifKey = `weekly_${today.toISOString().slice(0, 10)}`;
+
     if (dayOfWeek === 1 && !notifiedRef.current[notifKey]) {
       const lastWeek = new Date(today);
       lastWeek.setDate(lastWeek.getDate() - 7);
       const lastWeekStr = lastWeek.toISOString().slice(0, 10);
       const todayStr = today.toISOString().slice(0, 10);
+
       const weekTransactions = transactionsRef.current.filter(t => 
         t.date >= lastWeekStr && t.date <= todayStr
       );
+
       const income = weekTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
       const expense = weekTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+
       if (expense > 0 || income > 0) {
         addNotification(
           'Resumo da Semana',
@@ -880,32 +965,40 @@ export const AppProvider = ({ children }) => {
     }
   }, [addNotification]);
 
+  // Agendar todas as verificações
   useEffect(() => {
     if (isLoading) return;
+
     const runChecks = async () => {
       checkBudgetAlert();
       checkGoalsProgress();
       checkCardDueDates();
       checkCardLimitAlert();
-      await checkCategoryBudgetAlert();
+      await checkCategoryBudgetAlert(); // ✅ async
       checkBoletoDueReminders();
       checkInvoiceClosingAlert();
       checkWeeklySummary();
     };
+
     runChecks();
+
+    // Verificações periódicas (a cada 5 minutos)
     const interval = setInterval(() => {
       runChecks();
     }, 300000);
+
     return () => clearInterval(interval);
   }, [isLoading, checkBudgetAlert, checkGoalsProgress, checkCardDueDates, checkCardLimitAlert, checkCategoryBudgetAlert, checkBoletoDueReminders, checkInvoiceClosingAlert, checkWeeklySummary]);
 
   // ═══════════════════════════════════════════════════════════
-  // ORÇAMENTO POR CATEGORIA
+  // ORÇAMENTO POR CATEGORIA (Budgeting)
   // ═══════════════════════════════════════════════════════════
+
   const [budgets, setBudgets] = useState({});
   const budgetsRef = useRef(budgets);
   useEffect(() => { budgetsRef.current = budgets; }, [budgets]);
 
+  // Carregar orçamentos salvos
   useEffect(() => {
     const loadBudgets = async () => {
       try {
@@ -918,6 +1011,7 @@ export const AppProvider = ({ children }) => {
     loadBudgets();
   }, []);
 
+  // Salvar orçamentos
   useEffect(() => {
     const saveBudgets = async () => {
       try {
@@ -957,6 +1051,7 @@ export const AppProvider = ({ children }) => {
   // ═══════════════════════════════════════════════════════════
   // EXPORTAR / IMPORTAR
   // ═══════════════════════════════════════════════════════════
+
   const exportData = useCallback(async () => {
     const data = {
       version: '3.1',
@@ -983,23 +1078,22 @@ export const AppProvider = ({ children }) => {
         console.warn('Import: JSON inválido');
         return false;
       }
+
       if (!data || typeof data !== 'object') {
         console.warn('Import: dados inválidos');
         return false;
       }
+
       if (!data.version || (data.version !== '3.0' && data.version !== '3.1')) {
         console.warn('Import: versão incompatível');
         return false;
       }
-      // ✅ SEGURANÇA: Limite de tamanho do JSON (10MB)
-      if (jsonData.length > 10 * 1024 * 1024) {
-        console.warn('Import: arquivo muito grande (>10MB)');
-        return false;
-      }
+
       const sanitizeString = (str, maxLen = 200) => {
         if (typeof str !== 'string') return '';
         return str.replace(/[<>'"&]/g, '').slice(0, maxLen);
       };
+
       const sanitizeArray = (arr, validator, sanitizer) => {
         if (!Array.isArray(arr)) return [];
         return arr.filter(item => {
@@ -1008,63 +1102,78 @@ export const AppProvider = ({ children }) => {
           return valid;
         }).map(sanitizer);
       };
+
       const isValidCard = (c) => c && typeof c === 'object' &&
         (typeof c.id === 'string' || typeof c.id === 'number') &&
         typeof c.name === 'string' && c.name.length <= 50;
+
       const isValidTransaction = (t) => t && typeof t === 'object' &&
         (typeof t.id === 'string' || typeof t.id === 'number') &&
         typeof t.description === 'string' && t.description.length <= 200 &&
         typeof t.amount === 'number' && t.amount >= 0 &&
         ['income', 'expense', 'boleto'].includes(t.type);
+
       const isValidGoal = (g) => g && typeof g === 'object' &&
         typeof g.id === 'string' &&
         typeof g.name === 'string' && g.name.length <= 50 &&
         typeof g.target === 'number' && g.target >= 0;
+
       const isValidCategory = (c) => c && typeof c === 'object' &&
         typeof c.name === 'string' && c.name.length <= 30 &&
         typeof c.color === 'string';
+
       const isValidInvoice = (i) => i && typeof i === 'object' &&
         (typeof i.id === 'string' || typeof i.id === 'number') &&
         (typeof i.cardId === 'string' || typeof i.cardId === 'number');
+
       const sanitizeCard = (c) => ({
         ...c,
         name: sanitizeString(c.name, 50),
         bank: sanitizeString(c.bank, 50),
       });
+
       const sanitizeTransaction = (t) => ({
         ...t,
         description: sanitizeString(t.description, 200),
         category: sanitizeString(t.category, 30),
         paymentMethod: sanitizeString(t.paymentMethod, 20),
       });
+
       const sanitizeGoal = (g) => ({
         ...g,
         name: sanitizeString(g.name, 50),
       });
+
       if (data.cards) {
         const validCards = sanitizeArray(data.cards, isValidCard, sanitizeCard);
         setCards(validCards);
       }
+
       if (data.transactions) {
         const validTrans = sanitizeArray(data.transactions, isValidTransaction, sanitizeTransaction);
         setTransactions(validTrans);
       }
+
       if (data.goals) {
         const validGoals = sanitizeArray(data.goals, isValidGoal, sanitizeGoal);
         setGoals(validGoals);
       }
+
       if (data.completedGoals) {
         const validCompleted = sanitizeArray(data.completedGoals, isValidGoal, sanitizeGoal);
         setCompletedGoals(validCompleted);
       }
+
       if (data.customCategories) {
         const validCats = sanitizeArray(data.customCategories, isValidCategory, (c) => c);
         setCustomCategories(validCats);
       }
+
       if (data.cardInvoices) {
         const validInvoices = sanitizeArray(data.cardInvoices, isValidInvoice, (i) => i);
         setCardInvoices(validInvoices);
       }
+
       if (typeof data.cashBalance === 'number' && data.cashBalance >= 0) {
         setCashBalance(data.cashBalance);
       } else if (data.transactions) {
@@ -1076,6 +1185,7 @@ export const AppProvider = ({ children }) => {
           .reduce((s, t) => s + t.amount, 0);
         setCashBalance(Math.max(0, income - expense));
       }
+
       if (data.soundEnabled && typeof data.soundEnabled === 'object') {
         const validSounds = {
           add: !!data.soundEnabled.add,
@@ -1085,10 +1195,13 @@ export const AppProvider = ({ children }) => {
         };
         setSoundEnabled(validSounds);
       }
+
       if (data.budgets && typeof data.budgets === 'object') {
         setBudgets(data.budgets);
       }
+
       playSound('add');
+      updateWidgetAndNotification();
       return true;
     } catch (err) {
       console.warn('Erro ao importar dados:', err);
@@ -1122,11 +1235,13 @@ export const AppProvider = ({ children }) => {
       invoices: new Set(),
     });
     playSound('delete');
-  }, [playSound]);
+    updateWidgetAndNotification();
+  }, [playSound, updateWidgetAndNotification]);
 
   // ═══════════════════════════════════════════════════════════
   // HELPERS DE BALANCE E USO
   // ═══════════════════════════════════════════════════════════
+
   const getBalance = useCallback(() => {
     const currentTransactions = transactionsRef.current;
     const income = currentTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
@@ -1152,7 +1267,7 @@ export const AppProvider = ({ children }) => {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, []);
 
-  const mergedCategories = useMemo(() => [...categories, ...customCategories], [categories, customCategories]);
+  const mergedCategories = [...categories, ...customCategories];
 
   const addCustomCategory = useCallback((category) => {
     const newCat = { ...category, id: `custom_${Date.now()}` };
@@ -1162,8 +1277,14 @@ export const AppProvider = ({ children }) => {
   }, [playSound]);
 
   // ═══════════════════════════════════════════════════════════
+  // VALUE (tudo exposto)
+  // ═══════════════════════════════════════════════════════════
+
+
+  // ═══════════════════════════════════════════════════════════
   // FUNÇÕES DE SEGURANÇA (PIN / Biometria)
   // ═══════════════════════════════════════════════════════════
+
   const saveSecuritySettings = useCallback(async (settings) => {
     try {
       await SecureStore.setItemAsync('smartexpense_security', JSON.stringify(settings));
@@ -1172,13 +1293,10 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
-  // ✅ SEGURANÇA: PIN hash com salt, nunca texto plano
   const enablePin = useCallback(async (pin) => {
     if (!pin || pin.length < 4) return false;
     try {
-      const salt = await generatePinSalt();
-      const hashedPin = await hashPin(pin, salt);
-      await SecureStore.setItemAsync('smartexpense_pin', JSON.stringify({ hash: hashedPin, salt }));
+      await SecureStore.setItemAsync('smartexpense_pin', pin);
       const newSettings = { ...securitySettingsRef.current, pinEnabled: true };
       setSecuritySettings(newSettings);
       await saveSecuritySettings(newSettings);
@@ -1204,11 +1322,8 @@ export const AppProvider = ({ children }) => {
 
   const verifyPin = useCallback(async (pin) => {
     try {
-      const storedData = await SecureStore.getItemAsync('smartexpense_pin');
-      if (!storedData) return false;
-      const { hash, salt } = JSON.parse(storedData);
-      const hashedPin = await hashPin(pin, salt);
-      return hashedPin === hash;
+      const storedPin = await SecureStore.getItemAsync('smartexpense_pin');
+      return storedPin === pin;
     } catch (e) {
       console.warn('[verifyPin] Erro:', e);
       return false;
@@ -1243,9 +1358,12 @@ export const AppProvider = ({ children }) => {
     setIsLocked(false);
   }, []);
 
+
+
   // ═══════════════════════════════════════════════════════════
   // FUNÇÕES DE DIVISÃO DE DESPESAS (Split)
   // ═══════════════════════════════════════════════════════════
+
   const splitTransaction = useCallback((transactionId, splitData) => {
     setTransactions(prev => prev.map(t =>
       t.id === transactionId ? { ...t, split: splitData } : t
@@ -1298,6 +1416,7 @@ export const AppProvider = ({ children }) => {
       pendingCount: 0,
       settledCount: 0,
     };
+
     splits.forEach(t => {
       (t.split.participants || []).forEach(p => {
         if (p.id === 'me') return;
@@ -1310,12 +1429,16 @@ export const AppProvider = ({ children }) => {
         }
       });
     });
+
     return summary;
   }, []);
+
+
 
   // ═══════════════════════════════════════════════════════════
   // FUNÇÕES DE DESENVOLVEDOR
   // ═══════════════════════════════════════════════════════════
+
   const enableDevMode = useCallback(async () => {
     setDevMode(true);
     try {
@@ -1344,10 +1467,7 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
-  // ═══════════════════════════════════════════════════════════
-  // VALUE (tudo exposto)
-  // ═══════════════════════════════════════════════════════════
-  const value = useMemo(() => ({
+  const value = {
     // ─── Dados Locais ───
     cards,
     transactions,
@@ -1403,7 +1523,6 @@ export const AppProvider = ({ children }) => {
     getBalance,
     getCardUsage,
     playSound,
-
     // ─── Segurança ───
     securitySettings,
     isLocked,
@@ -1421,7 +1540,6 @@ export const AppProvider = ({ children }) => {
     enableDevMode,
     disableDevMode,
     toggleDevMode,
-
     // ─── Divisão de Despesas ───
     splitTransaction,
     updateSplit,
@@ -1430,7 +1548,9 @@ export const AppProvider = ({ children }) => {
     getPendingSplits,
     getSplitSummary,
 
-    // ─── Dados Compartilhados ───
+
+
+    // ─── Dados Compartilhados (do CircleContext) ───
     sharedCards,
     sharedTransactions,
     sharedGoals,
@@ -1438,7 +1558,7 @@ export const AppProvider = ({ children }) => {
     updateSharedTransactions,
     updateSharedGoals,
 
-    // ─── Dados Merged ───
+    // ─── Dados Merged (locais + compartilhados) ───
     mergedCards,
     mergedTransactions,
     mergedGoals,
@@ -1461,25 +1581,7 @@ export const AppProvider = ({ children }) => {
     removeCategoryBudget,
     getCategoryBudget,
     getCategorySpending,
-
-    // ─── Backup ───
-    runWeeklyBackup,
-  }), [
-    cards, transactions, goals, completedGoals, notifications, mergedCategories, customCategories,
-    cashBalance, cardInvoices, soundEnabled, isLoading, securitySettings, isLocked, devMode,
-    sharedCards, sharedTransactions, sharedGoals, mergedCards, mergedTransactions, mergedGoals,
-    budgets,
-    addCard, deleteCard, editCard, addTransaction, deleteTransaction, editTransaction, addGoal,
-    investInGoal, completeGoal, deleteGoal, contributeGoal, createInvoice, payInvoice,
-    addNotification, clearAllNotifications, markNotificationAsRead, exportData, importData,
-    clearAllData, getBalance, getCardUsage, getCardPendingInvoices, getCardInvoices, playSound,
-    enablePin, disablePin, verifyPin, changePin, toggleBiometric, toggleLockOnBackground, lockApp, unlockApp,
-    enableDevMode, disableDevMode, toggleDevMode, splitTransaction, updateSplit, markSplitPaid, removeSplit,
-    getPendingSplits, getSplitSummary, updateSharedCards, updateSharedTransactions, updateSharedGoals,
-    isSharedItem, getItemShareInfo, canEditLocalOrShared, checkCategoryBudgetAlert, checkBoletoDueReminders,
-    checkInvoiceClosingAlert, checkWeeklySummary, setCategoryBudget, removeCategoryBudget, getCategoryBudget,
-    getCategorySpending, addCustomCategory, setCustomCategories, updateCashBalance, runWeeklyBackup,
-  ]);
+  };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

@@ -1,10 +1,11 @@
-// HomeScreen.js — Resumo Unificado com Círculos Financeiros + UI Refinada
-// ✨ REFINAMENTOS: Shimmer loading, Glassmorphism header, animações suaves, haptic feedback
+// HomeScreen.js — UI Moderna & Profissional (Revitalizada)
+// Design: Glassmorphism + Neumorphism leve + Tipografia hierárquica
+// Zero libs externas — 100% React Native puro e estável
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Dimensions, RefreshControl, Animated, Easing, ActivityIndicator
+  Dimensions, RefreshControl, Animated, StatusBar, Platform
 } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,72 +17,80 @@ import { formatCurrency, getGreeting } from '../utils/helpers';
 import CreditCard from '../components/CreditCard';
 import TransactionItem from '../components/TransactionItem';
 import Toast from '../components/Toast';
-import * as Haptics from 'expo-haptics';
 
 const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.78;
+const GOAL_CARD_WIDTH = width * 0.42;
 
-// ═══════════════════════════════════════════════════════════
-// SHIMMER COMPONENT
-// ═══════════════════════════════════════════════════════════
-const Shimmer = ({ width: w, height: h, borderRadius = 8, style }) => {
-  const shimmerAnim = useState(new Animated.Value(0))[0];
+// ── COMPONENTES AUXILIARES ──
 
+const SkeletonPulse = ({ style }) => {
+  const pulseAnim = useState(new Animated.Value(0.4))[0];
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(shimmerAnim, {
-        toValue: 1,
-        duration: 1500,
-        easing: Easing.ease,
-        useNativeDriver: true,
-      })
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+      ])
     );
-    animation.start();
-    return () => animation.stop();
+    anim.start();
+    return () => anim.stop();
   }, []);
-
-  const translateX = shimmerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-w, w],
-  });
-
   return (
-    <View style={[{ width: w, height: h, borderRadius, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }, style]}>
-      <Animated.View
-        style={{
-          width: '40%',
-          height: '100%',
-          backgroundColor: 'rgba(255,255,255,0.15)',
-          transform: [{ translateX }],
-        }}
-      />
-    </View>
+    <Animated.View style={[style, { opacity: pulseAnim, backgroundColor: 'rgba(150,150,150,0.15)' }]} />
   );
 };
 
-const SkeletonHome = ({ colors }) => (
-  <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
-    <View style={[styles.header, { backgroundColor: colors.primary }]}>
-      <Shimmer width={44} height={44} borderRadius={22} />
-      <Shimmer width={180} height={36} borderRadius={12} style={{ marginTop: 16 }} />
-      <Shimmer width={120} height={20} borderRadius={8} style={{ marginTop: 8 }} />
-      <View style={{ flexDirection: 'row', marginTop: 16, gap: 12 }}>
-        <Shimmer width={width / 2 - 30} height={60} borderRadius={14} />
-        <Shimmer width={width / 2 - 30} height={60} borderRadius={14} />
-      </View>
+const SectionHeader = ({ title, subtitle, actionText, onAction, colors }) => (
+  <View style={styles.sectionHeader}>
+    <View style={styles.sectionTitleBox}>
+      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{title}</Text>
+      {subtitle && (
+        <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>
+      )}
     </View>
-    <View style={{ padding: 16, gap: 16 }}>
-      <Shimmer width={width - 32} height={120} borderRadius={20} />
-      <Shimmer width={width - 32} height={180} borderRadius={20} />
-      <Shimmer width={width - 32} height={200} borderRadius={20} />
+    {actionText && onAction && (
+      <TouchableOpacity onPress={onAction} style={styles.seeAllBtn} activeOpacity={0.7}>
+        <Text style={[styles.seeAllText, { color: colors.primary }]}>{actionText}</Text>
+        <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+const StatPill = ({ icon, label, value, color, bgColor }) => (
+  <View style={[styles.statPill, { backgroundColor: bgColor }]}>
+    <View style={[styles.statPillIcon, { backgroundColor: color + '18' }]}>
+      <Ionicons name={icon} size={14} color={color} />
+    </View>
+    <View>
+      <Text style={[styles.statPillLabel, { color: 'rgba(255,255,255,0.55)' }]}>{label}</Text>
+      <Text style={[styles.statPillValue, { color: '#FFF' }]}>{value}</Text>
     </View>
   </View>
 );
+
+const AlertBanner = ({ icon, text, color, onPress }) => (
+  <TouchableOpacity
+    style={[styles.alertBanner, { backgroundColor: color + '18', borderColor: color + '30' }]}
+    onPress={onPress}
+    activeOpacity={0.85}
+  >
+    <View style={[styles.alertIconBox, { backgroundColor: color + '25' }]}>
+      <Ionicons name={icon} size={18} color={color} />
+    </View>
+    <Text style={[styles.alertText, { color: color }]} numberOfLines={1}>{text}</Text>
+    <Ionicons name="chevron-forward" size={16} color={color} />
+  </TouchableOpacity>
+);
+
+// ── HOME SCREEN PRINCIPAL ──
 
 const HomeScreen = () => {
   const navigation = useNavigation();
   const {
     cards, transactions, getBalance, getCardUsage,
-    notifications, cardInvoices, getCardPendingInvoices,
+    notifications, cardInvoices,
     mergedCards, mergedTransactions, mergedGoals,
     isSharedItem, getItemShareInfo,
     cashBalance, goals, isLoading,
@@ -99,40 +108,20 @@ const HomeScreen = () => {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' });
   const [refreshing, setRefreshing] = useState(false);
   const [showCircleSelector, setShowCircleSelector] = useState(false);
+  const [headerExpanded, setHeaderExpanded] = useState(true);
 
-  // ✅ CORREÇÃO: Timeout de segurança para isLoading (máx 3s)
-  const [showSkeleton, setShowSkeleton] = useState(true);
-  useEffect(() => {
-    if (!isLoading) {
-      setShowSkeleton(false);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setShowSkeleton(false);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [isLoading]);
-
-  // Animações
+  // Animações seguras (nativas)
   const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(30))[0];
+  const slideUpAnim = useState(new Animated.Value(40))[0];
   const scaleAnim = useState(new Animated.Value(0.95))[0];
-  const pulseAnim = useState(new Animated.Value(1))[0];
+  const headerScrollY = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+      Animated.timing(slideUpAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
-
-    // Pulse animation para o indicador de círculo
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.2, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-      ])
-    ).start();
   }, []);
 
   // ── DADOS UNIFICADOS ──
@@ -151,10 +140,11 @@ const HomeScreen = () => {
     return (mergedGoals || []).filter(g => !g._circleId || g._circleId === currentCircle.id);
   }, [currentCircle, goals, mergedGoals]);
 
-  // ── BALANÇO UNIFICADO ──
   const unifiedBalance = useMemo(() => {
     const allTx = displayTransactions || [];
-    const income = allTx.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
+    const income = allTx
+      .filter(t => t.type === 'income')
+      .reduce((s, t) => s + (t.amount || 0), 0);
     const expense = allTx
       .filter(t => t.type === 'expense' && !(t.paymentMethod === 'card' && t.cardType === 'credit'))
       .reduce((s, t) => s + (t.amount || 0), 0);
@@ -163,22 +153,20 @@ const HomeScreen = () => {
 
   const { income, expense, balance } = unifiedBalance;
 
-  // ── NOTIFICAÇÕES ──
   const unreadCount = (notifications || []).filter(n => !n.read).length;
 
-  // ── FATURAS PENDENTES ──
   const pendingInvoices = useMemo(() => {
     return (cardInvoices || []).filter(inv => inv.status === 'pending');
   }, [cardInvoices]);
   const totalPendingInvoices = pendingInvoices.length;
   const totalPendingAmount = pendingInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
 
-  // ── BOLETOS PENDENTES ──
   const pendingBoletos = useMemo(() => {
-    return (displayTransactions || []).filter(t => t.type === 'expense' && t.paymentMethod === 'boleto' && !t.isPaid);
+    return (displayTransactions || []).filter(
+      t => t.type === 'expense' && t.paymentMethod === 'boleto' && !t.isPaid
+    );
   }, [displayTransactions]);
 
-  // ── METAS DO CÍRCULO ──
   const activeGoals = useMemo(() => {
     return (displayGoals || []).filter(g => {
       const current = g.currentAmount || g.current || 0;
@@ -187,17 +175,34 @@ const HomeScreen = () => {
     });
   }, [displayGoals]);
 
-  // ── ÚLTIMAS TRANSAÇÕES ──
   const recentTransactions = useMemo(() => {
     return [...(displayTransactions || [])]
       .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
       .slice(0, 5);
   }, [displayTransactions]);
 
-  // ── CARTÕES DO CÍRCULO ──
-  const circleCards = useMemo(() => {
-    return (displayCards || []).slice(0, 3);
-  }, [displayCards]);
+  const circleCards = useMemo(() => (displayCards || []).slice(0, 3), [displayCards]);
+
+  // ── TOP CATEGORIAS ──
+  const topCategories = useMemo(() => {
+    const month = new Date().toISOString().slice(0, 7);
+    const catTotals = {};
+    (displayTransactions || [])
+      .filter(t => t.type === 'expense' && t.date && t.date.startsWith(month))
+      .forEach(t => {
+        const key = t.categoryName || 'Outros';
+        if (!catTotals[key]) {
+          catTotals[key] = { amount: 0, icon: t.categoryIcon || 'pricetag', color: t.categoryColor || '#94A3B8' };
+        }
+        catTotals[key].amount += t.amount || 0;
+      });
+    return Object.entries(catTotals)
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3);
+  }, [displayTransactions]);
+
+  const topCategoriesTotal = topCategories.reduce((s, c) => s + c.amount, 0);
 
   // ── HELPERS ──
   const showToast = (message, type = 'success') => {
@@ -206,509 +211,513 @@ const HomeScreen = () => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setTimeout(() => setRefreshing(false), 800);
+    setTimeout(() => setRefreshing(false), 1000);
   }, []);
 
+  const handleSwitchCircle = (circleId) => {
+    switchCircle(circleId);
+    setShowCircleSelector(false);
+  };
+
   const getSharedBadge = (item) => {
-    if (!item) return null;
-    const info = getItemShareInfo ? getItemShareInfo(item) : null;
+    if (!item || !getItemShareInfo) return null;
+    const info = getItemShareInfo(item);
     if (!info || !info.isShared) return null;
     return (
-      <View style={[styles.sharedBadge, { backgroundColor: info.canEdit ? colors.success : colors.primary }]}>
-        <Ionicons name={info.canEdit ? "create-outline" : "eye-outline"} size={10} color="#FFF" />
+      <View style={[styles.sharedBadge, { backgroundColor: info.canEdit ? colors.success + 'E6' : colors.primary + 'E6' }]}>
+        <Ionicons name={info.canEdit ? 'create-outline' : 'eye-outline'} size={9} color="#FFF" />
         <Text style={styles.sharedBadgeText}>{info.canEdit ? t('common.editPermission') : t('common.view')}</Text>
       </View>
     );
   };
 
-  const handleSwitchCircle = (circleId) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    switchCircle(circleId);
-    setShowCircleSelector(false);
-  };
+  // ── HEADER ANIMADO ──
+  const headerOpacity = headerScrollY.interpolate({
+    inputRange: [0, 120],
+    outputRange: [1, 0.3],
+    extrapolate: 'clamp',
+  });
 
-  const handleNavigate = (screen, params) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate(screen, params);
-  };
-
-  // ── SHIMMER LOADING COM TIMEOUT ──
-  if (showSkeleton) {
-    return <SkeletonHome colors={colors} />;
-  }
+  const headerTranslateY = headerScrollY.interpolate({
+    inputRange: [0, 120],
+    outputRange: [0, -20],
+    extrapolate: 'clamp',
+  });
 
   // ── RENDER ──
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.bgPrimary }]}
-      refreshControl={(
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
-          tintColor={colors.primary} colors={[colors.primary]} />
-      )}
-    >
-      {/* ═══════════════════════════════════════
-          HEADER COM GLASSMORPHISM
-          ═══════════════════════════════════════ */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <View style={styles.headerTop}>
-          {/* Avatar / Círculo */}
-          <TouchableOpacity
-            style={styles.avatar}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              setShowCircleSelector(!showCircleSelector);
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="people-circle-outline" size={22} color="#FFF" />
-            {currentCircle && (
-              <Animated.View style={[styles.circleIndicator, { transform: [{ scale: pulseAnim }] }]}>
-                <View style={[styles.circleDot, { backgroundColor: syncEnabled ? colors.success : colors.danger }]} />
-              </Animated.View>
-            )}
-          </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: colors.bgPrimary }]}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
 
-          {/* Seletor de Círculo (expandível) */}
+      {/* ═══════════════════════════════════════
+          HEADER MODERNO COM GLASSMORPHISM
+          ═══════════════════════════════════════ */}
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.primary,
+            opacity: headerOpacity,
+            transform: [{ translateY: headerTranslateY }],
+          },
+        ]}
+      >
+        {/* Glass overlay */}
+        <View style={styles.headerGlass}>
+          {/* Top Bar */}
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              style={styles.avatarBtn}
+              onPress={() => setShowCircleSelector(!showCircleSelector)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.avatarRing, { borderColor: 'rgba(255,255,255,0.3)' }]}>
+                <Ionicons name="people-circle-outline" size={24} color="#FFF" />
+              </View>
+              {currentCircle && (
+                <View style={styles.statusDot}>
+                  <View style={[styles.statusDotInner, { backgroundColor: syncEnabled ? '#34D399' : '#F87171' }]} />
+                </View>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={styles.headerActionBtn}
+                onPress={() => navigation.navigate('Notifications')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="notifications-outline" size={20} color="#FFF" />
+                {unreadCount > 0 && (
+                  <View style={[styles.notifBadge, { backgroundColor: '#F87171' }]}>
+                    <Text style={styles.notifBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerActionBtn}
+                onPress={() => navigation.navigate('Settings')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="settings-outline" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Circle Selector Dropdown */}
           {showCircleSelector && (myCircles || []).length > 0 && (
-            <Animated.View style={[styles.circleSelector, { 
-              backgroundColor: darkMode ? colors.bgCard : colors.bgCard, 
-              shadowColor: colors.shadow,
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            }]}>
+            <View style={[styles.circleDropdown, { backgroundColor: darkMode ? '#1E293B' : '#FFF' }]}>
               <TouchableOpacity
                 style={[styles.circleOption, !currentCircle && styles.circleOptionActive]}
                 onPress={() => handleSwitchCircle(null)}
               >
-                <Ionicons name="person-outline" size={18} color={!currentCircle ? colors.primary : colors.textPrimary} />
+                <View style={[styles.circleOptionIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="person-outline" size={16} color={colors.primary} />
+                </View>
                 <Text style={[styles.circleOptionText, { color: !currentCircle ? colors.primary : colors.textPrimary }]}>
                   {t('common.myData')}
                 </Text>
-                {!currentCircle && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                {!currentCircle && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
               </TouchableOpacity>
+
               {(myCircles || []).map(circle => (
                 <TouchableOpacity
                   key={circle.id}
                   style={[styles.circleOption, currentCircle?.id === circle.id && styles.circleOptionActive]}
                   onPress={() => handleSwitchCircle(circle.id)}
                 >
-                  <Ionicons name="people-outline" size={18} color={currentCircle?.id === circle.id ? colors.primary : colors.textPrimary} />
-                  <Text style={[styles.circleOptionText, { color: currentCircle?.id === circle.id ? colors.primary : colors.textPrimary }]}>
-                    {circle.name}
-                  </Text>
-                  {currentCircle?.id === circle.id && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                  <View style={[styles.circleOptionIcon, { backgroundColor: colors.primary + '15' }]}>
+                    <Ionicons name="people-outline" size={16} color={colors.primary} />
+                  </View>
+                  <View style={styles.circleOptionInfo}>
+                    <Text style={[styles.circleOptionText, { color: currentCircle?.id === circle.id ? colors.primary : colors.textPrimary }]}>
+                      {circle.name}
+                    </Text>
+                    <Text style={[styles.circleOptionMembers, { color: colors.textMuted }]}>
+                      {(circle.members?.length) || 1} {t('common.members').toLowerCase()}
+                    </Text>
+                  </View>
+                  {currentCircle?.id === circle.id && <Ionicons name="checkmark-circle" size={18} color={colors.primary} />}
                 </TouchableOpacity>
               ))}
-            </Animated.View>
+            </View>
           )}
 
-          {/* Ações do Header */}
-          <View style={styles.headerActions}>
-            <TouchableOpacity 
-              style={styles.iconBtn} 
-              onPress={() => handleNavigate('Notifications')}
+          {/* Circle Name Pill */}
+          {currentCircle && (
+            <TouchableOpacity
+              style={styles.circlePill}
+              onPress={() => setShowCircleSelector(!showCircleSelector)}
+              activeOpacity={0.8}
             >
-              <Ionicons name="notifications-outline" size={20} color="#FFF" />
-              {unreadCount > 0 && (
-                <View style={[styles.badge, { backgroundColor: colors.danger }]}>
-                  <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              <Ionicons name="people" size={12} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.circlePillText}>{currentCircle.name}</Text>
+              <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.5)" />
+              {unreadActivityCount > 0 && (
+                <View style={[styles.activityPill, { backgroundColor: '#FBBF24' }]}>
+                  <Text style={styles.activityPillText}>{unreadActivityCount}</Text>
                 </View>
               )}
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.iconBtn} 
-              onPress={() => handleNavigate('Settings')}
-            >
-              <Ionicons name="settings-outline" size={20} color="#FFF" />
-            </TouchableOpacity>
+          )}
+
+          {/* Balance Principal */}
+          <Animated.View style={[styles.balanceSection, { opacity: fadeAnim, transform: [{ translateY: slideUpAnim }] }]}>
+            <Text style={styles.balanceLabel}>{t('home.balance')}</Text>
+            <Text style={[styles.balanceValue, { color: balance >= 0 ? '#FFF' : '#FCA5A5' }]}>
+              {formatCurrency(balance)}
+            </Text>
+          </Animated.View>
+
+          {/* Stats Pills */}
+          <View style={styles.statsRow}>
+            <StatPill
+              icon="arrow-up-circle"
+              label={t('common.income')}
+              value={formatCurrency(income)}
+              color="#34D399"
+              bgColor="rgba(255,255,255,0.08)"
+            />
+            <View style={styles.statsDivider} />
+            <StatPill
+              icon="arrow-down-circle"
+              label={t('common.expense')}
+              value={formatCurrency(expense)}
+              color="#F87171"
+              bgColor="rgba(255,255,255,0.08)"
+            />
+          </View>
+
+          {/* Alert Banners */}
+          {totalPendingInvoices > 0 && (
+            <AlertBanner
+              icon="warning"
+              text={`${totalPendingInvoices} ${t('cards.invoiceCount')}: ${formatCurrency(totalPendingAmount)}`}
+              color="#F87171"
+              onPress={() => navigation.navigate('Cards')}
+            />
+          )}
+          {pendingBoletos.length > 0 && (
+            <AlertBanner
+              icon="document-text"
+              text={`${pendingBoletos.length} ${t('add.pendingBoletos')?.toLowerCase()}`}
+              color="#FBBF24"
+              onPress={() => navigation.navigate('Add')}
+            />
+          )}
+
+          {/* Greeting */}
+          <View style={styles.greetingSection}>
+            <Text style={styles.greetingMain}>{getGreeting()}</Text>
+            <Text style={styles.greetingSub}>{t('greetingSub')}</Text>
           </View>
         </View>
-
-        {/* Nome do Círculo Ativo */}
-        {currentCircle && (
-          <TouchableOpacity 
-            style={styles.circleNameRow} 
-            onPress={() => setShowCircleSelector(!showCircleSelector)}
-          >
-            <Ionicons name="people" size={14} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.circleNameText}>{currentCircle.name}</Text>
-            <Ionicons name="chevron-down" size={14} color="rgba(255,255,255,0.6)" />
-            {unreadActivityCount > 0 && (
-              <View style={[styles.activityBadge, { backgroundColor: colors.warning }]}>
-                <Text style={styles.activityBadgeText}>{unreadActivityCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-
-        {/* Saldo em Caixa Unificado */}
-        <Animated.View style={[styles.balanceBox, { 
-          opacity: fadeAnim, 
-          transform: [{ translateY: slideAnim }, { scale: scaleAnim }] 
-        }]}>
-          <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.7)' }]}>{t('home.balance')}</Text>
-          <Text style={[styles.balanceValue, { color: balance >= 0 ? '#FFF' : colors.danger }]}>
-            {formatCurrency(balance)}
-          </Text>
-        </Animated.View>
-
-        {/* Resumo Rápido: Receitas / Despesas */}
-        <View style={styles.quickStats}>
-          <TouchableOpacity 
-            style={styles.quickStatItem}
-            onPress={() => handleNavigate('History', { filter: 'income' })}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-up-circle" size={16} color={colors.success} />
-            <Text style={[styles.quickStatLabel, { color: 'rgba(255,255,255,0.6)' }]}>{t('common.income')}</Text>
-            <Text style={[styles.quickStatValue, { color: '#FFF' }]}>{formatCurrency(income)}</Text>
-          </TouchableOpacity>
-          <View style={styles.quickStatDivider} />
-          <TouchableOpacity 
-            style={styles.quickStatItem}
-            onPress={() => handleNavigate('History', { filter: 'expense' })}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-down-circle" size={16} color={colors.danger} />
-            <Text style={[styles.quickStatLabel, { color: 'rgba(255,255,255,0.6)' }]}>{t('common.expense')}</Text>
-            <Text style={[styles.quickStatValue, { color: '#FFF' }]}>{formatCurrency(expense)}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Alerta de Faturas Pendentes */}
-        {totalPendingInvoices > 0 && (
-          <TouchableOpacity
-            style={[styles.invoiceAlert, { backgroundColor: colors.danger }]}
-            onPress={() => handleNavigate('Cards')}
-            activeOpacity={0.9}
-          >
-            <Ionicons name="warning" size={18} color="#FFF" />
-            <Text style={styles.invoiceAlertText}>
-              {totalPendingInvoices} {t('cards.invoiceCount')}: {formatCurrency(totalPendingAmount)}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color="#FFF" />
-          </TouchableOpacity>
-        )}
-
-        {/* Alerta de Boletos Pendentes */}
-        {pendingBoletos.length > 0 && (
-          <TouchableOpacity
-            style={[styles.boletoAlert, { backgroundColor: colors.warning }]}
-            onPress={() => handleNavigate('Add')}
-            activeOpacity={0.9}
-          >
-            <Ionicons name="document-text" size={18} color="#FFF" />
-            <Text style={styles.invoiceAlertText}>
-              {pendingBoletos.length} {t('add.pendingBoletos').toLowerCase()}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color="#FFF" />
-          </TouchableOpacity>
-        )}
-
-        {/* Saudação */}
-        <View style={styles.greetingBox}>
-          <Text style={[styles.greetingText, { color: '#FFF' }]}>{getGreeting()}</Text>
-          <Text style={[styles.greetingSub, { color: 'rgba(255,255,255,0.65)' }]}>{t('greetingSub')}</Text>
-        </View>
-      </View>
+      </Animated.View>
 
       {/* ═══════════════════════════════════════
           CONTEÚDO PRINCIPAL
           ═══════════════════════════════════════ */}
-      <Animated.View style={[styles.content, { 
-        backgroundColor: colors.bgPrimary,
-        opacity: fadeAnim,
-        transform: [{ translateY: slideAnim }],
-      }]}>
-
-        {/* ── SEÇÃO: TOP 3 CATEGORIAS ── */}
+      <Animated.ScrollView
+        style={[styles.content, { backgroundColor: colors.bgPrimary }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+        }
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: headerScrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* ── TOP CATEGORIAS ── */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              <Ionicons name="pie-chart" size={16} color={colors.primary} />  Top Categorias
-            </Text>
-            <TouchableOpacity onPress={() => handleNavigate('Budget')}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>Ver Orçamentos</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={[styles.topCategoriesPreview, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
-            {(() => {
-              const month = new Date().toISOString().slice(0, 7);
-              const catTotals = {};
-              (displayTransactions || [])
-                .filter(t => t.type === 'expense' && t.date && t.date.startsWith(month))
-                .forEach(t => {
-                  const key = t.categoryName || 'Outros';
-                  if (!catTotals[key]) {
-                    catTotals[key] = { amount: 0, icon: t.categoryIcon || 'pricetag', color: t.categoryColor || '#94A3B8', id: t.category };
-                  }
-                  catTotals[key].amount += t.amount || 0;
-                });
+          <SectionHeader
+            title={t('add.topCategories') || 'Top Categorias'}
+            actionText={t('home.seeAll')}
+            onAction={() => navigation.navigate('Budget')}
+            colors={colors}
+          />
 
-              const top3 = Object.entries(catTotals)
-                .map(([name, data]) => ({ name, ...data }))
-                .sort((a, b) => b.amount - a.amount)
-                .slice(0, 3);
-
-              if (top3.length === 0) {
+          {isLoading ? (
+            <SkeletonPulse style={[styles.categoriesCard, { height: 180, borderRadius: 24 }]} />
+          ) : topCategories.length === 0 ? (
+            <View style={[styles.emptyCard, { borderColor: colors.border + '40' }]}>
+              <Ionicons name="pie-chart-outline" size={32} color={colors.textMuted} />
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>Nenhuma despesa este mês</Text>
+            </View>
+          ) : (
+            <View style={[styles.categoriesCard, { backgroundColor: darkMode ? colors.bgCard : '#FFF' }]}>
+              {topCategories.map((cat, index) => {
+                const percent = topCategoriesTotal > 0 ? (cat.amount / topCategoriesTotal) * 100 : 0;
+                const rankColors = ['#F59E0B', '#6B7280', '#92400E'];
                 return (
-                  <View style={styles.emptyTopCategories}>
-                    <Ionicons name="pie-chart-outline" size={24} color={colors.textMuted} />
-                    <Text style={[styles.emptyTopCategoriesText, { color: colors.textMuted }]}>Nenhuma despesa este mês</Text>
+                  <View key={cat.name} style={[styles.categoryRow, index < topCategories.length - 1 && styles.categoryRowBorder]}>
+                    <View style={styles.categoryLeft}>
+                      <View style={[styles.categoryRank, { backgroundColor: rankColors[index] + '18' }]}>
+                        <Text style={[styles.categoryRankText, { color: rankColors[index] }]}>{index + 1}</Text>
+                      </View>
+                      <View style={[styles.categoryIconBox, { backgroundColor: (cat.color || colors.primary) + '15' }]}>
+                        <Ionicons name={cat.icon} size={16} color={cat.color || colors.primary} />
+                      </View>
+                      <View>
+                        <Text style={[styles.categoryName, { color: colors.textPrimary }]}>{cat.name}</Text>
+                        <View style={styles.categoryBarTrack}>
+                          <View style={[styles.categoryBarFill, { width: `${Math.min(percent, 100)}%`, backgroundColor: cat.color || colors.primary }]} />
+                        </View>
+                      </View>
+                    </View>
+                    <Text style={[styles.categoryValue, { color: colors.danger }]}>{formatCurrency(cat.amount)}</Text>
                   </View>
                 );
-              }
-
-              const totalMonth = top3.reduce((s, c) => s + c.amount, 0);
-
-              return top3.map((cat, index) => (
-                <View key={cat.name} style={styles.topCategoryItem}>
-                  <View style={styles.topCategoryLeft}>
-                    <View style={[styles.topCategoryRank, { backgroundColor: index === 0 ? '#F59E0B20' : index === 1 ? '#9CA3B820' : '#B4530920' }]}>
-                      <Text style={[styles.topCategoryRankText, { color: index === 0 ? '#F59E0B' : index === 1 ? '#6B7280' : '#B45309' }]}>
-                        {index + 1}
-                      </Text>
-                    </View>
-                    <View style={[styles.topCategoryIcon, { backgroundColor: (cat.color || colors.primary) + '15' }]}>
-                      <Ionicons name={cat.icon} size={16} color={cat.color || colors.primary} />
-                    </View>
-                    <View>
-                      <Text style={[styles.topCategoryName, { color: colors.textPrimary }]}>{cat.name}</Text>
-                      <Text style={[styles.topCategoryPercent, { color: colors.textMuted }]}>
-                        {((cat.amount / totalMonth) * 100).toFixed(0)}% do total
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.topCategoryValue, { color: colors.danger }]}>{formatCurrency(cat.amount)}</Text>
-                </View>
-              ));
-            })()}
-          </View>
+              })}
+            </View>
+          )}
         </View>
 
-        {/* ── SEÇÃO: CARTÕES ── */}
+        {/* ── CARTÕES ── */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              {t('home.myCards')}
-              {currentCircle && (
-                <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
-                  {' '}({(displayCards || []).length})
-                </Text>
-              )}
-            </Text>
-            <TouchableOpacity onPress={() => handleNavigate('Cards')}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>{t('home.seeAll')}</Text>
-            </TouchableOpacity>
-          </View>
+          <SectionHeader
+            title={t('home.myCards')}
+            subtitle={currentCircle ? `(${(displayCards || []).length})` : null}
+            actionText={t('home.seeAll')}
+            onAction={() => navigation.navigate('Cards')}
+            colors={colors}
+          />
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
-            {(circleCards || []).length > 0 ? (
-              (circleCards || []).map((card, index) => (
-                <Animated.View 
-                  key={card.id} 
-                  style={[styles.cardItem, {
-                    transform: [{ scale: scaleAnim }],
-                    opacity: fadeAnim,
-                  }]}
+          {isLoading ? (
+            <SkeletonPulse style={{ width: CARD_WIDTH, height: 180, borderRadius: 20, marginLeft: 4 }} />
+          ) : (circleCards || []).length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardScroll}>
+              {(circleCards || []).map((card, index) => (
+                <Animated.View
+                  key={card.id}
+                  style={[
+                    styles.cardWrapper,
+                    {
+                      opacity: fadeAnim,
+                      transform: [
+                        { translateY: slideUpAnim },
+                        { scale: scaleAnim }
+                      ],
+                      marginLeft: index === 0 ? 4 : 0,
+                    },
+                  ]}
                 >
                   <CreditCard card={card} usage={getCardUsage(card.id)} />
                   {getSharedBadge(card)}
                 </Animated.View>
-              ))
-            ) : (
-              <View style={[styles.emptyCard, { borderColor: colors.border }]}>
-                <Ionicons name="card-outline" size={28} color={colors.textMuted} />
-                <Text style={[styles.emptyCardText, { color: colors.textMuted }]}>{t('home.noCards')}</Text>
-              </View>
-            )}
-          </ScrollView>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={[styles.emptyCard, { borderColor: colors.border + '40' }]}>
+              <Ionicons name="card-outline" size={32} color={colors.textMuted} />
+              <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('home.noCards')}</Text>
+            </View>
+          )}
         </View>
 
-        {/* ── SEÇÃO: METAS ATIVAS ── */}
+        {/* ── METAS ATIVAS ── */}
         {(activeGoals || []).length > 0 && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-                {t('goals.title')}
-              </Text>
-              <TouchableOpacity onPress={() => handleNavigate('Goals')}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>{t('home.seeAll')}</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {(activeGoals || []).slice(0, 3).map((goal, index) => {
-                const progress = (goal.targetAmount || goal.target || 0) > 0 ? ((goal.currentAmount || goal.current || 0) / (goal.targetAmount || goal.target || 0)) * 100 : 0;
+            <SectionHeader
+              title={t('goals.title')}
+              actionText={t('home.seeAll')}
+              onAction={() => navigation.navigate('Goals')}
+              colors={colors}
+            />
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.goalScroll}>
+              {(activeGoals || []).slice(0, 4).map((goal, index) => {
+                const progress = (goal.targetAmount || goal.target || 0) > 0
+                  ? ((goal.currentAmount || goal.current || 0) / (goal.targetAmount || goal.target || 0)) * 100
+                  : 0;
                 return (
-                  <Animated.View
+                  <TouchableOpacity
                     key={goal.id}
-                    style={{
-                      transform: [{ scale: scaleAnim }],
-                      opacity: fadeAnim,
-                    }}
+                    style={[
+                      styles.goalCard,
+                      {
+                        backgroundColor: darkMode ? colors.bgCard : '#FFF',
+                        marginLeft: index === 0 ? 4 : 0,
+                      },
+                    ]}
+                    onPress={() => navigation.navigate('Goals')}
+                    activeOpacity={0.85}
                   >
-                    <TouchableOpacity
-                      style={[styles.goalCard, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}
-                      onPress={() => handleNavigate('Goals')}
-                    >
-                      <View style={styles.goalCardHeader}>
-                        <Ionicons name={goal.icon || "trophy-outline"} size={20} color={goal.color || colors.primary} />
-                        {getSharedBadge(goal)}
+                    <View style={styles.goalCardTop}>
+                      <View style={[styles.goalIconBox, { backgroundColor: (goal.color || colors.primary) + '15' }]}>
+                        <Ionicons name={goal.icon || 'trophy-outline'} size={20} color={goal.color || colors.primary} />
                       </View>
-                      <Text style={[styles.goalCardName, { color: colors.textPrimary }]} numberOfLines={1}>{goal.name}</Text>
-                      <Text style={[styles.goalCardAmount, { color: colors.textMuted }]}>
-                        {formatCurrency(goal.currentAmount || goal.current || 0)} / {formatCurrency(goal.targetAmount || goal.target || 0)}
-                      </Text>
-                      <View style={[styles.goalProgressBar, { backgroundColor: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
-                        <Animated.View style={[styles.goalProgressFill, {
-                          width: `${Math.min(progress, 100)}%`,
-                          backgroundColor: goal.color || colors.primary
-                        }]} />
-                      </View>
+                      {getSharedBadge(goal)}
+                    </View>
+
+                    <Text style={[styles.goalName, { color: colors.textPrimary }]} numberOfLines={1}>{goal.name}</Text>
+                    <Text style={[styles.goalAmount, { color: colors.textMuted }]}>
+                      {formatCurrency(goal.currentAmount || goal.current || 0)}
+                      <Text style={{ fontWeight: '400' }}> / {formatCurrency(goal.targetAmount || goal.target || 0)}</Text>
+                    </Text>
+
+                    <View style={styles.goalProgressTrack}>
+                      <View
+                        style={[
+                          styles.goalProgressFill,
+                          {
+                            width: `${Math.min(progress, 100)}%`,
+                            backgroundColor: goal.color || colors.primary,
+                          },
+                        ]}
+                      />
+                    </View>
+
+                    <View style={styles.goalProgressFooter}>
                       <Text style={[styles.goalProgressText, { color: colors.textMuted }]}>
                         {Math.round(progress)}% {t('goals.complete')}
                       </Text>
-                    </TouchableOpacity>
-                  </Animated.View>
+                      <Text style={[styles.goalProgressText, { color: colors.textMuted }]}>
+                        {formatCurrency((goal.targetAmount || goal.target || 0) - (goal.currentAmount || goal.current || 0))} restante
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 );
               })}
             </ScrollView>
           </View>
         )}
 
-        {/* ── SEÇÃO: ÚLTIMAS TRANSAÇÕES ── */}
+        {/* ── ÚLTIMAS TRANSAÇÕES ── */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              {t('home.recentTransactions')}
-              {currentCircle && (
-                <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
-                  {' '}({(displayTransactions || []).length})
-                </Text>
-              )}
-            </Text>
-            <TouchableOpacity onPress={() => handleNavigate('History')}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>{t('home.seeAll')}</Text>
-            </TouchableOpacity>
-          </View>
+          <SectionHeader
+            title={t('home.recentTransactions')}
+            subtitle={currentCircle ? `(${(displayTransactions || []).length})` : null}
+            actionText={t('home.seeAll')}
+            onAction={() => navigation.navigate('History')}
+            colors={colors}
+          />
 
-          {(recentTransactions || []).length > 0 ? (
-            (recentTransactions || []).map((tx, index) => (
-              <Animated.View
-                key={tx.id}
-                style={{
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }]
-                }}
-              >
+          {isLoading ? (
+            <View style={{ gap: 12 }}>
+              {[1, 2, 3].map(i => (
+                <SkeletonPulse key={i} style={{ height: 64, borderRadius: 16 }} />
+              ))}
+            </View>
+          ) : (recentTransactions || []).length > 0 ? (
+            <View style={[styles.transactionsCard, { backgroundColor: darkMode ? colors.bgCard : '#FFF' }]}>
+              {(recentTransactions || []).map((tx, index) => (
                 <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    showToast(`${tx.desc || tx.description} - ${formatCurrency(tx.amount)}`, 'info');
-                  }}
+                  key={tx.id}
+                  style={[styles.transactionRow, index < recentTransactions.length - 1 && styles.transactionRowBorder]}
+                  onPress={() => showToast(`${tx.desc || tx.description} - ${formatCurrency(tx.amount)}`, 'info')}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.txRow}>
+                  <View style={styles.transactionLeft}>
                     <TransactionItem transaction={tx} />
-                    <View style={styles.txBadgeContainer}>
-                      {getSharedBadge(tx)}
-                      {tx._sharedBy && (
-                        <View style={[styles.sharedByBadge, { backgroundColor: colors.primary + '20' }]}>
-                          <Ionicons name="person-outline" size={10} color={colors.primary} />
-                          <Text style={[styles.sharedByText, { color: colors.primary }]}>
-                            {tx._sharedByName || tx._sharedBy}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
+                  </View>
+                  <View style={styles.transactionBadges}>
+                    {getSharedBadge(tx)}
+                    {tx._sharedBy && (
+                      <View style={[styles.sharedByBadge, { backgroundColor: colors.primary + '15' }]}>
+                        <Ionicons name="person-outline" size={10} color={colors.primary} />
+                        <Text style={[styles.sharedByText, { color: colors.primary }]}>
+                          {tx._sharedByName || tx._sharedBy}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </TouchableOpacity>
-              </Animated.View>
-            ))
+              ))}
+            </View>
           ) : (
-            <View style={[styles.emptyState, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
+            <View style={[styles.emptyCard, { borderColor: colors.border + '40' }]}>
               <Ionicons name="receipt-outline" size={32} color={colors.textMuted} />
               <Text style={[styles.emptyText, { color: colors.textMuted }]}>{t('home.noTransactions')}</Text>
             </View>
           )}
         </View>
 
-        {/* ── SEÇÃO: BOLETOS PENDENTES ── */}
+        {/* ── BOLETOS PENDENTES ── */}
         {(pendingBoletos || []).length > 0 && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('add.pendingBoletos')}</Text>
-            </View>
-            {(pendingBoletos || []).slice(0, 3).map(boleto => (
-              <View key={boleto.id} style={[styles.boletoRow, { backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary }]}>
-                <View style={styles.boletoInfo}>
-                  <Ionicons name="document-text-outline" size={18} color={colors.warning} />
-                  <View style={styles.boletoTextBox}>
-                    <Text style={[styles.boletoDesc, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {boleto.desc || boleto.description}
-                    </Text>
-                    <Text style={[styles.boletoDue, { color: colors.textMuted }]}>
-                      {t('add.due')}: {boleto.dueDate || boleto.date}
-                    </Text>
+            <SectionHeader
+              title={t('add.pendingBoletos')}
+              colors={colors}
+            />
+            <View style={[styles.boletosCard, { backgroundColor: darkMode ? colors.bgCard : '#FFF' }]}>
+              {(pendingBoletos || []).slice(0, 3).map((boleto, index) => (
+                <View
+                  key={boleto.id}
+                  style={[styles.boletoRow, index < pendingBoletos.slice(0, 3).length - 1 && styles.boletoRowBorder]}
+                >
+                  <View style={styles.boletoLeft}>
+                    <View style={[styles.boletoIconBox, { backgroundColor: colors.warning + '15' }]}>
+                      <Ionicons name="document-text-outline" size={18} color={colors.warning} />
+                    </View>
+                    <View>
+                      <Text style={[styles.boletoDesc, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {boleto.desc || boleto.description}
+                      </Text>
+                      <Text style={[styles.boletoDue, { color: colors.textMuted }]}>
+                        {t('add.due')}: {boleto.dueDate || boleto.date}
+                      </Text>
+                    </View>
                   </View>
+                  <Text style={[styles.boletoAmount, { color: colors.danger }]}>
+                    {formatCurrency(boleto.amount)}
+                  </Text>
                 </View>
-                <Text style={[styles.boletoAmount, { color: colors.danger }]}>
-                  {formatCurrency(boleto.amount)}
-                </Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         )}
 
-        {/* ── SEÇÃO: RESUMO DO CÍRCULO ── */}
+        {/* ── RESUMO DO CÍRCULO ── */}
         {currentCircle && (
-          <Animated.View style={[styles.circleSummary, { 
-            backgroundColor: darkMode ? colors.bgCard : colors.bgTertiary,
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          }]}>
-            <View style={styles.circleSummaryHeader}>
-              <Ionicons name="people" size={18} color={colors.primary} />
-              <Text style={[styles.circleSummaryTitle, { color: colors.textPrimary }]}>
-                {currentCircle.name}
-              </Text>
-              <View style={[styles.onlineIndicator, { backgroundColor: syncEnabled ? colors.success : colors.danger }]}>
-                <Text style={styles.onlineText}>{syncEnabled ? t('common.active') : t('common.inactive')}</Text>
-              </View>
-            </View>
-            <View style={styles.circleSummaryStats}>
-              <View style={styles.circleStat}>
-                <Text style={[styles.circleStatValue, { color: colors.primary }]}>{(displayCards || []).length}</Text>
-                <Text style={[styles.circleStatLabel, { color: colors.textMuted }]}>{t('tab.cards')}</Text>
-              </View>
-              <View style={styles.circleStat}>
-                <Text style={[styles.circleStatValue, { color: colors.primary }]}>{(displayTransactions || []).length}</Text>
-                <Text style={[styles.circleStatLabel, { color: colors.textMuted }]}>{t('tab.history')}</Text>
-              </View>
-              <View style={styles.circleStat}>
-                <Text style={[styles.circleStatValue, { color: colors.primary }]}>{(activeGoals || []).length}</Text>
-                <Text style={[styles.circleStatLabel, { color: colors.textMuted }]}>{t('tab.goals')}</Text>
-              </View>
-              <View style={styles.circleStat}>
-                <Text style={[styles.circleStatValue, { color: colors.primary }]}>
-                  {(currentCircle.members?.length) || 1}
+          <View style={styles.section}>
+            <SectionHeader
+              title={currentCircle.name}
+              colors={colors}
+            />
+            <View style={[styles.circleCard, { backgroundColor: darkMode ? colors.bgCard : '#FFF' }]}>
+              <View style={styles.circleCardHeader}>
+                <View style={[styles.circleStatusDot, { backgroundColor: syncEnabled ? '#34D399' : '#F87171' }]} />
+                <Text style={[styles.circleStatusText, { color: syncEnabled ? '#34D399' : '#F87171' }]}>
+                  {syncEnabled ? t('common.active') : t('common.inactive')}
                 </Text>
-                <Text style={[styles.circleStatLabel, { color: colors.textMuted }]}>{t('common.members')}</Text>
               </View>
+
+              <View style={styles.circleStatsGrid}>
+                {[
+                  { icon: 'card', label: t('tab.cards'), value: (displayCards || []).length },
+                  { icon: 'time', label: t('tab.history'), value: (displayTransactions || []).length },
+                  { icon: 'trophy', label: t('tab.goals'), value: (activeGoals || []).length },
+                  { icon: 'people', label: t('common.members'), value: (currentCircle.members?.length) || 1 },
+                ].map(stat => (
+                  <View key={stat.label} style={styles.circleStatBox}>
+                    <View style={[styles.circleStatIcon, { backgroundColor: colors.primary + '10' }]}>
+                      <Ionicons name={stat.icon} size={18} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.circleStatValue, { color: colors.textPrimary }]}>{stat.value}</Text>
+                    <Text style={[styles.circleStatLabel, { color: colors.textMuted }]}>{stat.label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.circleManageBtn, { borderColor: colors.primary + '40' }]}
+                onPress={() => navigation.navigate('Circles')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.circleManageText, { color: colors.primary }]}>
+                  {t('common.manage')} {t('tab.groups')}
+                </Text>
+                <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={[styles.circleManageBtn, { borderColor: colors.primary }]}
-              onPress={() => handleNavigate('Circles')}
-            >
-              <Text style={[styles.circleManageText, { color: colors.primary }]}>
-                {t('common.manage')} {t('tab.groups')}
-              </Text>
-              <Ionicons name="arrow-forward" size={14} color={colors.primary} />
-            </TouchableOpacity>
-          </Animated.View>
+          </View>
         )}
-      </Animated.View>
+
+        {/* Bottom spacing */}
+        <View style={{ height: 40 }} />
+      </Animated.ScrollView>
 
       {/* Toast */}
       <Toast
@@ -717,63 +726,55 @@ const HomeScreen = () => {
         type={toast.type}
         onHide={() => setToast({ ...toast, visible: false })}
       />
-    </ScrollView>
+    </View>
   );
 };
 
 // ═══════════════════════════════════════════════════
-// ESTILOS
+// ESTILOS MODERNOS
 // ═══════════════════════════════════════════════════
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  // Shimmer
-  glassContainer: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  glassBlur: {
-    position: 'absolute',
-    top: -20,
-    left: -20,
-    right: -20,
-    bottom: -20,
-    opacity: 0.3,
-  },
-  glassContent: {
-    position: 'relative',
-    zIndex: 1,
-  },
-
-  // Header
+  // ── HEADER ──
   header: {
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? 52 : 44,
     paddingHorizontal: 20,
     paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    overflow: 'hidden',
+  },
+  headerGlass: {
+    // Efeito glassmorphism simulado com transparência e sombra
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
     position: 'relative',
     zIndex: 10,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+
+  // Avatar
+  avatarBtn: {
+    position: 'relative',
+  },
+  avatarRing: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  circleIndicator: {
+  statusDot: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: 2,
+    right: 2,
     width: 14,
     height: 14,
     borderRadius: 7,
@@ -781,24 +782,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  circleDot: {
+  statusDotInner: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
+
+  // Header Actions
   headerActions: { flexDirection: 'row', gap: 10 },
-  iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+  headerActionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
-  badge: {
+  notifBadge: {
     position: 'absolute',
     top: -2,
     right: -2,
@@ -809,52 +812,71 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
   },
-  badgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  notifBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
 
-  // Seletor de Círculo
-  circleSelector: {
+  // Circle Dropdown
+  circleDropdown: {
     position: 'absolute',
-    top: 56,
+    top: 64,
     left: 0,
     right: 0,
-    borderRadius: 16,
-    padding: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    borderRadius: 20,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
     zIndex: 20,
+    gap: 4,
   },
   circleOption: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    gap: 10,
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 12,
   },
   circleOptionActive: {
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
   },
+  circleOptionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleOptionInfo: { flex: 1 },
   circleOptionText: {
     fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
+    fontWeight: '700',
+  },
+  circleOptionMembers: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 1,
   },
 
-  // Nome do Círculo
-  circleNameRow: {
+  // Circle Pill
+  circlePill: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: 6,
-    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 16,
   },
-  circleNameText: {
+  circlePillText: {
     color: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
   },
-  activityBadge: {
+  activityPill: {
     borderRadius: 8,
     minWidth: 16,
     height: 16,
@@ -862,246 +884,318 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
   },
-  activityBadgeText: {
+  activityPillText: {
     color: '#FFF',
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 
   // Balance
-  balanceBox: { marginBottom: 8 },
+  balanceSection: {
+    marginBottom: 20,
+  },
   balanceLabel: {
     fontSize: 13,
     fontWeight: '600',
+    color: 'rgba(255,255,255,0.55)',
     marginBottom: 4,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   balanceValue: {
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: '800',
-    letterSpacing: -1,
+    letterSpacing: -1.5,
   },
 
-  // Quick Stats
-  quickStats: {
+  // Stats Row
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 16,
   },
-  quickStatItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  quickStatLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  quickStatValue: {
-    color: '#FFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  quickStatDivider: {
+  statsDivider: {
     width: 1,
-    height: 30,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
 
-  // Alertas
-  invoiceAlert: {
+  // Stat Pill
+  statPill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 12,
-    marginBottom: 10,
+    padding: 12,
+    borderRadius: 16,
   },
-  boletoAlert: {
-    flexDirection: 'row',
+  statPillIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 12,
-    marginBottom: 10,
   },
-  invoiceAlertText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+  statPillLabel: {
+    fontSize: 10,
     fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  statPillValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+
+  // Alert Banner
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  alertIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertText: {
+    fontSize: 13,
+    fontWeight: '700',
     flex: 1,
   },
 
-  // Saudação
-  greetingBox: { marginTop: 4 },
-  greetingText: {
-    fontSize: 18,
-    fontWeight: '700',
+  // Greeting
+  greetingSection: {
+    marginTop: 8,
+  },
+  greetingMain: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFF',
   },
   greetingSub: {
     fontSize: 13,
-    marginTop: 2,
     fontWeight: '500',
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: 3,
   },
 
-  // Conteúdo
+  // ── CONTENT ──
   content: {
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 20,
-    paddingBottom: 30,
   },
 
-  // Seções
-  section: { marginBottom: 24 },
+  // Section
+  section: {
+    marginBottom: 28,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 14,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700' },
-  sectionSubtitle: { fontSize: 13, fontWeight: '500' },
-  seeAll: { fontSize: 13, fontWeight: '600' },
-
-  // Cartões
-  cardScroll: { paddingRight: 16 },
-  cardItem: { marginRight: 12, position: 'relative' },
-  emptyCard: {
-    width: 220,
-    height: 130,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
+  sectionTitleBox: { flex: 1 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
-  emptyCardText: { fontSize: 12, fontWeight: '500', marginTop: 8 },
-
-  // Shared Badge
-  sharedBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
+  sectionSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  seeAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    gap: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 8,
   },
-  sharedBadgeText: {
-    color: '#FFF',
-    fontSize: 9,
+  seeAllText: {
+    fontSize: 13,
     fontWeight: '700',
   },
 
-  // Metas
-  goalCard: {
-    width: 160,
-    padding: 14,
-    borderRadius: 16,
-    marginRight: 12,
-    gap: 6,
+  // Cards
+  cardScroll: { marginHorizontal: -4 },
+  cardWrapper: {
+    marginRight: 14,
+    position: 'relative',
   },
-  goalCardHeader: {
+
+  // Categories
+  categoriesCard: {
+    borderRadius: 24,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  categoryRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.08)',
+  },
+  categoryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  categoryRank: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  categoryRankText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  categoryIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  categoryName: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  categoryBarTrack: {
+    width: 120,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(150,150,150,0.1)',
+    overflow: 'hidden',
+  },
+  categoryBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  categoryValue: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  // Goals
+  goalScroll: { marginHorizontal: -4 },
+  goalCard: {
+    width: GOAL_CARD_WIDTH,
+    padding: 16,
+    borderRadius: 24,
+    marginRight: 14,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  goalCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  goalCardName: {
-    fontSize: 13,
+  goalIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goalName: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  goalAmount: {
+    fontSize: 12,
     fontWeight: '700',
   },
-  goalCardAmount: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  goalProgressBar: {
+  goalProgressTrack: {
     height: 6,
     borderRadius: 3,
+    backgroundColor: 'rgba(150,150,150,0.1)',
     overflow: 'hidden',
   },
   goalProgressFill: {
     height: '100%',
     borderRadius: 3,
   },
+  goalProgressFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   goalProgressText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
-  // Top Categorias Preview
-  topCategoriesPreview: {
-    borderRadius: 20,
-    padding: 16,
-    gap: 12,
+  // Transactions
+  transactionsCard: {
+    borderRadius: 24,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  topCategoryItem: {
+  transactionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  topCategoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  transactionRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.06)',
   },
-  topCategoryRank: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  topCategoryRankText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  topCategoryIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  topCategoryName: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  topCategoryPercent: {
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  topCategoryValue: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  emptyTopCategories: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    gap: 8,
-  },
-  emptyTopCategoriesText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-
-  // Transações
-  txRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  txBadgeContainer: {
+  transactionLeft: { flex: 1 },
+  transactionBadges: {
     alignItems: 'flex-end',
     gap: 4,
+  },
+
+  // Shared Badge
+  sharedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  sharedBadgeText: {
+    color: '#FFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
   sharedByBadge: {
     flexDirection: 'row',
@@ -1113,101 +1207,132 @@ const styles = StyleSheet.create({
   },
   sharedByText: {
     fontSize: 9,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   // Boletos
+  boletosCard: {
+    borderRadius: 24,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
   boletoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
-  boletoInfo: {
+  boletoRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.06)',
+  },
+  boletoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
   },
-  boletoTextBox: { gap: 2 },
+  boletoIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   boletoDesc: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   },
   boletoDue: {
     fontSize: 11,
     fontWeight: '500',
+    marginTop: 2,
   },
   boletoAmount: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 
   // Empty State
-  emptyState: {
+  emptyCard: {
     alignItems: 'center',
-    padding: 30,
-    borderRadius: 16,
-    marginTop: 8,
+    padding: 32,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    gap: 10,
   },
-  emptyText: { fontSize: 14, fontWeight: '500', marginTop: 8 },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
 
-  // Resumo do Círculo
-  circleSummary: {
-    borderRadius: 20,
-    padding: 16,
-    marginTop: 4,
-    marginBottom: 20,
+  // Circle Card
+  circleCard: {
+    borderRadius: 24,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  circleSummaryHeader: {
+  circleCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 18,
   },
-  circleSummaryTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    flex: 1,
+  circleStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  onlineIndicator: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  onlineText: {
-    color: '#FFF',
-    fontSize: 10,
+  circleStatusText: {
+    fontSize: 12,
     fontWeight: '700',
   },
-  circleSummaryStats: {
+  circleStatsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 14,
+    justifyContent: 'space-between',
+    marginBottom: 18,
   },
-  circleStat: { alignItems: 'center', gap: 2 },
+  circleStatBox: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  circleStatIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   circleStatValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
   },
   circleStatLabel: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   circleManageBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
     borderWidth: 1.5,
   },
   circleManageText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });
 

@@ -1,290 +1,314 @@
-// SplashScreen.js — Otimizado: Easing suave, menos re-renders, transições fluidas
-// ✨ REFINAMENTOS: Easing nativo, cleanup robusto, animação sequencial suave
-// 🔧 CORREÇÃO: rotate usa radianos para native driver, gradiente único com animação de cores
-
-import React, { useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, StatusBar, Dimensions, Easing } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  StatusBar,
+  Dimensions,
+  Modal,
+} from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import Svg, { Circle } from 'react-native-svg';
+import Constants from 'expo-constants';
+import { useTheme } from '../context/ThemeContext';
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('screen');
+const CIRCLE_RADIUS = 42;
+const CIRCLE_STROKE = 5;
+const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 
-// Gradientes para animação cross-fade (índices 0→1→2→0)
-const gradientSchemes = [
-  ['#A78BFA', '#7C3AED', '#EC4899'],  // purple
-  ['#1D4ED8', '#0D9488', '#BEF264'],  // blue
-  ['#047857', '#10B981', '#F59E0B'],  // green
-];
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const SplashScreen = ({ onFinish }) => {
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const { colors } = useTheme();
+  const [visible, setVisible] = useState(true);
+
+  const bgColor = colors?.primary || '#8B5CF6';
+  const trackColor = 'rgba(255,255,255,0.15)';
+  const indicatorColor = '#FFFFFF';
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const contentTranslateY = useRef(new Animated.Value(40)).current;
-  const logoScale = useRef(new Animated.Value(0.8)).current;
-  const logoRotate = useRef(new Animated.Value(0)).current;
-  const gradientIndex = useRef(new Animated.Value(0)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(24)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  const timerRef = useRef(null);
-  const animationsRef = useRef([]);
-
-  const cleanup = useCallback(() => {
-    animationsRef.current.forEach(anim => anim?.stop?.());
-    if (timerRef.current) clearTimeout(timerRef.current);
-    try {
-      StatusBar.setHidden(false);
-    } catch (e) {
-      // ignorar
-    }
+  const appVersion = useMemo(() => {
+    return (
+      Constants.expoConfig?.version ||
+      Constants.expoConfig?.android?.versionCode ||
+      Constants.nativeAppVersion ||
+      '3.0.0'
+    );
   }, []);
 
   useEffect(() => {
-    try {
-      StatusBar.setHidden(true);
-    } catch (e) {
-      // ignorar em Expo Go
-    }
+    StatusBar.setHidden(true);
 
-    // Animação de entrada do conteúdo
-    const contentAnim = Animated.timing(contentTranslateY, {
-      toValue: 0,
-      duration: 800,
-      delay: 200,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    });
-    animationsRef.current.push(contentAnim);
-    contentAnim.start();
-
-    // Animação de escala do logo
-    const logoAnim = Animated.timing(logoScale, {
-      toValue: 1,
-      duration: 600,
-      delay: 100,
-      easing: Easing.out(Easing.back(1.7)),
-      useNativeDriver: true,
-    });
-    animationsRef.current.push(logoAnim);
-    logoAnim.start();
-
-    // Animação de rotação sutil do logo — RADIANOS para native driver!
-    const rotateAnim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(logoRotate, {
-          toValue: 1,
-          duration: 2000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoRotate, {
-          toValue: 0,
-          duration: 2000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    animationsRef.current.push(rotateAnim);
-    rotateAnim.start();
-
-    // Animação cross-fade dos gradientes (índice 0→1→2→0)
-    const gradientLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(gradientIndex, {
-          toValue: 1,
-          duration: 3000,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false, // interpolação de índice não usa native
-        }),
-        Animated.timing(gradientIndex, {
-          toValue: 2,
-          duration: 3000,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-        }),
-        Animated.timing(gradientIndex, {
-          toValue: 0,
-          duration: 3000,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
-        }),
-      ])
-    );
-    animationsRef.current.push(gradientLoop);
-    gradientLoop.start();
-
-    // Animação da Barra de Progresso
-    const progressAnimation = Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 2500,
-      easing: Easing.inOut(Easing.cubic),
-      useNativeDriver: false,
-    });
-    animationsRef.current.push(progressAnimation);
-    progressAnimation.start();
-
-    // Fade out de saída da tela
-    timerRef.current = setTimeout(() => {
-      const fadeOut = Animated.timing(fadeAnim, {
-        toValue: 0,
+    // Entrada suave
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
         duration: 600,
-        easing: Easing.in(Easing.quad),
         useNativeDriver: true,
-      });
-      animationsRef.current.push(fadeOut);
-      fadeOut.start(() => {
-        cleanup();
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentTranslateY, {
+        toValue: 0,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Progresso do anel
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 2600,
+      useNativeDriver: true,
+    }).start();
+
+    // Rotação contínua
+    Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 1800,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    // Pulso sutil no logo
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.04,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // Fade out e finalização
+    const timer = setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }).start(() => {
+        // Notifica o app que pode renderizar
         if (onFinish) onFinish();
+
+        // Só desmonta o Modal após dar tempo do app por baixo renderizar
+        // evitando o flash branco
+        setTimeout(() => {
+          StatusBar.setHidden(false);
+          setVisible(false);
+        }, 150);
       });
-    }, 2800);
+    }, 3000);
 
-    return cleanup;
-  }, [onFinish, cleanup]);
+    return () => {
+      StatusBar.setHidden(false);
+      clearTimeout(timer);
+    };
+  }, []);
 
-  // Interpolação para a barra de progresso
-  const progressWidth = progressAnim.interpolate({
+  const strokeDashoffset = progressAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
+    outputRange: [CIRCLE_CIRCUMFERENCE, 0],
   });
 
-  // Interpolação para rotação — RADIANOS! (3° = ~0.052 rad)
-  const rotateInterpolate = logoRotate.interpolate({
+  const rotateInterpolate = rotateAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['-0.052rad', '0.052rad'],
-  });
-
-  // Interpolação para cores do gradiente (cross-fade via índice)
-  const color1 = gradientIndex.interpolate({
-    inputRange: [0, 1, 2, 3],
-    outputRange: [
-      gradientSchemes[0][0], gradientSchemes[1][0], gradientSchemes[2][0], gradientSchemes[0][0]
-    ],
-  });
-  const color2 = gradientIndex.interpolate({
-    inputRange: [0, 1, 2, 3],
-    outputRange: [
-      gradientSchemes[0][1], gradientSchemes[1][1], gradientSchemes[2][1], gradientSchemes[0][1]
-    ],
-  });
-  const color3 = gradientIndex.interpolate({
-    inputRange: [0, 1, 2, 3],
-    outputRange: [
-      gradientSchemes[0][2], gradientSchemes[1][2], gradientSchemes[2][2], gradientSchemes[0][2]
-    ],
+    outputRange: ['0deg', '360deg'],
   });
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      {/* Gradiente único com cores animadas (mais leve que 3 sobrepostos) */}
-      <Animated.View style={StyleSheet.absoluteFill}>
-        <LinearGradient
-          colors={[color1.__getValue ? color1.__getValue() : gradientSchemes[0][0], 
-                   color2.__getValue ? color2.__getValue() : gradientSchemes[0][1], 
-                   color3.__getValue ? color3.__getValue() : gradientSchemes[0][2]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-
-      <Animated.View style={[
-        styles.content,
-        {
-          transform: [{ translateY: contentTranslateY }],
-        }
-      ]}>
-        <Animated.View style={[
-          styles.logoContainer,
-          {
-            transform: [
-              { scale: logoScale },
-              { rotate: rotateInterpolate },
-            ]
-          }
-        ]}>
-          <Ionicons name="wallet-outline" size={100} color="#FFFFFF" />
-        </Animated.View>
-
-        <Text style={styles.title}>SmartExpense</Text>
-        <Text style={styles.subtitle}>Controle financeiro inteligente</Text>
-
-        {/* Barra de Progresso */}
-        <View style={styles.loaderContainer}>
-          <Animated.View style={[styles.loaderBar, { width: progressWidth }]} />
+    <Modal
+      visible={visible}
+      animationType="none"
+      transparent={true}
+      statusBarTranslucent={true}
+      onRequestClose={() => {}}
+    >
+      <Animated.View
+        style={[
+          styles.container,
+          { opacity: fadeAnim, backgroundColor: bgColor },
+        ]}
+      >
+        {/* Padrão de fundo sutil */}
+        <View style={styles.bgPattern} pointerEvents="none">
+          <View
+            style={[
+              styles.bgCircle,
+              {
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                top: -80,
+                right: -60,
+                width: 280,
+                height: 280,
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.bgCircle,
+              {
+                backgroundColor: 'rgba(255,255,255,0.03)',
+                bottom: -40,
+                left: -80,
+                width: 220,
+                height: 220,
+              },
+            ]}
+          />
         </View>
 
-        <Text style={styles.version}>v3.0</Text>
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              transform: [
+                { scale: scaleAnim },
+                { translateY: contentTranslateY },
+              ],
+            },
+          ]}
+        >
+          {/* Logo — sombra bem sutil */}
+          <Animated.View
+            style={[
+              styles.logoContainer,
+              { transform: [{ scale: pulseAnim }] },
+            ]}
+          >
+            <Ionicons name="wallet-outline" size={72} color="#FFFFFF" />
+          </Animated.View>
+
+          <Text style={styles.title}>SmartExpense</Text>
+          <Text style={styles.subtitle}>Controle financeiro inteligente</Text>
+
+          {/* Progress Ring estilo Windows */}
+          <View style={styles.ringContainer}>
+            <Animated.View
+              style={{ transform: [{ rotate: rotateInterpolate }] }}
+            >
+              <Svg
+                width={CIRCLE_RADIUS * 2 + CIRCLE_STROKE * 2}
+                height={CIRCLE_RADIUS * 2 + CIRCLE_STROKE * 2}
+                viewBox={`0 0 ${(CIRCLE_RADIUS + CIRCLE_STROKE) * 2} ${(CIRCLE_RADIUS + CIRCLE_STROKE) * 2}`}
+              >
+                <Circle
+                  cx={CIRCLE_RADIUS + CIRCLE_STROKE}
+                  cy={CIRCLE_RADIUS + CIRCLE_STROKE}
+                  r={CIRCLE_RADIUS}
+                  fill="none"
+                  stroke={trackColor}
+                  strokeWidth={CIRCLE_STROKE}
+                  strokeLinecap="round"
+                />
+                <AnimatedCircle
+                  cx={CIRCLE_RADIUS + CIRCLE_STROKE}
+                  cy={CIRCLE_RADIUS + CIRCLE_STROKE}
+                  r={CIRCLE_RADIUS}
+                  fill="none"
+                  stroke={indicatorColor}
+                  strokeWidth={CIRCLE_STROKE}
+                  strokeLinecap="round"
+                  strokeDasharray={CIRCLE_CIRCUMFERENCE}
+                  strokeDashoffset={strokeDashoffset}
+                  rotation={-90}
+                  originX={CIRCLE_RADIUS + CIRCLE_STROKE}
+                  originY={CIRCLE_RADIUS + CIRCLE_STROKE}
+                />
+              </Svg>
+            </Animated.View>
+          </View>
+
+          <Text style={styles.version}>v{appVersion}</Text>
+        </Animated.View>
       </Animated.View>
-    </Animated.View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
     width: SCREEN_WIDTH,
     height: SCREEN_HEIGHT,
-    zIndex: 99999,
-    elevation: 99999,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  bgPattern: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 999,
   },
   content: {
     alignItems: 'center',
     justifyContent: 'center',
     width: SCREEN_WIDTH,
-    position: 'absolute',
   },
   logoContainer: {
-    marginBottom: 30,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 28,
-    elevation: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.25)',
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    // Sombra bem sutil
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   title: {
-    fontSize: 42,
+    fontSize: 38,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 1.5,
-    marginBottom: 10,
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.12)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.92)',
-    letterSpacing: 0.6,
-    marginBottom: 48,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
+    letterSpacing: 0.4,
+    marginBottom: 40,
     fontWeight: '500',
   },
-  loaderContainer: {
-    width: 220,
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 20,
-    alignItems: 'flex-start',
-  },
-  loaderBar: {
-    height: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 4,
+  ringContainer: {
+    width: 100,
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 28,
   },
   version: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.55)',
     fontWeight: '600',
-    letterSpacing: 1.2,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 });
 
