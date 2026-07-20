@@ -30,5 +30,4 @@ yarn-error.*
 
 # Local env files
 .env*.local
-eas.json
 /node_modules
