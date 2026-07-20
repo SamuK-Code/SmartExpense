@@ -96,8 +96,8 @@ export default ({ config }) => {
       eas: {
         projectId: '47ff95c8-9aa9-4d0b-b858-850490d6e14b',
       },
-      SUPABASE_URL: process.env.SUPABASE_URL || '',
-      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || '',
+      EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
       GOOGLE_VISION_API_KEY: process.env.GOOGLE_VISION_API_KEY || '',
     },
 
